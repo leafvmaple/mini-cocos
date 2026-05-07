@@ -1,23 +1,25 @@
 #pragma once
 
-#include "2d/ZCNode.h"
-#include <memory>
+#include "2d/ZCScene.h"
+#include "base/ZCScheduler.h"
 
 struct GLFWwindow;
 
 namespace zocos {
 
-class ZCDirector {
+class Director {
 public:
-    static ZCDirector& getInstance();
+    static Director& getInstance();
 
     bool init(int width, int height, const char* title);
     void shutdown();
 
-    void runWithScene(std::unique_ptr<ZCScene> scene);
+    void runWithScene(Scene* scene);
     void mainLoop();
 
-    const ZCMat4& projectionMatrix() const { return _projection; }
+    Scheduler& getScheduler() { return _scheduler; }
+
+    const Mat4& projectionMatrix() const { return _projection; }
     GLFWwindow* getWindow() const { return _window; }
 
     int getFramebufferWidth() const { return _fbWidth; }
@@ -26,13 +28,14 @@ public:
     void onFramebufferResize(int w, int h);
 
 private:
-    ZCDirector() = default;
+    Director() = default;
 
     void updateProjection();
 
     GLFWwindow* _window = nullptr;
-    std::unique_ptr<ZCScene> _runningScene;
-    ZCMat4 _projection = ZCMat4::identity();
+    Scene* _runningScene = nullptr;
+    Scheduler _scheduler;
+    Mat4 _projection = Mat4::identity();
     int _fbWidth = 0;
     int _fbHeight = 0;
     double _lastTime = 0.0;

@@ -25,8 +25,12 @@ find_package(OpenGL REQUIRED)
 add_executable(zocos
   src/main.cpp
   src/platform/opengl_loader.cpp
+  src/base/ZCRef.cpp
+  src/base/ZCAutoreleasePool.cpp
+  src/base/ZCScheduler.cpp
   src/base/ZCDirector.cpp
   src/2d/ZCNode.cpp
+  src/2d/ZCScene.cpp
   src/2d/ZCSprite.cpp
 )
 

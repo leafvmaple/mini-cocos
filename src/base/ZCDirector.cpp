@@ -1,4 +1,5 @@
 #include "base/ZCDirector.h"
+#include "base/ZCAutoreleasePool.h"
 #include "platform/opengl_loader.h"
 
 #define GLFW_INCLUDE_NONE
@@ -7,23 +8,23 @@
 namespace zocos {
 
 static void framebufferSizeCallback(GLFWwindow* win, int w, int h) {
-    auto* self = static_cast<ZCDirector*>(glfwGetWindowUserPointer(win));
+    auto* self = static_cast<Director*>(glfwGetWindowUserPointer(win));
     if (self) self->onFramebufferResize(w, h);
 }
 
-void ZCDirector::onFramebufferResize(int w, int h) {
+void Director::onFramebufferResize(int w, int h) {
     _fbWidth = w;
     _fbHeight = h;
     glViewport(0, 0, w, h);
     updateProjection();
 }
 
-ZCDirector& ZCDirector::getInstance() {
-    static ZCDirector inst;
+Director& Director::getInstance() {
+    static Director inst;
     return inst;
 }
 
-bool ZCDirector::init(int width, int height, const char* title) {
+bool Director::init(int width, int height, const char* title) {
     if (!glfwInit()) return false;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -54,8 +55,15 @@ bool ZCDirector::init(int width, int height, const char* title) {
     return true;
 }
 
-void ZCDirector::shutdown() {
-    _runningScene.reset();
+void Director::shutdown() {
+    if (_runningScene) {
+        if (_runningScene->isRunning()) {
+            _runningScene->onExit();
+        }
+        _runningScene->release();
+        _runningScene = nullptr;
+    }
+    PoolManager::getInstance().clearRootPool();
     if (_window) {
         glfwDestroyWindow(_window);
         _window = nullptr;
@@ -63,22 +71,44 @@ void ZCDirector::shutdown() {
     glfwTerminate();
 }
 
-void ZCDirector::updateProjection() {
+void Director::updateProjection() {
     if (_fbWidth <= 0 || _fbHeight <= 0) return;
-    _projection = ZCMat4::ortho(0.f, static_cast<float>(_fbWidth), 0.f, static_cast<float>(_fbHeight), -1.f, 1.f);
+    _projection = Mat4::ortho(0.f, static_cast<float>(_fbWidth), 0.f, static_cast<float>(_fbHeight), -1.f, 1.f);
 }
 
-void ZCDirector::runWithScene(std::unique_ptr<ZCScene> scene) {
-    _runningScene = std::move(scene);
+void Director::runWithScene(Scene* scene) {
+    if (_runningScene == scene) {
+        return;
+    }
+
+    if (_runningScene) {
+        if (_runningScene->isRunning()) {
+            _runningScene->onExit();
+        }
+        _runningScene->release();
+        _runningScene = nullptr;
+    }
+
+    _runningScene = scene;
+    if (_runningScene) {
+        _runningScene->retain();
+        _runningScene->onEnter();
+    }
+
+    // Flush startup autoreleased objects; retained objects stay alive.
+    PoolManager::getInstance().clearRootPool();
 }
 
-void ZCDirector::mainLoop() {
+void Director::mainLoop() {
     while (_window && !glfwWindowShouldClose(_window)) {
+        AutoreleasePool framePool("frame autorelease pool");
+
         const double now = glfwGetTime();
         const float dt = static_cast<float>(now - _lastTime);
         _lastTime = now;
 
         glfwPollEvents();
+        _scheduler.update(dt);
         if (_runningScene) _runningScene->updateTree(dt);
 
         glClearColor(0.12f, 0.12f, 0.15f, 1.f);

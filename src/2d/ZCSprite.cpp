@@ -5,6 +5,7 @@
 #include <stb_image.h>
 
 #include <cstdio>
+#include <new>
 #include <vector>
 
 namespace zocos {
@@ -66,17 +67,47 @@ GLuint linkProgram(GLuint vs, GLuint fs) {
 
 } // namespace
 
-ZCSprite::ZCSprite(ZCDirector& director) : _director(director) {
-    setContentSize({128.f, 128.f});
+Sprite::Sprite(Director& director) : _director(director) {
 }
 
-ZCSprite::~ZCSprite() {
+Sprite* Sprite::create(Director& director) {
+    auto* sprite = new (std::nothrow) Sprite(director);
+    if (!sprite) {
+        return nullptr;
+    }
+    if (sprite->init()) {
+        return static_cast<Sprite*>(sprite->autorelease());
+    }
+    delete sprite;
+    return nullptr;
+}
+
+Sprite* Sprite::createWithFile(Director& director, const char* path) {
+    auto* sprite = create(director);
+    if (!sprite) {
+        return nullptr;
+    }
+    if (!sprite->initWithFile(path)) {
+        return nullptr;
+    }
+    return sprite;
+}
+
+bool Sprite::init() {
+    if (!Node::init()) {
+        return false;
+    }
+    setContentSize({128.f, 128.f});
+    return true;
+}
+
+Sprite::~Sprite() {
     if (_vbo) glDeleteBuffers(1, &_vbo);
     if (_vao) glDeleteVertexArrays(1, &_vao);
     if (_texture) glDeleteTextures(1, &_texture);
 }
 
-bool ZCSprite::initWithFile(const char* path) {
+bool Sprite::initWithFile(const char* path) {
     int w = 0, h = 0, ch = 0;
     unsigned char* data = stbi_load(path, &w, &h, &ch, 4);
     if (!data) {
@@ -97,7 +128,7 @@ bool ZCSprite::initWithFile(const char* path) {
     return true;
 }
 
-void ZCSprite::initWithCheckerboard() {
+void Sprite::initWithCheckerboard() {
     constexpr int N = 64;
     std::vector<unsigned char> px(static_cast<size_t>(N * N * 4));
     for (int y = 0; y < N; ++y) {
@@ -121,7 +152,7 @@ void ZCSprite::initWithCheckerboard() {
     _ready = true;
 }
 
-void ZCSprite::draw(const ZCMat4& world) {
+void Sprite::draw(const Mat4& world) {
     if (!_ready) return;
 
     static GLuint s_program = 0;
@@ -156,7 +187,7 @@ void ZCSprite::draw(const ZCMat4& world) {
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(8));
 
-    const ZCMat4 mvp = _director.projectionMatrix() * world;
+    const Mat4 mvp = _director.projectionMatrix() * world;
     glUseProgram(s_program);
     glUniformMatrix4fv(s_locMvp, 1, GL_TRUE, mvp.data());
     glActiveTexture(GL_TEXTURE0);

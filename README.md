@@ -1,6 +1,6 @@
 # zocos
 
-**zocos** 是为学习 [cocos2d-x](https://github.com/cocos2d/cocos2d-x) 而**自研**的极简 2D 引擎示例：用 GLFW + OpenGL 3.3 Core 实现与 cocos2d-x 相近的概念（`ZCDirector`、`ZCScene`、`ZCNode`、`ZCSprite`），便于对照官方引擎理解场景图、变换与渲染循环。仅供学习阅读，不面向生产。
+**zocos** 是为学习 [cocos2d-x](https://github.com/cocos2d/cocos2d-x) 而**自研**的极简 2D 引擎示例：用 GLFW + OpenGL 3.3 Core 实现与 cocos2d-x 相近的概念（`Director`、`Scene`、`Node`、`Sprite`），便于对照官方引擎理解场景图、变换与渲染循环。仅供学习阅读，不面向生产。
 
 命名与约定见仓库根目录 [`CONVENTIONS.md`](CONVENTIONS.md)（供人类与 AI 助手统一遵循）。
 
@@ -75,10 +75,10 @@ Get-ChildItem -Path src -Recurse -Include *.cpp,*.h | ForEach-Object { clang-for
 
 | Path | Role |
 |------|------|
-| `src/math/ZCMath.h` | `ZCVec2`、`ZCSize`、`ZCMat4`（文件名避免与系统 `Math.h` 在大小写不敏感盘上冲突） |
-| `src/base/ZCDirector.*` | 主循环、GL 上下文、投影、当前场景（对应引擎 `base` 层） |
-| `src/2d/ZCNode.*` | 场景图基类：`visit`、`updateTree`、变换 |
-| `src/2d/ZCSprite.*` | 纹理四边形与简单着色器 |
+| `src/math/ZCMath.h` | `Vec2`、`Size`、`Mat4`（文件名避免与系统 `Math.h` 在大小写不敏感盘上冲突） |
+| `src/base/ZCDirector.*` | 主循环、GL 上下文、投影、当前场景（类型为 `Director`） |
+| `src/2d/ZCNode.*` | 场景图基类：`visit`、`updateTree`、变换（类型为 `Node` / `Scene`） |
+| `src/2d/ZCSprite.*` | 纹理四边形与简单着色器（类型为 `Sprite`） |
 | `src/platform/opengl_loader.*` | 最小 GL 3.3 入口（平台 / 图形后端相关） |
 | `src/main.cpp` | 示例入口 |
 | `.clang-format` / `.clang-format-ignore` | 代码风格（4 空格）；忽略第三方目录 |

@@ -11,33 +11,35 @@
 - 引擎与数学类型均在 **`namespace zocos`** 中声明。
 - 不在全局命名空间添加与引擎同名的类型，避免与第三方或系统头冲突。
 
-## 类名：`ZC` 前缀
+## 类名：无前缀（通过命名空间区分）
 
-cocos2d-x 历史 API 以 **`CC`** 为前缀（如 `CCNode`、`CCDirector`）。本项目中，**公开引擎类型**使用 **`ZC`** 前缀作为对应约定：
+cocos2d-x 历史 API 以 **`CC`** 为前缀（如 `CCNode`、`CCDirector`）。本项目中，**公开引擎类型**不再使用 `ZC` 前缀，而是依赖 `namespace zocos` 完成区分：
 
 | 概念 | zocos 类型 |
 |------|------------|
-| 导演 / 主循环 | `ZCDirector` |
-| 场景 | `ZCScene` |
-| 节点 | `ZCNode` |
-| 精灵 | `ZCSprite` |
+| 导演 / 主循环 | `Director` |
+| 场景 | `Scene` |
+| 节点 | `Node` |
+| 精灵 | `Sprite` |
 
-新增同类概念时，继续使用 **`ZC` + PascalCase**（例如未来的 `ZCLabel`）。
+新增同类概念时，继续使用 **PascalCase**（例如未来的 `Label`）。
+
+> 说明：**文件名**仍保持 `ZC*.h/.cpp`（例如 `ZCDirector.h`）以兼容现有目录结构。
 
 ## 数学与辅助类型
 
-- 向量、尺寸、矩阵：`ZCVec2`、`ZCSize`、`ZCMat4`（定义于 `src/math/ZCMath.h`）。
+- 向量、尺寸、矩阵：`Vec2`、`Size`、`Mat4`（定义于 `src/math/ZCMath.h`）。
 - 与节点局部矩阵相关的自由函数：`zcNodeLocalMatrix`（小写 `zc` 前缀 + PascalCase，表示非类成员工具函数）。
 
 ## 目录与源文件（对齐 cocos2d-x）
 
 - **`src/math/`**：数学与几何（仅头文件 `ZCMath.h` 亦可）。
-- **`src/base/`**：导演、应用级生命周期（`ZCDirector`）。
-- **`src/2d/`**：二维节点与渲染对象（`ZCNode`、`ZCSprite`、`ZCScene`）。
+- **`src/base/`**：导演、应用级生命周期（`Director`）。
+- **`src/2d/`**：二维节点与渲染对象（`Node`、`Sprite`、`Scene`）。
 - **`src/platform/`**：平台与图形 API 封装（此处为 `opengl_loader`）。
 - **`src/main.cpp`**：可执行入口、示例代码。
 
-源文件命名仍与主类一致：`ZCDirector.cpp/.h` 等。
+源文件命名保持 `ZC` 前缀：`ZCDirector.cpp/.h`、`ZCNode.cpp/.h` 等。
 
 **Include 规则**：`target_include_directories` 将 **`src`** 作为根目录，与 cocos 类似：
 
@@ -51,12 +53,12 @@ cocos2d-x 历史 API 以 **`CC`** 为前缀（如 `CCNode`、`CCDirector`）。�
 
 ## 与 cocos2d-x 的对应关系（心智模型）
 
-- `ZCDirector::getInstance` ≈ 单例入口与主循环。
-- `ZCScene` 作为根节点承载一层 UI/游戏对象。
-- `ZCNode` 负责父子关系、变换与遍历。
-- `ZCSprite` 表示带纹理的矩形绘制。
+- `Director::getInstance` ≈ 单例入口与主循环。
+- `Scene` 作为根节点承载一层 UI/游戏对象。
+- `Node` 负责父子关系、变换与遍历。
+- `Sprite` 表示带纹理的矩形绘制。
 
-对照阅读 cocos2d-x 源码时，可将 `CC*` 与 `ZC*` 类比，但 **API 不完全一致**，本仓库以实现简单清晰为先。
+对照阅读 cocos2d-x 源码时，可将 `CC*` 与本项目同名类型类比，但 **API 不完全一致**，本仓库以实现简单清晰为先。
 
 ## 代码格式
 
@@ -70,4 +72,4 @@ cocos2d-x 历史 API 以 **`CC`** 为前缀（如 `CCNode`、`CCDirector`）。�
 
 ---
 
-**给 AI 助手**：生成或重构代码时，默认使用 **`namespace zocos`**、引擎类 **`ZC` 前缀**、数学类型 **`ZCVec2` / `ZCSize` / `ZCMat4`**，新文件放入 **`math/` / `base/` / `2d/` / `platform/`** 等对应目录，include 使用 **`src` 为根的相对路径**，并保持 CMake 目标名 **zocos**。
+**给 AI 助手**：生成或重构代码时，默认使用 **`namespace zocos`**、引擎类名 **无 `ZC` 前缀**（如 `Director` / `Node`）、数学类型 **`Vec2` / `Size` / `Mat4`**；文件名保持 `ZC` 前缀（如 `ZCDirector.h`），新文件放入 **`math/` / `base/` / `2d/` / `platform/`** 等对应目录，include 使用 **`src` 为根的相对路径**，并保持 CMake 目标名 **zocos**。

@@ -6,47 +6,47 @@
 
 namespace zocos {
 
-struct ZCVec2 {
+struct Vec2 {
     float x = 0.f;
     float y = 0.f;
 };
 
-struct ZCSize {
+struct Size {
     float width = 0.f;
     float height = 0.f;
 };
 
 // Column-major 4x4, compatible with glUniformMatrix4fv(..., GL_TRUE, ...).
-struct ZCMat4 {
+struct Mat4 {
     float m[16]{};
 
-    static ZCMat4 identity() {
-        ZCMat4 r{};
+    static Mat4 identity() {
+        Mat4 r{};
         r.m[0] = r.m[5] = r.m[10] = r.m[15] = 1.f;
         return r;
     }
 
-    static ZCMat4 translate(float tx, float ty, float tz = 0.f) {
-        ZCMat4 r = identity();
+    static Mat4 translate(float tx, float ty, float tz = 0.f) {
+        Mat4 r = identity();
         r.m[12] = tx;
         r.m[13] = ty;
         r.m[14] = tz;
         return r;
     }
 
-    static ZCMat4 scale(float sx, float sy, float sz = 1.f) {
-        ZCMat4 r = identity();
+    static Mat4 scale(float sx, float sy, float sz = 1.f) {
+        Mat4 r = identity();
         r.m[0] = sx;
         r.m[5] = sy;
         r.m[10] = sz;
         return r;
     }
 
-    static ZCMat4 rotateZ(float degrees) {
+    static Mat4 rotateZ(float degrees) {
         const float rad = degrees * 3.14159265f / 180.f;
         const float c = std::cos(rad);
         const float s = std::sin(rad);
-        ZCMat4 r = identity();
+        Mat4 r = identity();
         r.m[0] = c;
         r.m[1] = s;
         r.m[4] = -s;
@@ -54,8 +54,8 @@ struct ZCMat4 {
         return r;
     }
 
-    static ZCMat4 ortho(float left, float right, float bottom, float top, float nearZ, float farZ) {
-        ZCMat4 r = identity();
+    static Mat4 ortho(float left, float right, float bottom, float top, float nearZ, float farZ) {
+        Mat4 r = identity();
         r.m[0] = 2.f / (right - left);
         r.m[5] = 2.f / (top - bottom);
         r.m[10] = -2.f / (farZ - nearZ);
@@ -65,8 +65,8 @@ struct ZCMat4 {
         return r;
     }
 
-    ZCMat4 operator*(const ZCMat4& b) const {
-        ZCMat4 o{};
+    Mat4 operator*(const Mat4& b) const {
+        Mat4 o{};
         for (int c = 0; c < 4; ++c) {
             for (int r = 0; r < 4; ++r) {
                 o.m[c * 4 + r] = m[0 * 4 + r] * b.m[c * 4 + 0] + m[1 * 4 + r] * b.m[c * 4 + 1] +
@@ -79,12 +79,12 @@ struct ZCMat4 {
     const float* data() const { return m; }
 };
 
-inline ZCMat4 zcNodeLocalMatrix(const ZCVec2& position, const ZCVec2& scale, float rotationDegrees,
-                                const ZCVec2& anchorPoint, const ZCSize& contentSize) {
+inline Mat4 zcNodeLocalMatrix(const Vec2& position, const Vec2& scale, float rotationDegrees,
+                              const Vec2& anchorPoint, const Size& contentSize) {
     const float ax = anchorPoint.x * contentSize.width;
     const float ay = anchorPoint.y * contentSize.height;
-    return ZCMat4::translate(position.x, position.y, 0.f) * ZCMat4::rotateZ(rotationDegrees) *
-        ZCMat4::scale(scale.x, scale.y, 1.f) * ZCMat4::translate(-ax, -ay, 0.f);
+    return Mat4::translate(position.x, position.y, 0.f) * Mat4::rotateZ(rotationDegrees) *
+        Mat4::scale(scale.x, scale.y, 1.f) * Mat4::translate(-ax, -ay, 0.f);
 }
 
 } // namespace zocos

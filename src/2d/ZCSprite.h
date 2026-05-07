@@ -5,20 +5,27 @@
 
 namespace zocos {
 
-class ZCDirector;
+class Director;
 
-class ZCSprite : public ZCNode {
+class Sprite : public Node {
 public:
-    explicit ZCSprite(ZCDirector& director);
-    ~ZCSprite() override;
+    static Sprite* create(Director& director);
+    static Sprite* createWithFile(Director& director, const char* path);
+
+    ~Sprite() override;
+
+    bool init() override;
 
     bool initWithFile(const char* path);
     void initWithCheckerboard();
 
-    void draw(const ZCMat4& world) override;
+    void draw(const Mat4& world) override;
+
+protected:
+    explicit Sprite(Director& director);
 
 private:
-    ZCDirector& _director;
+    Director& _director;
     GLuint _texture = 0;
     GLuint _vao = 0;
     GLuint _vbo = 0;
