@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 namespace zocos {
 
 class Ref {
@@ -7,14 +9,16 @@ public:
     void retain();
     void release();
     Ref* autorelease();
+    static std::size_t getLiveCount();
 
     unsigned int getReferenceCount() const { return _referenceCount; }
 
 protected:
-    Ref() = default;
-    virtual ~Ref() = default;
+    Ref();
+    virtual ~Ref();
 
 private:
+    static std::size_t s_liveCount;
     unsigned int _referenceCount = 1;
 };
 

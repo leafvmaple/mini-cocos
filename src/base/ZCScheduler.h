@@ -22,6 +22,8 @@ public:
     void unscheduleAllForTarget(Node* target);
     void update(float dt);
 
+    std::size_t getScheduledCount() const;
+
 private:
     struct Entry {
         Node* target = nullptr;

@@ -1,15 +1,115 @@
 #include "base/ZCDirector.h"
 #include "base/ZCAutoreleasePool.h"
+#include "base/ZCEvent.h"
 #include "platform/opengl_loader.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+
+#include <cassert>
 
 namespace zocos {
 
 static void framebufferSizeCallback(GLFWwindow* win, int w, int h) {
     auto* self = static_cast<Director*>(glfwGetWindowUserPointer(win));
     if (self) self->onFramebufferResize(w, h);
+}
+
+static void toEnginePoint(Director* director, GLFWwindow* win, double x, double y, float& outX,
+                          float& outY) {
+    int winW = 0;
+    int winH = 0;
+    glfwGetWindowSize(win, &winW, &winH);
+    const int fbW = director->getFramebufferWidth();
+    const int fbH = director->getFramebufferHeight();
+    if (winW <= 0 || winH <= 0 || fbW <= 0 || fbH <= 0) {
+        outX = static_cast<float>(x);
+        outY = static_cast<float>(y);
+        return;
+    }
+
+    const double sx = static_cast<double>(fbW) / static_cast<double>(winW);
+    const double sy = static_cast<double>(fbH) / static_cast<double>(winH);
+    outX = static_cast<float>(x * sx);
+    outY = static_cast<float>((static_cast<double>(winH) - y) * sy);
+}
+
+static void keyCallback(GLFWwindow* win, int key, int scancode, int action, int mods) {
+    auto* self = static_cast<Director*>(glfwGetWindowUserPointer(win));
+    if (!self) {
+        return;
+    }
+    if (action != GLFW_PRESS && action != GLFW_REPEAT && action != GLFW_RELEASE) {
+        return;
+    }
+
+    const bool pressed = action != GLFW_RELEASE;
+    const bool repeated = action == GLFW_REPEAT;
+    EventKeyboard event(key, scancode, mods, pressed, repeated);
+    self->getEventDispatcher().dispatchEvent(event);
+
+    if (!event.isStopped() && key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+        glfwSetWindowShouldClose(win, GLFW_TRUE);
+    }
+}
+
+static void mouseButtonCallback(GLFWwindow* win, int button, int action, int mods) {
+    auto* self = static_cast<Director*>(glfwGetWindowUserPointer(win));
+    if (!self) {
+        return;
+    }
+    if (action != GLFW_PRESS && action != GLFW_RELEASE) {
+        return;
+    }
+
+    double x = 0.0;
+    double y = 0.0;
+    glfwGetCursorPos(win, &x, &y);
+    float px = 0.f;
+    float py = 0.f;
+    toEnginePoint(self, win, x, y, px, py);
+
+    EventMouseButton event(button, mods, action == GLFW_PRESS, px, py);
+    self->getEventDispatcher().dispatchEvent(event);
+}
+
+static void cursorPosCallback(GLFWwindow* win, double x, double y) {
+    auto* self = static_cast<Director*>(glfwGetWindowUserPointer(win));
+    if (!self) {
+        return;
+    }
+
+    float px = 0.f;
+    float py = 0.f;
+    toEnginePoint(self, win, x, y, px, py);
+
+    float deltaX = 0.f;
+    float deltaY = 0.f;
+    if (self->hasMousePosition()) {
+        deltaX = px - self->getMouseX();
+        deltaY = py - self->getMouseY();
+    }
+    self->setMousePosition(px, py);
+
+    EventMouseMove event(px, py, deltaX, deltaY);
+    self->getEventDispatcher().dispatchEvent(event);
+}
+
+static void scrollCallback(GLFWwindow* win, double offsetX, double offsetY) {
+    auto* self = static_cast<Director*>(glfwGetWindowUserPointer(win));
+    if (!self) {
+        return;
+    }
+
+    double x = 0.0;
+    double y = 0.0;
+    glfwGetCursorPos(win, &x, &y);
+    float px = 0.f;
+    float py = 0.f;
+    toEnginePoint(self, win, x, y, px, py);
+
+    EventMouseScroll event(static_cast<float>(offsetX), static_cast<float>(offsetY), px, py);
+    self->getEventDispatcher().dispatchEvent(event);
 }
 
 void Director::onFramebufferResize(int w, int h) {
@@ -40,6 +140,10 @@ bool Director::init(int width, int height, const char* title) {
     glfwMakeContextCurrent(_window);
     glfwSetWindowUserPointer(_window, this);
     glfwSetFramebufferSizeCallback(_window, framebufferSizeCallback);
+    glfwSetKeyCallback(_window, keyCallback);
+    glfwSetMouseButtonCallback(_window, mouseButtonCallback);
+    glfwSetCursorPosCallback(_window, cursorPosCallback);
+    glfwSetScrollCallback(_window, scrollCallback);
 
     if (!loadOpenGL(reinterpret_cast<void* (*)(const char*)>(glfwGetProcAddress))) {
         shutdown();
@@ -48,6 +152,15 @@ bool Director::init(int width, int height, const char* title) {
 
     glfwGetFramebufferSize(_window, &_fbWidth, &_fbHeight);
     glViewport(0, 0, _fbWidth, _fbHeight);
+
+    double x = 0.0;
+    double y = 0.0;
+    glfwGetCursorPos(_window, &x, &y);
+    float px = 0.f;
+    float py = 0.f;
+    toEnginePoint(this, _window, x, y, px, py);
+    setMousePosition(px, py);
+
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     updateProjection();
@@ -63,6 +176,11 @@ void Director::shutdown() {
         _runningScene->release();
         _runningScene = nullptr;
     }
+
+    assert(_scheduler.getScheduledCount() == 0 && "Scheduled callbacks were not fully released.");
+    assert(_eventDispatcher.getListenerCount() == 0 && "Event listeners were not fully released.");
+
+    _eventDispatcher.removeAllListeners();
     PoolManager::getInstance().clearRootPool();
     if (_window) {
         glfwDestroyWindow(_window);

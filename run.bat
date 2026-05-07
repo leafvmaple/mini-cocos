@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 
 cmake -B build || exit /b 1
-cmake --build build --config Release || exit /b 1
+cmake --build build --config Debug || exit /b 1
 
 if exist "build\Release\zocos.exe" (
   "build\Release\zocos.exe" %*

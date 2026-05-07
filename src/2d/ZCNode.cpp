@@ -21,6 +21,7 @@ Node* Node::create() {
 }
 
 Node::~Node() {
+    Director::getInstance().getEventDispatcher().removeListenersForTarget(this);
     unscheduleAllCallbacks();
     removeAllChildren();
 }

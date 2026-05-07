@@ -1,9 +1,16 @@
 // Demo: compare with cocos2d-x flow — Application / Director::runWithScene / Scene / Node / Sprite.
 #include "base/ZCDirector.h"
+#include "base/ZCRef.h"
 #include "2d/ZCNode.h"
 #include "2d/ZCScene.h"
 #include "2d/ZCSprite.h"
 
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+
+#include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <cstdio>
 #include <new>
 
@@ -23,14 +30,144 @@ public:
         return nullptr;
     }
 
-    void update(float dt) override { _angle += 45.f * dt; setRotation(_angle); }
+    ~DemoSprite() override {
+        assert(s_liveCount > 0);
+        --s_liveCount;
+    }
+
+    void update(float dt) override {
+        float vx = 0.f;
+        float vy = 0.f;
+        if (_moveLeft) vx -= 1.f;
+        if (_moveRight) vx += 1.f;
+        if (_moveDown) vy -= 1.f;
+        if (_moveUp) vy += 1.f;
+
+        if (vx != 0.f || vy != 0.f) {
+            if (vx != 0.f && vy != 0.f) {
+                constexpr float kInvSqrt2 = 0.70710678f;
+                vx *= kInvSqrt2;
+                vy *= kInvSqrt2;
+            }
+            const float speed = _sprint ? _moveSpeed * 1.8f : _moveSpeed;
+            setPosition(getPosition().x + vx * speed * dt, getPosition().y + vy * speed * dt);
+        }
+    }
+
+    void onKeyPressed(int keyCode) {
+        switch (keyCode) {
+        case GLFW_KEY_A:
+        case GLFW_KEY_LEFT:
+            _moveLeft = true;
+            break;
+        case GLFW_KEY_D:
+        case GLFW_KEY_RIGHT:
+            _moveRight = true;
+            break;
+        case GLFW_KEY_W:
+        case GLFW_KEY_UP:
+            _moveUp = true;
+            break;
+        case GLFW_KEY_S:
+        case GLFW_KEY_DOWN:
+            _moveDown = true;
+            break;
+        case GLFW_KEY_LEFT_SHIFT:
+        case GLFW_KEY_RIGHT_SHIFT:
+            _sprint = true;
+            break;
+        default:
+            break;
+        }
+    }
+
+    void onKeyReleased(int keyCode) {
+        switch (keyCode) {
+        case GLFW_KEY_A:
+        case GLFW_KEY_LEFT:
+            _moveLeft = false;
+            break;
+        case GLFW_KEY_D:
+        case GLFW_KEY_RIGHT:
+            _moveRight = false;
+            break;
+        case GLFW_KEY_W:
+        case GLFW_KEY_UP:
+            _moveUp = false;
+            break;
+        case GLFW_KEY_S:
+        case GLFW_KEY_DOWN:
+            _moveDown = false;
+            break;
+        case GLFW_KEY_LEFT_SHIFT:
+        case GLFW_KEY_RIGHT_SHIFT:
+            _sprint = false;
+            break;
+        default:
+            break;
+        }
+    }
+
+    bool containsPoint(float x, float y) const {
+        const auto& size = getContentSize();
+        const auto& scale = getScale();
+        const auto& anchor = getAnchorPoint();
+        const auto& position = getPosition();
+
+        const float width = size.width * std::abs(scale.x);
+        const float height = size.height * std::abs(scale.y);
+        const float left = position.x - anchor.x * width;
+        const float bottom = position.y - anchor.y * height;
+        const float right = left + width;
+        const float top = bottom + height;
+        return x >= left && x <= right && y >= bottom && y <= top;
+    }
+
+    void beginDrag(float x, float y) {
+        _dragging = true;
+        _dragOffsetX = getPosition().x - x;
+        _dragOffsetY = getPosition().y - y;
+    }
+
+    void dragTo(float x, float y) {
+        if (!_dragging) {
+            return;
+        }
+        setPosition(x + _dragOffsetX, y + _dragOffsetY);
+    }
+
+    void endDrag() { _dragging = false; }
+    bool isDragging() const { return _dragging; }
+
+    void applyScroll(float scrollY) {
+        float uniformScale = getScale().x + scrollY * 0.08f;
+        uniformScale = std::clamp(uniformScale, 0.25f, 4.0f);
+        setScale(uniformScale);
+    }
+
+    static int getLiveCount() { return s_liveCount; }
 
 protected:
-    explicit DemoSprite(Director& d) : Sprite(d) {}
+    explicit DemoSprite(Director& d) : Sprite(d) {
+        ++s_liveCount;
+    }
 
 private:
-    float _angle = 0.f;
+    static int s_liveCount;
+
+    bool _moveLeft = false;
+    bool _moveRight = false;
+    bool _moveUp = false;
+    bool _moveDown = false;
+    bool _sprint = false;
+
+    bool _dragging = false;
+    float _dragOffsetX = 0.f;
+    float _dragOffsetY = 0.f;
+    float _moveSpeed = 320.f;
 };
+
+int DemoSprite::s_liveCount = 0;
 
 int main(int argc, char** argv) {
     Director& dir = Director::getInstance();
@@ -66,8 +203,62 @@ int main(int argc, char** argv) {
 
     scene->addChild(child);
 
+    dir.getEventDispatcher().addKeyboardListener(
+        child,
+        [&dir, child](EventKeyboard& event) {
+            if (event.getKeyCode() == GLFW_KEY_ESCAPE) {
+                if (!event.isRepeated()) {
+                    glfwSetWindowShouldClose(dir.getWindow(), GLFW_TRUE);
+                }
+                event.stopPropagation();
+                return;
+            }
+            child->onKeyPressed(event.getKeyCode());
+        },
+        [child](EventKeyboard& event) { child->onKeyReleased(event.getKeyCode()); },
+        -200);
+
+    dir.getEventDispatcher().addMouseButtonListener(
+        child,
+        [child](EventMouseButton& event) {
+            if (event.getButton() == GLFW_MOUSE_BUTTON_LEFT && child->containsPoint(event.getX(), event.getY())) {
+                child->beginDrag(event.getX(), event.getY());
+                event.stopPropagation();
+            }
+        },
+        [child](EventMouseButton& event) {
+            if (event.getButton() == GLFW_MOUSE_BUTTON_LEFT) {
+                child->endDrag();
+            }
+        },
+        -100);
+
+    dir.getEventDispatcher().addMouseMoveListener(
+        child,
+        [child](EventMouseMove& event) {
+            if (child->isDragging()) {
+                child->dragTo(event.getX(), event.getY());
+                event.stopPropagation();
+            }
+        },
+        -100);
+
+    dir.getEventDispatcher().addMouseScrollListener(
+        child,
+        [child](EventMouseScroll& event) {
+            if (child->isDragging() || child->containsPoint(event.getX(), event.getY())) {
+                child->applyScroll(event.getOffsetY());
+                event.stopPropagation();
+            }
+        },
+        -100);
+
     dir.runWithScene(scene);
     dir.mainLoop();
     dir.shutdown();
+
+    assert(DemoSprite::getLiveCount() == 0 && "DemoSprite instances were not released.");
+    assert(Ref::getLiveCount() == 0 && "Ref-managed objects leaked.");
+
     return 0;
 }

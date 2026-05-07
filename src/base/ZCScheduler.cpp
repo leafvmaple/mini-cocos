@@ -215,4 +215,19 @@ void Scheduler::update(float dt) {
     sortEntriesIfNeeded();
 }
 
+std::size_t Scheduler::getScheduledCount() const {
+    std::size_t count = 0;
+    for (const auto& entry : _entries) {
+        if (!entry.cancelled && entry.target) {
+            ++count;
+        }
+    }
+    for (const auto& entry : _pendingEntries) {
+        if (!entry.cancelled && entry.target) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 } // namespace zocos

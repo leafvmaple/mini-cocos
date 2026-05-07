@@ -5,6 +5,17 @@
 
 namespace zocos {
 
+std::size_t Ref::s_liveCount = 0;
+
+Ref::Ref() {
+    ++s_liveCount;
+}
+
+Ref::~Ref() {
+    assert(s_liveCount > 0);
+    --s_liveCount;
+}
+
 void Ref::retain() {
     ++_referenceCount;
 }
@@ -24,6 +35,10 @@ Ref* Ref::autorelease() {
         pool->addObject(this);
     }
     return this;
+}
+
+std::size_t Ref::getLiveCount() {
+    return s_liveCount;
 }
 
 } // namespace zocos
