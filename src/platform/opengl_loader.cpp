@@ -1,11 +1,11 @@
-#include "opengl_loader.h"
+#include "platform/opengl_loader.h"
 #include <cstring>
 
 #define LOAD(name) \
-  do { \
-    name = reinterpret_cast<decltype(name)>(getProc(#name)); \
-    if (!name) return false; \
-  } while (0)
+    do { \
+        name = reinterpret_cast<decltype(name)>(getProc(#name)); \
+        if (!name) return false; \
+    } while (0)
 
 void (*glClearColor)(GLfloat, GLfloat, GLfloat, GLfloat);
 void (*glViewport)(GLint, GLint, GLsizei, GLsizei);
@@ -46,42 +46,42 @@ void (*glDeleteVertexArrays)(GLsizei, const GLuint*);
 void (*glDeleteBuffers)(GLsizei, const GLuint*);
 
 bool loadOpenGL(void* (*getProc)(const char*)) {
-  LOAD(glClearColor);
-  LOAD(glViewport);
-  LOAD(glClear);
-  LOAD(glEnable);
-  LOAD(glBlendFunc);
-  LOAD(glGenVertexArrays);
-  LOAD(glBindVertexArray);
-  LOAD(glGenBuffers);
-  LOAD(glBindBuffer);
-  LOAD(glBufferData);
-  LOAD(glVertexAttribPointer);
-  LOAD(glEnableVertexAttribArray);
-  LOAD(glDrawArrays);
-  LOAD(glGenTextures);
-  LOAD(glBindTexture);
-  LOAD(glTexImage2D);
-  LOAD(glTexParameteri);
-  LOAD(glActiveTexture);
-  LOAD(glCreateShader);
-  LOAD(glShaderSource);
-  LOAD(glCompileShader);
-  LOAD(glGetShaderiv);
-  LOAD(glGetShaderInfoLog);
-  LOAD(glCreateProgram);
-  LOAD(glAttachShader);
-  LOAD(glLinkProgram);
-  LOAD(glGetProgramiv);
-  LOAD(glGetProgramInfoLog);
-  LOAD(glDeleteShader);
-  LOAD(glUseProgram);
-  LOAD(glGetUniformLocation);
-  LOAD(glUniformMatrix4fv);
-  LOAD(glUniform1i);
-  LOAD(glDeleteProgram);
-  LOAD(glDeleteTextures);
-  LOAD(glDeleteVertexArrays);
-  LOAD(glDeleteBuffers);
-  return true;
+    LOAD(glClearColor);
+    LOAD(glViewport);
+    LOAD(glClear);
+    LOAD(glEnable);
+    LOAD(glBlendFunc);
+    LOAD(glGenVertexArrays);
+    LOAD(glBindVertexArray);
+    LOAD(glGenBuffers);
+    LOAD(glBindBuffer);
+    LOAD(glBufferData);
+    LOAD(glVertexAttribPointer);
+    LOAD(glEnableVertexAttribArray);
+    LOAD(glDrawArrays);
+    LOAD(glGenTextures);
+    LOAD(glBindTexture);
+    LOAD(glTexImage2D);
+    LOAD(glTexParameteri);
+    LOAD(glActiveTexture);
+    LOAD(glCreateShader);
+    LOAD(glShaderSource);
+    LOAD(glCompileShader);
+    LOAD(glGetShaderiv);
+    LOAD(glGetShaderInfoLog);
+    LOAD(glCreateProgram);
+    LOAD(glAttachShader);
+    LOAD(glLinkProgram);
+    LOAD(glGetProgramiv);
+    LOAD(glGetProgramInfoLog);
+    LOAD(glDeleteShader);
+    LOAD(glUseProgram);
+    LOAD(glGetUniformLocation);
+    LOAD(glUniformMatrix4fv);
+    LOAD(glUniform1i);
+    LOAD(glDeleteProgram);
+    LOAD(glDeleteTextures);
+    LOAD(glDeleteVertexArrays);
+    LOAD(glDeleteBuffers);
+    return true;
 }
