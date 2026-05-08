@@ -7,100 +7,44 @@
 
 namespace zocos {
 
-EventDispatcher::ListenerID EventDispatcher::addKeyboardListener(
-    Node* target, KeyboardCallback onPressed, KeyboardCallback onReleased, int priority) {
-    if (!target || (!onPressed && !onReleased)) {
-        return 0;
+namespace {
+
+bool hasCallbacks(const EventListener* listener) {
+    if (!listener) {
+        return false;
     }
 
-    ListenerEntry entry;
-    entry.id = _nextListenerId++;
-    entry.type = Event::Type::Keyboard;
-    entry.target = target;
-    entry.priority = priority;
-    entry.order = _nextOrder++;
-    entry.callback = [onPressed = std::move(onPressed), onReleased = std::move(onReleased)](Event& e) {
-        auto& keyEvent = static_cast<EventKeyboard&>(e);
-        if (keyEvent.isPressed()) {
-            if (onPressed) onPressed(keyEvent);
-        } else {
-            if (onReleased) onReleased(keyEvent);
-        }
-    };
-    addListener(std::move(entry));
-    return entry.id;
+    if (listener->getType() == EventListener::Type::Keyboard) {
+        const auto* keyboard = static_cast<const EventListenerKeyboard*>(listener);
+        return static_cast<bool>(keyboard->onKeyPressed) || static_cast<bool>(keyboard->onKeyReleased);
+    }
+
+    const auto* mouse = static_cast<const EventListenerMouse*>(listener);
+    return static_cast<bool>(mouse->onMouseDown) || static_cast<bool>(mouse->onMouseUp)
+        || static_cast<bool>(mouse->onMouseMove) || static_cast<bool>(mouse->onMouseScroll);
 }
 
-EventDispatcher::ListenerID EventDispatcher::addMouseButtonListener(
-    Node* target, MouseButtonCallback onPressed, MouseButtonCallback onReleased, int priority) {
-    if (!target || (!onPressed && !onReleased)) {
+} // namespace
+
+EventDispatcher::ListenerID EventDispatcher::addEventListener(EventListener* listener, Node* target,
+                                                              int priority) {
+    if (!target || !listener || !hasCallbacks(listener)) {
         return 0;
     }
 
     ListenerEntry entry;
     entry.id = _nextListenerId++;
-    entry.type = Event::Type::MouseButton;
     entry.target = target;
+    entry.listener = listener;
     entry.priority = priority;
     entry.order = _nextOrder++;
-    entry.callback = [onPressed = std::move(onPressed), onReleased = std::move(onReleased)](Event& e) {
-        auto& mouseEvent = static_cast<EventMouseButton&>(e);
-        if (mouseEvent.isPressed()) {
-            if (onPressed) onPressed(mouseEvent);
-        } else {
-            if (onReleased) onReleased(mouseEvent);
-        }
-    };
-    addListener(std::move(entry));
-    return entry.id;
-}
+    entry.listener->retain();
 
-EventDispatcher::ListenerID EventDispatcher::addMouseMoveListener(Node* target, MouseMoveCallback onMoved,
-                                                                  int priority) {
-    if (!target || !onMoved) {
-        return 0;
-    }
-
-    ListenerEntry entry;
-    entry.id = _nextListenerId++;
-    entry.type = Event::Type::MouseMove;
-    entry.target = target;
-    entry.priority = priority;
-    entry.order = _nextOrder++;
-    entry.callback = [onMoved = std::move(onMoved)](Event& e) {
-        auto& moveEvent = static_cast<EventMouseMove&>(e);
-        onMoved(moveEvent);
-    };
-    addListener(std::move(entry));
-    return entry.id;
-}
-
-EventDispatcher::ListenerID EventDispatcher::addMouseScrollListener(Node* target,
-                                                                    MouseScrollCallback onScrolled,
-                                                                    int priority) {
-    if (!target || !onScrolled) {
-        return 0;
-    }
-
-    ListenerEntry entry;
-    entry.id = _nextListenerId++;
-    entry.type = Event::Type::MouseScroll;
-    entry.target = target;
-    entry.priority = priority;
-    entry.order = _nextOrder++;
-    entry.callback = [onScrolled = std::move(onScrolled)](Event& e) {
-        auto& scrollEvent = static_cast<EventMouseScroll&>(e);
-        onScrolled(scrollEvent);
-    };
     addListener(std::move(entry));
     return entry.id;
 }
 
 void EventDispatcher::removeListener(ListenerID id) {
-    if (id == 0) {
-        return;
-    }
-
     if (_dispatching) {
         for (auto& listener : _listeners) {
             if (listener.id == id) {
@@ -115,20 +59,26 @@ void EventDispatcher::removeListener(ListenerID id) {
         return;
     }
 
-    _listeners.erase(std::remove_if(_listeners.begin(), _listeners.end(),
-                                    [id](const ListenerEntry& listener) { return listener.id == id; }),
-                     _listeners.end());
-    _pendingListeners.erase(
-        std::remove_if(_pendingListeners.begin(), _pendingListeners.end(),
-                       [id](const ListenerEntry& listener) { return listener.id == id; }),
-        _pendingListeners.end());
+    for (auto it = _listeners.begin(); it != _listeners.end();) {
+        if (it->id == id) {
+            releaseListenerEntry(*it);
+            it = _listeners.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    for (auto it = _pendingListeners.begin(); it != _pendingListeners.end();) {
+        if (it->id == id) {
+            releaseListenerEntry(*it);
+            it = _pendingListeners.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 void EventDispatcher::removeListenersForTarget(Node* target) {
-    if (!target) {
-        return;
-    }
-
     if (_dispatching) {
         for (auto& listener : _listeners) {
             if (listener.target == target) {
@@ -143,16 +93,23 @@ void EventDispatcher::removeListenersForTarget(Node* target) {
         return;
     }
 
-    _listeners.erase(std::remove_if(_listeners.begin(), _listeners.end(),
-                                    [target](const ListenerEntry& listener) {
-                                        return listener.target == target;
-                                    }),
-                     _listeners.end());
+    for (auto it = _listeners.begin(); it != _listeners.end();) {
+        if (it->target == target) {
+            releaseListenerEntry(*it);
+            it = _listeners.erase(it);
+        } else {
+            ++it;
+        }
+    }
 
-    _pendingListeners.erase(
-        std::remove_if(_pendingListeners.begin(), _pendingListeners.end(),
-                       [target](const ListenerEntry& listener) { return listener.target == target; }),
-        _pendingListeners.end());
+    for (auto it = _pendingListeners.begin(); it != _pendingListeners.end();) {
+        if (it->target == target) {
+            releaseListenerEntry(*it);
+            it = _pendingListeners.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 void EventDispatcher::removeAllListeners() {
@@ -165,6 +122,14 @@ void EventDispatcher::removeAllListeners() {
         }
         return;
     }
+
+    for (auto& listener : _listeners) {
+        releaseListenerEntry(listener);
+    }
+    for (auto& listener : _pendingListeners) {
+        releaseListenerEntry(listener);
+    }
+
     _listeners.clear();
     _pendingListeners.clear();
 }
@@ -180,27 +145,91 @@ void EventDispatcher::dispatchEvent(Event& event) {
     event.resetForDispatch();
     _dispatching = true;
     for (auto& listener : _listeners) {
-        if (listener.removed || listener.type != event.getType() || !listener.callback || !listener.target) {
+        if (listener.removed || !listener.target || !listener.listener) {
             continue;
         }
         if (!listener.target->isRunning() || listener.target->isPaused()) {
             continue;
         }
+        if (!listener.listener->isEnabled()) {
+            continue;
+        }
 
-        event.setCurrentTarget(listener.target);
-        listener.callback(event);
-        if (event.isStopped()) {
+        bool invoked = false;
+
+        if (listener.listener->getType() == EventListener::Type::Keyboard
+            && event.getType() == Event::Type::Keyboard) {
+            auto* keyboard = static_cast<EventListenerKeyboard*>(listener.listener);
+            auto& keyEvent = static_cast<EventKeyboard&>(event);
+            if (keyEvent.isPressed()) {
+                if (keyboard->onKeyPressed) {
+                    event.setCurrentTarget(listener.target);
+                    keyboard->onKeyPressed(keyEvent);
+                    invoked = true;
+                }
+            } else {
+                if (keyboard->onKeyReleased) {
+                    event.setCurrentTarget(listener.target);
+                    keyboard->onKeyReleased(keyEvent);
+                    invoked = true;
+                }
+            }
+        } else if (listener.listener->getType() == EventListener::Type::Mouse) {
+            auto* mouse = static_cast<EventListenerMouse*>(listener.listener);
+            switch (event.getType()) {
+            case Event::Type::MouseButton: {
+                auto& mouseButtonEvent = static_cast<EventMouseButton&>(event);
+                if (mouseButtonEvent.isPressed()) {
+                    if (mouse->onMouseDown) {
+                        event.setCurrentTarget(listener.target);
+                        mouse->onMouseDown(mouseButtonEvent);
+                        invoked = true;
+                    }
+                } else {
+                    if (mouse->onMouseUp) {
+                        event.setCurrentTarget(listener.target);
+                        mouse->onMouseUp(mouseButtonEvent);
+                        invoked = true;
+                    }
+                }
+                break;
+            }
+            case Event::Type::MouseMove: {
+                if (mouse->onMouseMove) {
+                    event.setCurrentTarget(listener.target);
+                    mouse->onMouseMove(static_cast<EventMouseMove&>(event));
+                    invoked = true;
+                }
+                break;
+            }
+            case Event::Type::MouseScroll: {
+                if (mouse->onMouseScroll) {
+                    event.setCurrentTarget(listener.target);
+                    mouse->onMouseScroll(static_cast<EventMouseScroll&>(event));
+                    invoked = true;
+                }
+                break;
+            }
+            case Event::Type::Keyboard:
+                break;
+            }
+        }
+
+        if (invoked && event.isStopped()) {
             break;
         }
     }
     _dispatching = false;
     event.setCurrentTarget(nullptr);
 
-    _listeners.erase(std::remove_if(_listeners.begin(), _listeners.end(),
-                                    [](const ListenerEntry& listener) {
-                                        return listener.removed || listener.target == nullptr;
-                                    }),
-                     _listeners.end());
+    for (auto it = _listeners.begin(); it != _listeners.end();) {
+        if (it->removed || it->target == nullptr || it->listener == nullptr) {
+            releaseListenerEntry(*it);
+            it = _listeners.erase(it);
+        } else {
+            ++it;
+        }
+    }
 
     mergePending();
     sortListenersIfNeeded();
@@ -209,12 +238,12 @@ void EventDispatcher::dispatchEvent(Event& event) {
 std::size_t EventDispatcher::getListenerCount() const {
     std::size_t count = 0;
     for (const auto& listener : _listeners) {
-        if (!listener.removed && listener.target) {
+        if (!listener.removed && listener.target && listener.listener) {
             ++count;
         }
     }
     for (const auto& listener : _pendingListeners) {
-        if (!listener.removed && listener.target) {
+        if (!listener.removed && listener.target && listener.listener) {
             ++count;
         }
     }
@@ -236,9 +265,11 @@ void EventDispatcher::mergePending() {
     }
 
     for (auto& listener : _pendingListeners) {
-        if (!listener.removed) {
+        if (!listener.removed && listener.target && listener.listener) {
             _listeners.push_back(std::move(listener));
             _dirtyOrder = true;
+        } else {
+            releaseListenerEntry(listener);
         }
     }
     _pendingListeners.clear();
@@ -256,6 +287,13 @@ void EventDispatcher::sortListenersIfNeeded() {
         return a.order < b.order;
     });
     _dirtyOrder = false;
+}
+
+void EventDispatcher::releaseListenerEntry(ListenerEntry& entry) {
+    if (entry.listener) {
+        entry.listener->release();
+        entry.listener = nullptr;
+    }
 }
 
 } // namespace zocos

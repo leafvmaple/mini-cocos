@@ -6,11 +6,9 @@ namespace zocos {
 
 Scene* Scene::create() {
     auto* scene = new (std::nothrow) Scene();
-    if (!scene) {
-        return nullptr;
-    }
-    if (scene->init()) {
-        return static_cast<Scene*>(scene->autorelease());
+    if (scene && scene->init()) {
+        scene->autorelease();
+        return scene;
     }
     delete scene;
     return nullptr;

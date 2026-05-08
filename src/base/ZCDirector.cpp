@@ -218,24 +218,26 @@ void Director::runWithScene(Scene* scene) {
 }
 
 void Director::mainLoop() {
-    while (_window && !glfwWindowShouldClose(_window)) {
-        AutoreleasePool framePool("frame autorelease pool");
-
-        const double now = glfwGetTime();
-        const float dt = static_cast<float>(now - _lastTime);
-        _lastTime = now;
-
-        glfwPollEvents();
-        _scheduler.update(dt);
-        if (_runningScene) _runningScene->updateTree(dt);
-
-        glClearColor(0.12f, 0.12f, 0.15f, 1.f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        if (_runningScene) _runningScene->visitScene();
-
-        glfwSwapBuffers(_window);
+    if (!_window || glfwWindowShouldClose(_window)) {
+        return;
     }
+
+    AutoreleasePool framePool("frame autorelease pool");
+
+    const double now = glfwGetTime();
+    const float dt = static_cast<float>(now - _lastTime);
+    _lastTime = now;
+
+    glfwPollEvents();
+    _scheduler.update(dt);
+    if (_runningScene) _runningScene->updateTree(dt);
+
+    glClearColor(0.12f, 0.12f, 0.15f, 1.f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    if (_runningScene) _runningScene->visitScene();
+
+    glfwSwapBuffers(_window);
 }
 
 } // namespace zocos

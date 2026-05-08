@@ -1,5 +1,7 @@
 // Demo: compare with cocos2d-x flow — Application / Director::runWithScene / Scene / Node / Sprite.
+#include "base/ZCApplication.h"
 #include "base/ZCDirector.h"
+#include "base/ZCEventListener.h"
 #include "base/ZCRef.h"
 #include "2d/ZCNode.h"
 #include "2d/ZCScene.h"
@@ -203,62 +205,65 @@ int main(int argc, char** argv) {
 
     scene->addChild(child);
 
-    dir.getEventDispatcher().addKeyboardListener(
-        child,
-        [&dir, child](EventKeyboard& event) {
-            if (event.getKeyCode() == GLFW_KEY_ESCAPE) {
-                if (!event.isRepeated()) {
-                    glfwSetWindowShouldClose(dir.getWindow(), GLFW_TRUE);
-                }
-                event.stopPropagation();
-                return;
+    auto* keyboardListener = EventListenerKeyboard::create();
+    if (!keyboardListener) {
+        std::fprintf(stderr, "EventListenerKeyboard::create failed\n");
+        dir.shutdown();
+        return 1;
+    }
+    keyboardListener->onKeyPressed = [&dir, child](EventKeyboard& event) {
+        if (event.getKeyCode() == GLFW_KEY_ESCAPE) {
+            if (!event.isRepeated()) {
+                glfwSetWindowShouldClose(dir.getWindow(), GLFW_TRUE);
             }
-            child->onKeyPressed(event.getKeyCode());
-        },
-        [child](EventKeyboard& event) { child->onKeyReleased(event.getKeyCode()); },
-        -200);
+            event.stopPropagation();
+            return;
+        }
+        child->onKeyPressed(event.getKeyCode());
+    };
+    keyboardListener->onKeyReleased = [child](EventKeyboard& event) {
+        child->onKeyReleased(event.getKeyCode());
+    };
+    dir.getEventDispatcher().addEventListener(keyboardListener, child, -200);
 
-    dir.getEventDispatcher().addMouseButtonListener(
-        child,
-        [child](EventMouseButton& event) {
-            if (event.getButton() == GLFW_MOUSE_BUTTON_LEFT && child->containsPoint(event.getX(), event.getY())) {
-                child->beginDrag(event.getX(), event.getY());
-                event.stopPropagation();
-            }
-        },
-        [child](EventMouseButton& event) {
-            if (event.getButton() == GLFW_MOUSE_BUTTON_LEFT) {
-                child->endDrag();
-            }
-        },
-        -100);
-
-    dir.getEventDispatcher().addMouseMoveListener(
-        child,
-        [child](EventMouseMove& event) {
-            if (child->isDragging()) {
-                child->dragTo(event.getX(), event.getY());
-                event.stopPropagation();
-            }
-        },
-        -100);
-
-    dir.getEventDispatcher().addMouseScrollListener(
-        child,
-        [child](EventMouseScroll& event) {
-            if (child->isDragging() || child->containsPoint(event.getX(), event.getY())) {
-                child->applyScroll(event.getOffsetY());
-                event.stopPropagation();
-            }
-        },
-        -100);
+    auto* mouseListener = EventListenerMouse::create();
+    if (!mouseListener) {
+        std::fprintf(stderr, "EventListenerMouse::create failed\n");
+        dir.shutdown();
+        return 1;
+    }
+    mouseListener->onMouseDown = [child](EventMouseButton& event) {
+        if (event.getButton() == GLFW_MOUSE_BUTTON_LEFT && child->containsPoint(event.getX(), event.getY())) {
+            child->beginDrag(event.getX(), event.getY());
+            event.stopPropagation();
+        }
+    };
+    mouseListener->onMouseUp = [child](EventMouseButton& event) {
+        if (event.getButton() == GLFW_MOUSE_BUTTON_LEFT) {
+            child->endDrag();
+        }
+    };
+    mouseListener->onMouseMove = [child](EventMouseMove& event) {
+        if (child->isDragging()) {
+            child->dragTo(event.getX(), event.getY());
+            event.stopPropagation();
+        }
+    };
+    mouseListener->onMouseScroll = [child](EventMouseScroll& event) {
+        if (child->isDragging() || child->containsPoint(event.getX(), event.getY())) {
+            child->applyScroll(event.getOffsetY());
+            event.stopPropagation();
+        }
+    };
+    dir.getEventDispatcher().addEventListener(mouseListener, child, -100);
 
     dir.runWithScene(scene);
-    dir.mainLoop();
+    Application app;
+    const int exitCode = app.run();
     dir.shutdown();
 
     assert(DemoSprite::getLiveCount() == 0 && "DemoSprite instances were not released.");
     assert(Ref::getLiveCount() == 0 && "Ref-managed objects leaked.");
 
-    return 0;
+    return exitCode;
 }

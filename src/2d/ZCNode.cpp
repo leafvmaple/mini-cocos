@@ -10,11 +10,9 @@ namespace zocos {
 
 Node* Node::create() {
     auto* node = new (std::nothrow) Node();
-    if (!node) {
-        return nullptr;
-    }
-    if (node->init()) {
-        return static_cast<Node*>(node->autorelease());
+    if (node && node->init()) {
+        node->autorelease();
+        return node;
     }
     delete node;
     return nullptr;

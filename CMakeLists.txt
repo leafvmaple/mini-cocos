@@ -27,6 +27,7 @@ add_executable(zocos
   src/platform/opengl_loader.cpp
   src/base/ZCRef.cpp
   src/base/ZCAutoreleasePool.cpp
+  src/base/ZCApplication.cpp
   src/base/ZCScheduler.cpp
   src/base/ZCEventDispatcher.cpp
   src/base/ZCDirector.cpp

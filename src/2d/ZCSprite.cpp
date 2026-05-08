@@ -72,11 +72,9 @@ Sprite::Sprite(Director& director) : _director(director) {
 
 Sprite* Sprite::create(Director& director) {
     auto* sprite = new (std::nothrow) Sprite(director);
-    if (!sprite) {
-        return nullptr;
-    }
-    if (sprite->init()) {
-        return static_cast<Sprite*>(sprite->autorelease());
+    if (sprite && sprite->init()) {
+        sprite->autorelease();
+        return sprite;
     }
     delete sprite;
     return nullptr;
