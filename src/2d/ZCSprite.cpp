@@ -1,5 +1,8 @@
 #include "2d/ZCSprite.h"
+
 #include "base/ZCDirector.h"
+#include "base/ZCRenderDevice.h"
+#include "base/ZCRenderer.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -12,57 +15,27 @@ namespace zocos {
 
 namespace {
 
-const char* kVs = R"(#version 330 core
-layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec2 aUv;
-uniform mat4 uMvp;
-out vec2 vUv;
-void main() {
-    vUv = aUv;
-    gl_Position = uMvp * vec4(aPos, 0.0, 1.0);
-}
-)";
-
-const char* kFs = R"(#version 330 core
-in vec2 vUv;
-uniform sampler2D uTex;
-out vec4 FragColor;
-void main() {
-    FragColor = texture(uTex, vUv);
-}
-)";
-
-GLuint compileShader(GLenum type, const char* src) {
-    const GLuint s = glCreateShader(type);
-    glShaderSource(s, 1, &src, nullptr);
-    glCompileShader(s);
-    GLint ok = 0;
-    glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
-    if (!ok) {
-        char buf[512];
-        glGetShaderInfoLog(s, sizeof(buf), nullptr, buf);
-        std::fprintf(stderr, "Shader compile error: %s\n", buf);
-        glDeleteShader(s);
-        return 0;
+bool uploadTexture(Director& director, TextureHandle& inOutTexture, int width, int height,
+                   const unsigned char* pixels) {
+    auto* device = director.getRenderDevice();
+    if (!device) {
+        std::fprintf(stderr, "Render device is not ready.\n");
+        return false;
     }
-    return s;
-}
 
-GLuint linkProgram(GLuint vs, GLuint fs) {
-    const GLuint p = glCreateProgram();
-    glAttachShader(p, vs);
-    glAttachShader(p, fs);
-    glLinkProgram(p);
-    GLint ok = 0;
-    glGetProgramiv(p, GL_LINK_STATUS, &ok);
-    if (!ok) {
-        char buf[512];
-        glGetProgramInfoLog(p, sizeof(buf), nullptr, buf);
-        std::fprintf(stderr, "Program link error: %s\n", buf);
-        glDeleteProgram(p);
-        return 0;
+    if (inOutTexture.isValid()) {
+        device->destroyTexture(inOutTexture);
+        inOutTexture = {};
     }
-    return p;
+
+    const TextureHandle newTexture = device->createTextureRGBA8(width, height, pixels);
+    if (!newTexture.isValid()) {
+        std::fprintf(stderr, "Failed to create GPU texture.\n");
+        return false;
+    }
+
+    inOutTexture = newTexture;
+    return true;
 }
 
 } // namespace
@@ -100,27 +73,29 @@ bool Sprite::init() {
 }
 
 Sprite::~Sprite() {
-    if (_vbo) glDeleteBuffers(1, &_vbo);
-    if (_vao) glDeleteVertexArrays(1, &_vao);
-    if (_texture) glDeleteTextures(1, &_texture);
+    auto* device = _director.getRenderDevice();
+    if (device && _texture.isValid()) {
+        device->destroyTexture(_texture);
+        _texture = {};
+    }
 }
 
 bool Sprite::initWithFile(const char* path) {
-    int w = 0, h = 0, ch = 0;
+    int w = 0;
+    int h = 0;
+    int ch = 0;
     unsigned char* data = stbi_load(path, &w, &h, &ch, 4);
     if (!data) {
         std::fprintf(stderr, "stbi_load failed: %s\n", path);
         return false;
     }
-    if (_texture) glDeleteTextures(1, &_texture);
-    glGenTextures(1, &_texture);
-    glBindTexture(GL_TEXTURE_2D, _texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+    const bool uploaded = uploadTexture(_director, _texture, w, h, data);
     stbi_image_free(data);
+    if (!uploaded) {
+        return false;
+    }
+
     setContentSize({static_cast<float>(w), static_cast<float>(h)});
     _ready = true;
     return true;
@@ -133,66 +108,27 @@ void Sprite::initWithCheckerboard() {
         for (int x = 0; x < N; ++x) {
             const bool c = ((x / 8) + (y / 8)) % 2 == 0;
             const unsigned char v = c ? 240 : 60;
-            size_t i = static_cast<size_t>((y * N + x) * 4);
+            const size_t i = static_cast<size_t>((y * N + x) * 4);
             px[i + 0] = v;
             px[i + 1] = static_cast<unsigned char>(255 - v);
             px[i + 2] = 160;
             px[i + 3] = 255;
         }
     }
-    if (_texture) glDeleteTextures(1, &_texture);
-    glGenTextures(1, &_texture);
-    glBindTexture(GL_TEXTURE_2D, _texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, N, N, 0, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
-    setContentSize({static_cast<float>(N), static_cast<float>(N)});
-    _ready = true;
+
+    _ready = uploadTexture(_director, _texture, N, N, px.data());
+    if (_ready) {
+        setContentSize({static_cast<float>(N), static_cast<float>(N)});
+    }
 }
 
-void Sprite::draw(const Mat4& world) {
-    if (!_ready) return;
-
-    static GLuint s_program = 0;
-    static GLint s_locMvp = -1;
-    static GLint s_locTex = -1;
-    if (!s_program) {
-        const GLuint vs = compileShader(GL_VERTEX_SHADER, kVs);
-        const GLuint fs = compileShader(GL_FRAGMENT_SHADER, kFs);
-        if (!vs || !fs) return;
-        s_program = linkProgram(vs, fs);
-        glDeleteShader(vs);
-        glDeleteShader(fs);
-        if (!s_program) return;
-        s_locMvp = glGetUniformLocation(s_program, "uMvp");
-        s_locTex = glGetUniformLocation(s_program, "uTex");
+void Sprite::draw(Renderer& renderer, const Mat4& world) {
+    if (!_ready || !_texture.isValid()) {
+        return;
     }
 
-    const float w = _contentSize.width;
-    const float h = _contentSize.height;
-    const float verts[] = {0.f, 0.f, 0.f, 0.f, w, 0.f, 1.f, 0.f, w, h, 1.f, 1.f,
-        0.f, 0.f, 0.f, 0.f, w, h, 1.f, 1.f, 0.f, h, 0.f, 1.f};
-
-    if (!_vao) {
-        glGenVertexArrays(1, &_vao);
-        glGenBuffers(1, &_vbo);
-    }
-    glBindVertexArray(_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(0));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(8));
-
-    const Mat4 mvp = _director.projectionMatrix() * world;
-    glUseProgram(s_program);
-    glUniformMatrix4fv(s_locMvp, 1, GL_TRUE, mvp.data());
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, _texture);
-    glUniform1i(s_locTex, 0);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glBindVertexArray(0);
+    const RenderSortKey sortKey = makeRenderSortKey(0, 0, _texture.value);
+    renderer.addDrawSprite(world, _contentSize, _texture, sortKey);
 }
 
 } // namespace zocos

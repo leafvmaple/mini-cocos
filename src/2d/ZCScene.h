@@ -4,11 +4,13 @@
 
 namespace zocos {
 
+class Renderer;
+
 class Scene : public Node {
 public:
     static Scene* create();
 
-    void visitScene();
+    void visitScene(Renderer& renderer);
 
 protected:
     Scene() = default;

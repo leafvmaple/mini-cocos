@@ -1,6 +1,7 @@
 #include "2d/ZCNode.h"
 
 #include "base/ZCDirector.h"
+#include "base/ZCRenderer.h"
 
 #include <algorithm>
 #include <new>
@@ -133,12 +134,12 @@ void Node::updateTree(float dt) {
     }
 }
 
-void Node::visit(const Mat4& parentWorld) {
+void Node::visit(Renderer& renderer, const Mat4& parentWorld) {
     if (!_visible) return;
     const Mat4 world = parentWorld * localMatrix();
-    draw(world);
+    draw(renderer, world);
     for (auto* ch : _children) {
-        if (ch) ch->visit(world);
+        if (ch) ch->visit(renderer, world);
     }
 }
 

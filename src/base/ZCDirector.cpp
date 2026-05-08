@@ -2,11 +2,13 @@
 #include "base/ZCAutoreleasePool.h"
 #include "base/ZCEvent.h"
 #include "platform/opengl_loader.h"
+#include "platform/ZCRenderDeviceGL.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
 #include <cassert>
+#include <memory>
 
 namespace zocos {
 
@@ -150,6 +152,8 @@ bool Director::init(int width, int height, const char* title) {
         return false;
     }
 
+    _renderDevice = std::make_unique<RenderDeviceGL>();
+
     glfwGetFramebufferSize(_window, &_fbWidth, &_fbHeight);
     glViewport(0, 0, _fbWidth, _fbHeight);
 
@@ -161,8 +165,6 @@ bool Director::init(int width, int height, const char* title) {
     toEnginePoint(this, _window, x, y, px, py);
     setMousePosition(px, py);
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     updateProjection();
     _lastTime = glfwGetTime();
     return true;
@@ -181,6 +183,8 @@ void Director::shutdown() {
     assert(_eventDispatcher.getListenerCount() == 0 && "Event listeners were not fully released.");
 
     _eventDispatcher.removeAllListeners();
+    _renderer.endFrame();
+    _renderDevice.reset();
     PoolManager::getInstance().clearRootPool();
     if (_window) {
         glfwDestroyWindow(_window);
@@ -232,10 +236,14 @@ void Director::mainLoop() {
     _scheduler.update(dt);
     if (_runningScene) _runningScene->updateTree(dt);
 
-    glClearColor(0.12f, 0.12f, 0.15f, 1.f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    if (_runningScene) _runningScene->visitScene();
+    if (_renderDevice) {
+        _renderer.beginFrame(_projection);
+        if (_runningScene) {
+            _runningScene->visitScene(_renderer);
+        }
+        _renderer.flush(*_renderDevice, _fbWidth, _fbHeight);
+        _renderer.endFrame();
+    }
 
     glfwSwapBuffers(_window);
 }

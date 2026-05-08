@@ -1,5 +1,7 @@
 #include "2d/ZCScene.h"
 
+#include "base/ZCRenderer.h"
+
 #include <new>
 
 namespace zocos {
@@ -14,9 +16,9 @@ Scene* Scene::create() {
     return nullptr;
 }
 
-void Scene::visitScene() {
+void Scene::visitScene(Renderer& renderer) {
     const Mat4 identity = Mat4::identity();
-    visit(identity);
+    visit(renderer, identity);
 }
 
 } // namespace zocos

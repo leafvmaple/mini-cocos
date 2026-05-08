@@ -1,11 +1,12 @@
 #pragma once
 
+#include "base/ZCRenderCommand.h"
 #include "2d/ZCNode.h"
-#include "platform/opengl_loader.h"
 
 namespace zocos {
 
 class Director;
+class Renderer;
 
 class Sprite : public Node {
 public:
@@ -19,16 +20,14 @@ public:
     bool initWithFile(const char* path);
     void initWithCheckerboard();
 
-    void draw(const Mat4& world) override;
+    void draw(Renderer& renderer, const Mat4& world) override;
 
 protected:
     explicit Sprite(Director& director);
 
 private:
     Director& _director;
-    GLuint _texture = 0;
-    GLuint _vao = 0;
-    GLuint _vbo = 0;
+    TextureHandle _texture{};
     bool _ready = false;
 };
 

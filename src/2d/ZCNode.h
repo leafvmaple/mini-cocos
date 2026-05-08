@@ -8,6 +8,8 @@
 
 namespace zocos {
 
+class Renderer;
+
 class Node : public Ref {
 public:
     using ScheduleCallback = std::function<void(float)>;
@@ -69,12 +71,12 @@ public:
 
     void updateTree(float dt);
 
-    void visit(const Mat4& parentWorld);
+    void visit(Renderer& renderer, const Mat4& parentWorld);
 
 protected:
     Node() = default;
 
-    virtual void draw(const Mat4& /*world*/) {}
+    virtual void draw(Renderer& /*renderer*/, const Mat4& /*world*/) {}
 
     Mat4 localMatrix() const {
         return zcNodeLocalMatrix(_position, _scale, _rotation, _anchorPoint, _contentSize);

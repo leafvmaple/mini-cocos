@@ -1,8 +1,12 @@
 #pragma once
 
 #include "base/ZCEventDispatcher.h"
+#include "base/ZCRenderDevice.h"
+#include "base/ZCRenderer.h"
 #include "2d/ZCScene.h"
 #include "base/ZCScheduler.h"
+
+#include <memory>
 
 struct GLFWwindow;
 
@@ -20,6 +24,8 @@ public:
 
     Scheduler& getScheduler() { return _scheduler; }
     EventDispatcher& getEventDispatcher() { return _eventDispatcher; }
+    Renderer& getRenderer() { return _renderer; }
+    RenderDevice* getRenderDevice() const { return _renderDevice.get(); }
 
     bool hasMousePosition() const { return _hasMousePosition; }
     float getMouseX() const { return _mouseX; }
@@ -47,6 +53,8 @@ private:
     Scene* _runningScene = nullptr;
     Scheduler _scheduler;
     EventDispatcher _eventDispatcher;
+    Renderer _renderer;
+    std::unique_ptr<RenderDevice> _renderDevice;
     Mat4 _projection = Mat4::identity();
     int _fbWidth = 0;
     int _fbHeight = 0;

@@ -28,9 +28,11 @@ add_executable(zocos
   src/base/ZCRef.cpp
   src/base/ZCAutoreleasePool.cpp
   src/base/ZCApplication.cpp
+  src/base/ZCRenderer.cpp
   src/base/ZCScheduler.cpp
   src/base/ZCEventDispatcher.cpp
   src/base/ZCDirector.cpp
+  src/platform/ZCRenderDeviceGL.cpp
   src/2d/ZCNode.cpp
   src/2d/ZCScene.cpp
   src/2d/ZCSprite.cpp
