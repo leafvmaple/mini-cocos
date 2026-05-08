@@ -17,7 +17,7 @@ public:
     void submit(const RenderCommand& command) override;
     void endFrame() override;
 
-    TextureHandle createTextureRGBA8(int width, int height, const unsigned char* pixels) override;
+    TextureHandle createTexture(const TextureCreateInfo& createInfo) override;
     void destroyTexture(TextureHandle texture) override;
 
 private:

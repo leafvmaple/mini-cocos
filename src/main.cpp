@@ -5,6 +5,7 @@
 #include "base/ZCRef.h"
 #include "2d/ZCNode.h"
 #include "2d/ZCScene.h"
+#include "2d/ZCLabel.h"
 #include "2d/ZCSprite.h"
 
 #define GLFW_INCLUDE_NONE
@@ -204,6 +205,34 @@ int main(int argc, char** argv) {
         static_cast<float>(dir.getFramebufferHeight()) * 0.5f);
 
     scene->addChild(child);
+
+    auto* fpsLabel = Label::create(dir, "FPS: 0.0");
+    if (!fpsLabel) {
+        std::fprintf(stderr, "Label::create failed\n");
+        dir.shutdown();
+        return 1;
+    }
+    fpsLabel->setAnchorPoint({0.f, 0.f});
+    fpsLabel->setPosition(12.f, 12.f);
+    // fpsLabel->setScale(3.f);
+    scene->addChild(fpsLabel);
+
+    float fpsAccumTime = 0.f;
+    int fpsAccumFrames = 0;
+    scene->schedule("demo_fps_label", [fpsLabel, &fpsAccumTime, &fpsAccumFrames](float dt) {
+        fpsAccumTime += dt;
+        ++fpsAccumFrames;
+        if (fpsAccumTime < 0.25f) {
+            return;
+        }
+
+        const float fps = static_cast<float>(fpsAccumFrames) / fpsAccumTime;
+        char text[32];
+        std::snprintf(text, sizeof(text), "FPS: %.1f", fps);
+        fpsLabel->setString(text);
+        fpsAccumTime = 0.f;
+        fpsAccumFrames = 0;
+    });
 
     auto* keyboardListener = EventListenerKeyboard::create();
     if (!keyboardListener) {

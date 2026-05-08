@@ -28,7 +28,15 @@ bool uploadTexture(Director& director, TextureHandle& inOutTexture, int width, i
         inOutTexture = {};
     }
 
-    const TextureHandle newTexture = device->createTextureRGBA8(width, height, pixels);
+    TextureCreateInfo createInfo;
+    createInfo.width = width;
+    createInfo.height = height;
+    createInfo.format = TextureFormat::RGBA8Unorm;
+    createInfo.initialData.pixels = pixels;
+    createInfo.initialData.rowPitchBytes = width * 4;
+    createInfo.initialData.origin = TextureDataOrigin::TopLeft;
+
+    const TextureHandle newTexture = device->createTexture(createInfo);
     if (!newTexture.isValid()) {
         std::fprintf(stderr, "Failed to create GPU texture.\n");
         return false;

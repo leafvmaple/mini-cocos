@@ -1,6 +1,8 @@
 #include "platform/ZCRenderDeviceGL.h"
 
 #include <cstdio>
+#include <cstring>
+#include <vector>
 
 namespace zocos {
 
@@ -108,9 +110,39 @@ void RenderDeviceGL::endFrame() {
     glBindVertexArray(0);
 }
 
-TextureHandle RenderDeviceGL::createTextureRGBA8(int width, int height, const unsigned char* pixels) {
-    if (width <= 0 || height <= 0 || !pixels) {
+TextureHandle RenderDeviceGL::createTexture(const TextureCreateInfo& createInfo) {
+    if (createInfo.width <= 0 || createInfo.height <= 0 || !createInfo.initialData.pixels) {
         return {};
+    }
+    if (createInfo.format != TextureFormat::RGBA8Unorm) {
+        return {};
+    }
+
+    constexpr int kBytesPerPixel = 4;
+    const int tightRowPitch = createInfo.width * kBytesPerPixel;
+    const int srcRowPitch = createInfo.initialData.rowPitchBytes > 0 ?
+        createInfo.initialData.rowPitchBytes : tightRowPitch;
+    if (srcRowPitch < tightRowPitch) {
+        return {};
+    }
+
+    const unsigned char* uploadPixels = createInfo.initialData.pixels;
+    std::vector<unsigned char> staging;
+    const bool shouldFlipY = createInfo.initialData.origin == TextureDataOrigin::TopLeft;
+    const bool shouldPackRows = srcRowPitch != tightRowPitch;
+    if (shouldFlipY || shouldPackRows) {
+        staging.resize(static_cast<size_t>(tightRowPitch * createInfo.height));
+        for (int dstY = 0; dstY < createInfo.height; ++dstY) {
+            int srcY = dstY;
+            if (shouldFlipY) {
+                srcY = (createInfo.height - 1) - dstY;
+            }
+
+            const auto* src = createInfo.initialData.pixels + static_cast<size_t>(srcY) * srcRowPitch;
+            auto* dst = staging.data() + static_cast<size_t>(dstY) * tightRowPitch;
+            std::memcpy(dst, src, static_cast<size_t>(tightRowPitch));
+        }
+        uploadPixels = staging.data();
     }
 
     GLuint tex = 0;
@@ -120,7 +152,8 @@ TextureHandle RenderDeviceGL::createTextureRGBA8(int width, int height, const un
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, createInfo.width, createInfo.height, 0, GL_RGBA,
+                 GL_UNSIGNED_BYTE, uploadPixels);
 
     TextureHandle handle;
     handle.value = _nextTextureHandle++;
@@ -212,7 +245,7 @@ void RenderDeviceGL::drawSprite(const DrawSpriteCommand& command) {
 
     const Mat4 mvp = _projection * command.world;
     glUseProgram(_spriteProgram);
-    glUniformMatrix4fv(_spriteLocMvp, 1, GL_TRUE, mvp.data());
+    glUniformMatrix4fv(_spriteLocMvp, 1, GL_FALSE, mvp.data());
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texId);
     glUniform1i(_spriteLocTex, 0);

@@ -5,6 +5,10 @@ cd /d "%~dp0"
 cmake -B build || exit /b 1
 cmake --build build --config Debug || exit /b 1
 
+if exist "build\Debug\zocos.exe" (
+  "build\Debug\zocos.exe" %*
+  exit /b %errorlevel%
+)
 if exist "build\Release\zocos.exe" (
   "build\Release\zocos.exe" %*
   exit /b %errorlevel%
@@ -15,10 +19,6 @@ if exist "build\RelWithDebInfo\zocos.exe" (
 )
 if exist "build\zocos.exe" (
   "build\zocos.exe" %*
-  exit /b %errorlevel%
-)
-if exist "build\Debug\zocos.exe" (
-  "build\Debug\zocos.exe" %*
   exit /b %errorlevel%
 )
 

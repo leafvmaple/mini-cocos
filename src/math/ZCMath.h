@@ -16,7 +16,7 @@ struct Size {
     float height = 0.f;
 };
 
-// Column-major 4x4, compatible with glUniformMatrix4fv(..., GL_TRUE, ...).
+// Column-major 4x4, compatible with glUniformMatrix4fv(..., GL_FALSE, ...).
 struct Mat4 {
     float m[16]{};
 

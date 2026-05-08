@@ -22,21 +22,11 @@ FetchContent_MakeAvailable(glfw)
 
 find_package(OpenGL REQUIRED)
 
-add_executable(zocos
-  src/main.cpp
-  src/platform/opengl_loader.cpp
-  src/base/ZCRef.cpp
-  src/base/ZCAutoreleasePool.cpp
-  src/base/ZCApplication.cpp
-  src/base/ZCRenderer.cpp
-  src/base/ZCScheduler.cpp
-  src/base/ZCEventDispatcher.cpp
-  src/base/ZCDirector.cpp
-  src/platform/ZCRenderDeviceGL.cpp
-  src/2d/ZCNode.cpp
-  src/2d/ZCScene.cpp
-  src/2d/ZCSprite.cpp
+file(GLOB_RECURSE ZOCOS_SOURCES CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
+
+add_executable(zocos ${ZOCOS_SOURCES})
 
 target_include_directories(zocos PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/src"

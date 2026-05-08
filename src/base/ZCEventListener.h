@@ -49,7 +49,7 @@ public:
     bool init(Callback onPressed = {}, Callback onReleased = {}) {
         onKeyPressed = std::move(onPressed);
         onKeyReleased = std::move(onReleased);
-        return static_cast<bool>(onKeyPressed) || static_cast<bool>(onKeyReleased);
+        return true;
     }
 
     Callback onKeyPressed;
