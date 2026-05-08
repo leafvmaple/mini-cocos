@@ -16,7 +16,7 @@
 cocos2d-x 历史 API 以 **`CC`** 为前缀（如 `CCNode`、`CCDirector`）。本项目中，**公开引擎类型**不再使用 `ZC` 前缀，而是依赖 `namespace zocos` 完成区分：
 
 | 概念 | zocos 类型 |
-|------|------------|
+| ------ | ------------ |
 | 导演 / 主循环 | `Director` |
 | 场景 | `Scene` |
 | 节点 | `Node` |
@@ -36,7 +36,7 @@ cocos2d-x 历史 API 以 **`CC`** 为前缀（如 `CCNode`、`CCDirector`）。�
 - **`src/math/`**：数学与几何（仅头文件 `ZCMath.h` 亦可）。
 - **`src/base/`**：导演、应用级生命周期（`Director`）。
 - **`src/2d/`**：二维节点与渲染对象（`Node`、`Sprite`、`Scene`）。
-- **`src/platform/`**：平台与图形 API 封装（此处为 `opengl_loader`）。
+- **`src/platform/`**：平台与图形 API 封装（此处为 `ZCOpenGLLoader`）。
 - **`src/main.cpp`**：可执行入口、示例代码。
 
 源文件命名保持 `ZC` 前缀：`ZCDirector.cpp/.h`、`ZCNode.cpp/.h` 等。
@@ -47,7 +47,7 @@ cocos2d-x 历史 API 以 **`CC`** 为前缀（如 `CCNode`、`CCDirector`）。�
 - `#include "base/ZCDirector.h"`
 - `#include "2d/ZCNode.h"`
 - `#include "2d/ZCSprite.h"`
-- `#include "platform/opengl_loader.h"`
+- `#include "platform/ZCOpenGLLoader.h"`
 
 勿使用裸 `Math.h` 作文件名，以免在 Windows 等大小写不敏感盘上遮蔽 `<math.h>`。
 
@@ -67,7 +67,7 @@ cocos2d-x 历史 API 以 **`CC`** 为前缀（如 `CCNode`、`CCDirector`）。�
 
 ## OpenGL 与第三方
 
-- OpenGL 常量与加载方式见 `src/platform/opengl_loader.*`；新增 GL 枚举时需核对官方十六进制值，避免笔误。
+- OpenGL 常量与加载方式见 `src/platform/ZCOpenGLLoader.*`；新增 GL 枚举时需核对官方十六进制值，避免笔误。
 - `third_party` 下第三方头文件尽量不修改；升级时保留其许可证说明。
 
 ---

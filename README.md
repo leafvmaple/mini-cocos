@@ -74,12 +74,12 @@ Get-ChildItem -Path src -Recurse -Include *.cpp,*.h | ForEach-Object { clang-for
 ## Project layout（对齐 cocos2d-x 模块划分）
 
 | Path | Role |
-|------|------|
+| ------ | ------ |
 | `src/math/ZCMath.h` | `Vec2`、`Size`、`Mat4`（文件名避免与系统 `Math.h` 在大小写不敏感盘上冲突） |
 | `src/base/ZCDirector.*` | 主循环、GL 上下文、投影、当前场景（类型为 `Director`） |
 | `src/2d/ZCNode.*` | 场景图基类：`visit`、`updateTree`、变换（类型为 `Node` / `Scene`） |
 | `src/2d/ZCSprite.*` | 纹理四边形与简单着色器（类型为 `Sprite`） |
-| `src/platform/opengl_loader.*` | 最小 GL 3.3 入口（平台 / 图形后端相关） |
+| `src/platform/ZCOpenGLLoader.*` | 最小 GL 3.3 入口（平台 / 图形后端相关） |
 | `src/main.cpp` | 示例入口 |
 | `.clang-format` / `.clang-format-ignore` | 代码风格（4 空格）；忽略第三方目录 |
 | `third_party/stb_image.h` | 纹理加载 |

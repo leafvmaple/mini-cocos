@@ -1,7 +1,7 @@
 #include "base/ZCDirector.h"
 #include "base/ZCAutoreleasePool.h"
 #include "base/ZCEvent.h"
-#include "platform/opengl_loader.h"
+#include "platform/ZCOpenGLLoader.h"
 #include "platform/ZCRenderDeviceGL.h"
 
 #define GLFW_INCLUDE_NONE

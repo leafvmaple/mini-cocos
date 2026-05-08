@@ -1,7 +1,7 @@
 #pragma once
 
 #include "base/ZCRenderDevice.h"
-#include "platform/opengl_loader.h"
+#include "platform/ZCOpenGLLoader.h"
 
 #include <cstdint>
 #include <unordered_map>

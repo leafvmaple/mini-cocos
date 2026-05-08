@@ -1,4 +1,4 @@
-#include "platform/opengl_loader.h"
+#include "platform/ZCOpenGLLoader.h"
 #include <cstring>
 
 #define LOAD(name) \
