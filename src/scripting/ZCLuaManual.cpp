@@ -24,6 +24,7 @@ namespace {
 constexpr const char* kDirectorMeta = "zocos.Director";
 constexpr const char* kNodeMeta = "zocos.Node";
 constexpr const char* kActionMeta = "zocos.Action";
+constexpr const char* kAnimationMeta = "zocos.Animation";
 
 template <typename T>
 T* luaval_to_object(lua_State* tolua_S, int index, const char* metatableName,
@@ -158,6 +159,48 @@ std::vector<T*> luaval_to_object_array(lua_State* tolua_S, int index, const char
     }
 
     return objects;
+}
+
+Rect luaval_to_rect(lua_State* tolua_S, int index, const char* expectedMessage) {
+    const int absIndex = lua_absindex(tolua_S, index);
+    luaL_checktype(tolua_S, absIndex, LUA_TTABLE);
+
+    lua_geti(tolua_S, absIndex, 1);
+    const float x = static_cast<float>(luaL_checknumber(tolua_S, -1));
+    lua_pop(tolua_S, 1);
+
+    lua_geti(tolua_S, absIndex, 2);
+    const float y = static_cast<float>(luaL_checknumber(tolua_S, -1));
+    lua_pop(tolua_S, 1);
+
+    lua_geti(tolua_S, absIndex, 3);
+    const float width = static_cast<float>(luaL_checknumber(tolua_S, -1));
+    lua_pop(tolua_S, 1);
+
+    lua_geti(tolua_S, absIndex, 4);
+    const float height = static_cast<float>(luaL_checknumber(tolua_S, -1));
+    lua_pop(tolua_S, 1);
+
+    luaL_argcheck(tolua_S, width >= 0.f && height >= 0.f, absIndex, expectedMessage);
+    return Rect{x, y, width, height};
+}
+
+std::vector<Rect> luaval_to_rect_array(lua_State* tolua_S, int index,
+                                       const char* expectedMessage) {
+    const int absIndex = lua_absindex(tolua_S, index);
+    luaL_checktype(tolua_S, absIndex, LUA_TTABLE);
+
+    const lua_Integer length = luaL_len(tolua_S, absIndex);
+    std::vector<Rect> rects;
+    rects.reserve(static_cast<std::size_t>(length));
+
+    for (lua_Integer i = 1; i <= length; ++i) {
+        lua_geti(tolua_S, absIndex, i);
+        rects.push_back(luaval_to_rect(tolua_S, -1, expectedMessage));
+        lua_pop(tolua_S, 1);
+    }
+
+    return rects;
 }
 
 int lua_zocos_Director_getInstance(lua_State* tolua_S) {
@@ -369,6 +412,33 @@ int lua_zocos_DelayTime_create(lua_State* tolua_S) {
     }
 
     return reportWrongArgCount(tolua_S, "cc.DelayTime:create", argc, 1);
+}
+
+int lua_zocos_Animation_create(lua_State* tolua_S) {
+    const int base = classArgBase(tolua_S);
+    const int argc = classArgCount(tolua_S);
+    if (argc == 1 || argc == 2) {
+        std::vector<Rect> frames =
+            luaval_to_rect_array(tolua_S, base, "Animation frame must be {x, y, width, height}");
+        const float delayPerFrame = static_cast<float>(luaL_optnumber(tolua_S, base + 1, 0.1));
+        object_to_luaval(tolua_S, kAnimationMeta, Animation::create(frames, delayPerFrame));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Animation:create", argc, 1, 2);
+}
+
+int lua_zocos_Animate_create(lua_State* tolua_S) {
+    const int base = classArgBase(tolua_S);
+    const int argc = classArgCount(tolua_S);
+    if (argc == 1) {
+        Animation* animation =
+            luaval_to_object<Animation>(tolua_S, base, kAnimationMeta, "Animation expected");
+        object_to_luaval(tolua_S, kActionMeta, Animate::create(animation));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Animate:create", argc, 1);
 }
 
 int lua_zocos_Sequence_create(lua_State* tolua_S) {
@@ -645,6 +715,26 @@ int lua_zocos_Node_initWithCheckerboard(lua_State* tolua_S) {
     return reportWrongArgCount(tolua_S, "cc.Node:initWithCheckerboard", argc, 0);
 }
 
+int lua_zocos_Node_setTextureRect(lua_State* tolua_S) {
+    auto* cobj = dynamic_cast<Sprite*>(luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected"));
+    if (!cobj) {
+        return luaL_error(tolua_S, "cc.Node:setTextureRect is only valid for Sprite instances");
+    }
+
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 4 || argc == 5) {
+        const float x = static_cast<float>(luaL_checknumber(tolua_S, 2));
+        const float y = static_cast<float>(luaL_checknumber(tolua_S, 3));
+        const float width = static_cast<float>(luaL_checknumber(tolua_S, 4));
+        const float height = static_cast<float>(luaL_checknumber(tolua_S, 5));
+        const bool resetSize = lua_gettop(tolua_S) >= 6 ? lua_toboolean(tolua_S, 6) != 0 : true;
+        cobj->setTextureRect(Rect{x, y, width, height}, resetSize);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setTextureRect", argc, 4, 5);
+}
+
 int lua_zocos_Node_setString(lua_State* tolua_S) {
     auto* cobj = dynamic_cast<Label*>(luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected"));
     if (!cobj) {
@@ -747,6 +837,7 @@ int register_all_zocos_manual(lua_State* tolua_S) {
         {"unscheduleAllCallbacks", lua_zocos_Node_unscheduleAllCallbacks},
         {"initWithFile", lua_zocos_Node_initWithFile},
         {"initWithCheckerboard", lua_zocos_Node_initWithCheckerboard},
+        {"setTextureRect", lua_zocos_Node_setTextureRect},
         {"setString", lua_zocos_Node_setString},
         {nullptr, nullptr},
     };
@@ -757,9 +848,14 @@ int register_all_zocos_manual(lua_State* tolua_S) {
         {nullptr, nullptr},
     };
 
+    static const luaL_Reg animationMethods[] = {
+        {nullptr, nullptr},
+    };
+
     registerMetatable(tolua_S, kDirectorMeta, directorMethods);
     registerMetatable(tolua_S, kNodeMeta, nodeMethods);
     registerMetatable(tolua_S, kActionMeta, actionMethods);
+    registerMetatable(tolua_S, kAnimationMeta, animationMethods);
 
     lua_newtable(tolua_S);
 
@@ -816,6 +912,16 @@ int register_all_zocos_manual(lua_State* tolua_S) {
     tolua_beginmodule(tolua_S, "DelayTime");
     stashCurrentModuleInRegistry(tolua_S, "DelayTime");
     tolua_function(tolua_S, "create", lua_zocos_DelayTime_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "Animation");
+    stashCurrentModuleInRegistry(tolua_S, "Animation");
+    tolua_function(tolua_S, "create", lua_zocos_Animation_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "Animate");
+    stashCurrentModuleInRegistry(tolua_S, "Animate");
+    tolua_function(tolua_S, "create", lua_zocos_Animate_create);
     tolua_endmodule(tolua_S);
 
     tolua_beginmodule(tolua_S, "Sequence");

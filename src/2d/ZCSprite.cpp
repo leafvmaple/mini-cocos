@@ -1,49 +1,53 @@
 #include "2d/ZCSprite.h"
 
 #include "base/ZCDirector.h"
-#include "base/ZCRenderDevice.h"
 #include "base/ZCRenderer.h"
+#include "base/ZCTextureCache.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
-#include <cstdio>
+#include <algorithm>
 #include <new>
-#include <vector>
 
 namespace zocos {
 
 namespace {
 
-bool uploadTexture(Director& director, TextureHandle& inOutTexture, int width, int height,
-                   const unsigned char* pixels) {
-    auto* device = director.getRenderDevice();
-    if (!device) {
-        std::fprintf(stderr, "Render device is not ready.\n");
-        return false;
+Rect sanitizeRect(const Rect& rect, const Size& textureSize) {
+    Rect clamped = rect;
+
+    if (clamped.width < 0.f) {
+        clamped.x += clamped.width;
+        clamped.width = -clamped.width;
+    }
+    if (clamped.height < 0.f) {
+        clamped.y += clamped.height;
+        clamped.height = -clamped.height;
     }
 
-    if (inOutTexture.isValid()) {
-        device->destroyTexture(inOutTexture);
-        inOutTexture = {};
+    clamped.x = std::clamp(clamped.x, 0.f, textureSize.width);
+    clamped.y = std::clamp(clamped.y, 0.f, textureSize.height);
+
+    const float maxX = std::clamp(clamped.x + clamped.width, 0.f, textureSize.width);
+    const float maxY = std::clamp(clamped.y + clamped.height, 0.f, textureSize.height);
+    clamped.width = std::max(0.f, maxX - clamped.x);
+    clamped.height = std::max(0.f, maxY - clamped.y);
+    return clamped;
+}
+
+Rect toUvRectTopLeft(const Rect& pixelRect, const Size& textureSize) {
+    if (textureSize.width <= 0.f || textureSize.height <= 0.f) {
+        return Rect{0.f, 0.f, 1.f, 1.f};
     }
 
-    TextureCreateInfo createInfo;
-    createInfo.width = width;
-    createInfo.height = height;
-    createInfo.format = TextureFormat::RGBA8Unorm;
-    createInfo.initialData.pixels = pixels;
-    createInfo.initialData.rowPitchBytes = width * 4;
-    createInfo.initialData.origin = TextureDataOrigin::TopLeft;
+    const Rect clamped = sanitizeRect(pixelRect, textureSize);
+    const float invW = 1.f / textureSize.width;
+    const float invH = 1.f / textureSize.height;
 
-    const TextureHandle newTexture = device->createTexture(createInfo);
-    if (!newTexture.isValid()) {
-        std::fprintf(stderr, "Failed to create GPU texture.\n");
-        return false;
-    }
-
-    inOutTexture = newTexture;
-    return true;
+    Rect uv;
+    uv.x = clamped.x * invW;
+    uv.y = (textureSize.height - (clamped.y + clamped.height)) * invH;
+    uv.width = clamped.width * invW;
+    uv.height = clamped.height * invH;
+    return uv;
 }
 
 } // namespace
@@ -81,53 +85,65 @@ bool Sprite::init() {
 }
 
 Sprite::~Sprite() {
-    auto* device = _director.getRenderDevice();
-    if (device && _texture.isValid()) {
-        device->destroyTexture(_texture);
-        _texture = {};
-    }
+    releaseTexture();
 }
 
 bool Sprite::initWithFile(const char* path) {
-    int w = 0;
-    int h = 0;
-    int ch = 0;
-    unsigned char* data = stbi_load(path, &w, &h, &ch, 4);
-    if (!data) {
-        std::fprintf(stderr, "stbi_load failed: %s\n", path);
+    TextureHandle texture;
+    Size textureSize;
+    if (!_director.getTextureCache().acquireFromFile(_director, path, texture, textureSize)) {
         return false;
     }
 
-    const bool uploaded = uploadTexture(_director, _texture, w, h, data);
-    stbi_image_free(data);
-    if (!uploaded) {
-        return false;
-    }
-
-    setContentSize({static_cast<float>(w), static_cast<float>(h)});
+    releaseTexture();
+    _texture = texture;
+    _texturePixelSize = textureSize;
+    _textureRect = {0.f, 0.f, textureSize.width, textureSize.height};
+    _hasTextureRect = true;
+    setContentSize(textureSize);
     _ready = true;
     return true;
 }
 
 void Sprite::initWithCheckerboard() {
-    constexpr int N = 64;
-    std::vector<unsigned char> px(static_cast<size_t>(N * N * 4));
-    for (int y = 0; y < N; ++y) {
-        for (int x = 0; x < N; ++x) {
-            const bool c = ((x / 8) + (y / 8)) % 2 == 0;
-            const unsigned char v = c ? 240 : 60;
-            const size_t i = static_cast<size_t>((y * N + x) * 4);
-            px[i + 0] = v;
-            px[i + 1] = static_cast<unsigned char>(255 - v);
-            px[i + 2] = 160;
-            px[i + 3] = 255;
-        }
+    TextureHandle texture;
+    Size textureSize;
+    if (!_director.getTextureCache().acquireCheckerboard(_director, 64, texture, textureSize)) {
+        _ready = false;
+        return;
     }
 
-    _ready = uploadTexture(_director, _texture, N, N, px.data());
-    if (_ready) {
-        setContentSize({static_cast<float>(N), static_cast<float>(N)});
+    releaseTexture();
+    _texture = texture;
+    _texturePixelSize = textureSize;
+    _textureRect = {0.f, 0.f, textureSize.width, textureSize.height};
+    _hasTextureRect = true;
+    setContentSize(textureSize);
+    _ready = true;
+}
+
+void Sprite::setTextureRect(const Rect& rect, bool resetSize) {
+    if (!_texture.isValid() || _texturePixelSize.width <= 0.f || _texturePixelSize.height <= 0.f) {
+        return;
     }
+
+    _textureRect = sanitizeRect(rect, _texturePixelSize);
+    _hasTextureRect = true;
+    if (resetSize) {
+        setContentSize({_textureRect.width, _textureRect.height});
+    }
+}
+
+void Sprite::releaseTexture() {
+    if (_texture.isValid()) {
+        _director.getTextureCache().release(_director, _texture);
+        _texture = {};
+    }
+
+    _texturePixelSize = {};
+    _textureRect = {};
+    _hasTextureRect = false;
+    _ready = false;
 }
 
 void Sprite::draw(Renderer& renderer, const Mat4& world) {
@@ -135,8 +151,13 @@ void Sprite::draw(Renderer& renderer, const Mat4& world) {
         return;
     }
 
+    Rect uvRect{0.f, 0.f, 1.f, 1.f};
+    if (_hasTextureRect) {
+        uvRect = toUvRectTopLeft(_textureRect, _texturePixelSize);
+    }
+
     const RenderSortKey sortKey = makeRenderSortKey(0, 0, _texture.value);
-    renderer.addDrawSprite(world, _contentSize, _texture, getOpacity(), sortKey);
+    renderer.addDrawSprite(world, _contentSize, _texture, uvRect, getOpacity(), sortKey);
 }
 
 } // namespace zocos

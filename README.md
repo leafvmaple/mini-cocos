@@ -10,6 +10,8 @@
 - 正交 2D 投影（Y 轴向上，帧缓冲左下角为原点）
 - 场景图：父子节点、局部变换（位置、缩放、旋转、锚点、内容尺寸）
 - 带纹理的四边形；可选 PNG/JPEG 等（[stb_image](https://github.com/nothings/stb)，`third_party/stb_image.h`）
+- 资源缓存：`TextureCache` 复用纹理并按引用计数自动释放 GPU 资源
+- 帧动画：`Animation` + `Animate`（可通过 `setTextureRect` 切换图集帧）
 - Lua 脚本导出系统（`cc.*`）：可在 Lua 中创建 `Director` / `Scene` / `Sprite` / `Label` 并驱动 `Action`
 - 示例：Lua 脚本中的精灵轨道运动与自转（或通过命令行传入图片路径）
 
@@ -80,8 +82,10 @@ Get-ChildItem -Path src -Recurse -Include *.cpp,*.h | ForEach-Object { clang-for
 | ------ | ------ |
 | `src/math/ZCMath.h` | `Vec2`、`Size`、`Mat4`（文件名避免与系统 `Math.h` 在大小写不敏感盘上冲突） |
 | `src/base/ZCDirector.*` | 主循环、GL 上下文、投影、当前场景（类型为 `Director`） |
+| `src/base/ZCTextureCache.*` | 纹理资源缓存与 GPU 纹理生命周期管理（类型为 `TextureCache`） |
 | `src/2d/ZCNode.*` | 场景图基类：`visit`、`updateTree`、变换（类型为 `Node` / `Scene`） |
 | `src/2d/ZCSprite.*` | 纹理四边形与简单着色器（类型为 `Sprite`） |
+| `src/base/ZCAction.*` | 基础动作系统（含 `Animation` / `Animate` 帧动画） |
 | `src/scripting/ZCLuaEngine.*` / `src/scripting/ZCLuaManual.*` | Lua 引擎封装、统一导出入口（`register_all_zocos*`）与手动导出 |
 | `src/platform/ZCOpenGLLoader.*` | 最小 GL 3.3 入口（平台 / 图形后端相关） |
 | `src/main.cpp` | 引擎入口（加载并执行 Lua demo 脚本） |

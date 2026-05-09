@@ -1,6 +1,8 @@
 #include "base/ZCAction.h"
 
+#include "base/ZCAnimation.h"
 #include "2d/ZCNode.h"
+#include "2d/ZCSprite.h"
 
 #include <algorithm>
 #include <new>
@@ -306,6 +308,69 @@ DelayTime* DelayTime::create(float duration) {
 
 void DelayTime::update(float t) {
     (void)t;
+}
+
+Animate::Animate(Animation* animation)
+    : ActionInterval(animation ? animation->getDuration() : 0.f), _animation(animation) {
+    if (_animation) {
+        _animation->retain();
+    }
+}
+
+Animate* Animate::create(Animation* animation) {
+    if (!animation) {
+        return nullptr;
+    }
+
+    auto* animate = new (std::nothrow) Animate(animation);
+    if (animate) {
+        animate->autorelease();
+        return animate;
+    }
+    delete animate;
+    return nullptr;
+}
+
+Animate::~Animate() {
+    if (_animation) {
+        _animation->release();
+        _animation = nullptr;
+    }
+}
+
+void Animate::startWithTarget(Node* target) {
+    ActionInterval::startWithTarget(target);
+    _lastFrameIndex = static_cast<std::size_t>(-1);
+    update(0.f);
+}
+
+void Animate::update(float t) {
+    if (!_target || !_animation) {
+        return;
+    }
+
+    auto* sprite = dynamic_cast<Sprite*>(_target);
+    if (!sprite) {
+        return;
+    }
+
+    const auto& frames = _animation->getFrames();
+    if (frames.empty()) {
+        return;
+    }
+
+    const float clamped = clamp01(t);
+    std::size_t index = static_cast<std::size_t>(clamped * static_cast<float>(frames.size()));
+    if (index >= frames.size()) {
+        index = frames.size() - 1;
+    }
+
+    if (index == _lastFrameIndex) {
+        return;
+    }
+
+    sprite->setTextureRect(frames[index], true);
+    _lastFrameIndex = index;
 }
 
 CallFunc::CallFunc(Callback callback) : _callback(std::move(callback)) {

@@ -229,13 +229,17 @@ void RenderDeviceGL::drawSprite(const DrawSpriteCommand& command) {
 
     const float w = command.contentSize.width;
     const float h = command.contentSize.height;
+    const float u0 = command.uvRect.x;
+    const float v0 = command.uvRect.y;
+    const float u1 = command.uvRect.x + command.uvRect.width;
+    const float v1 = command.uvRect.y + command.uvRect.height;
     const float verts[] = {
-        0.f, 0.f, 0.f, 0.f,
-        w, 0.f, 1.f, 0.f,
-        w, h, 1.f, 1.f,
-        0.f, 0.f, 0.f, 0.f,
-        w, h, 1.f, 1.f,
-        0.f, h, 0.f, 1.f,
+        0.f, 0.f, u0, v0,
+        w, 0.f, u1, v0,
+        w, h, u1, v1,
+        0.f, 0.f, u0, v0,
+        w, h, u1, v1,
+        0.f, h, u0, v1,
     };
 
     glBindVertexArray(_spriteVao);

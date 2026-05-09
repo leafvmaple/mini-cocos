@@ -1,6 +1,7 @@
 #include "base/ZCDirector.h"
 #include "base/ZCAutoreleasePool.h"
 #include "base/ZCEvent.h"
+#include "base/ZCTextureCache.h"
 #include "platform/ZCOpenGLLoader.h"
 #include "platform/ZCRenderDeviceGL.h"
 
@@ -126,6 +127,13 @@ Director& Director::getInstance() {
     return inst;
 }
 
+TextureCache& Director::getTextureCache() {
+    if (!_textureCache) {
+        _textureCache = std::make_unique<TextureCache>();
+    }
+    return *_textureCache;
+}
+
 bool Director::init(int width, int height, const char* title) {
     if (!glfwInit()) return false;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -153,6 +161,7 @@ bool Director::init(int width, int height, const char* title) {
     }
 
     _renderDevice = std::make_unique<RenderDeviceGL>();
+    _textureCache = std::make_unique<TextureCache>();
 
     glfwGetFramebufferSize(_window, &_fbWidth, &_fbHeight);
     glViewport(0, 0, _fbWidth, _fbHeight);
@@ -186,6 +195,10 @@ void Director::shutdown() {
     _actionManager.removeAllActions();
     _eventDispatcher.removeAllListeners();
     _renderer.endFrame();
+    if (_textureCache) {
+        _textureCache->removeAllTextures(*this);
+        _textureCache.reset();
+    }
     _renderDevice.reset();
     PoolManager::getInstance().clearRootPool();
     if (_window) {

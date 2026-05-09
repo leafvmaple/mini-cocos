@@ -22,6 +22,7 @@ struct DrawSpriteCommand {
     Mat4 world = Mat4::identity();
     Size contentSize{};
     TextureHandle texture{};
+    Rect uvRect{0.f, 0.f, 1.f, 1.f};
     float opacity = 1.f;
 };
 

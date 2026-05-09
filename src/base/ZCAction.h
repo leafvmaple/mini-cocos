@@ -1,5 +1,6 @@
 #pragma once
 
+#include "base/ZCAnimation.h"
 #include "base/ZCRef.h"
 #include "math/ZCMath.h"
 
@@ -175,6 +176,22 @@ public:
 protected:
     explicit DelayTime(float duration);
     void update(float t) override;
+};
+
+class Animate : public ActionInterval {
+public:
+    static Animate* create(Animation* animation);
+
+    ~Animate() override;
+    void startWithTarget(Node* target) override;
+
+protected:
+    explicit Animate(Animation* animation);
+    void update(float t) override;
+
+private:
+    Animation* _animation = nullptr;
+    std::size_t _lastFrameIndex = static_cast<std::size_t>(-1);
 };
 
 class CallFunc : public Action {

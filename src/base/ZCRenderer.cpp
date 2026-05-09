@@ -14,6 +14,11 @@ void Renderer::beginFrame(const Mat4& projection) {
 
 void Renderer::addDrawSprite(const Mat4& world, const Size& contentSize, TextureHandle texture,
                              float opacity, RenderSortKey sortKey) {
+    addDrawSprite(world, contentSize, texture, Rect{0.f, 0.f, 1.f, 1.f}, opacity, sortKey);
+}
+
+void Renderer::addDrawSprite(const Mat4& world, const Size& contentSize, TextureHandle texture,
+                             const Rect& uvRect, float opacity, RenderSortKey sortKey) {
     if (!texture.isValid()) {
         return;
     }
@@ -25,6 +30,7 @@ void Renderer::addDrawSprite(const Mat4& world, const Size& contentSize, Texture
     cmd.sprite.world = world;
     cmd.sprite.contentSize = contentSize;
     cmd.sprite.texture = texture;
+    cmd.sprite.uvRect = uvRect;
     cmd.sprite.opacity = opacity;
     _commands.push_back(cmd);
 }
