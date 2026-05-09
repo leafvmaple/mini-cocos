@@ -84,15 +84,13 @@ Label::Label(Director& director) : _director(director) {
 
 Label* Label::create(Director& director, const std::string& text) {
     auto* label = new (std::nothrow) Label(director);
-    if (!label) {
-        return nullptr;
+    if (label && label->init()) {
+        label->setString(text);
+        label->autorelease();
+        return label;
     }
-    if (!label->init()) {
-        delete label;
-        return nullptr;
-    }
-    label->setString(text);
-    return static_cast<Label*>(label->autorelease());
+    delete label;
+    return nullptr;
 }
 
 Label::~Label() {
@@ -174,7 +172,7 @@ void Label::draw(Renderer& renderer, const Mat4& world) {
     }
 
     const RenderSortKey sortKey = makeRenderSortKey(0, 0, _texture.value);
-    renderer.addDrawSprite(world, _contentSize, _texture, sortKey);
+    renderer.addDrawSprite(world, _contentSize, _texture, getOpacity(), sortKey);
 }
 
 } // namespace zocos

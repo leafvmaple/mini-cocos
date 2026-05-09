@@ -180,8 +180,10 @@ void Director::shutdown() {
     }
 
     assert(_scheduler.getScheduledCount() == 0 && "Scheduled callbacks were not fully released.");
+    assert(_actionManager.getRunningActionCount() == 0 && "Actions were not fully released.");
     assert(_eventDispatcher.getListenerCount() == 0 && "Event listeners were not fully released.");
 
+    _actionManager.removeAllActions();
     _eventDispatcher.removeAllListeners();
     _renderer.endFrame();
     _renderDevice.reset();
@@ -234,6 +236,7 @@ void Director::mainLoop() {
 
     glfwPollEvents();
     _scheduler.update(dt);
+    _actionManager.update(dt);
     if (_runningScene) _runningScene->updateTree(dt);
 
     if (_renderDevice) {

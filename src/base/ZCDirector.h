@@ -1,5 +1,6 @@
 #pragma once
 
+#include "base/ZCActionManager.h"
 #include "base/ZCEventDispatcher.h"
 #include "base/ZCRenderDevice.h"
 #include "base/ZCRenderer.h"
@@ -23,6 +24,7 @@ public:
     void mainLoop();
 
     Scheduler& getScheduler() { return _scheduler; }
+    ActionManager& getActionManager() { return _actionManager; }
     EventDispatcher& getEventDispatcher() { return _eventDispatcher; }
     Renderer& getRenderer() { return _renderer; }
     RenderDevice* getRenderDevice() const { return _renderDevice.get(); }
@@ -52,6 +54,7 @@ private:
     GLFWwindow* _window = nullptr;
     Scene* _runningScene = nullptr;
     Scheduler _scheduler;
+    ActionManager _actionManager;
     EventDispatcher _eventDispatcher;
     Renderer _renderer;
     std::unique_ptr<RenderDevice> _renderDevice;

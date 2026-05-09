@@ -36,11 +36,9 @@ public:
 
     static EventListenerKeyboard* create(Callback onPressed = {}, Callback onReleased = {}) {
         auto* listener = new (std::nothrow) EventListenerKeyboard();
-        if (!listener) {
-            return nullptr;
-        }
-        if (listener->init(std::move(onPressed), std::move(onReleased))) {
-            return static_cast<EventListenerKeyboard*>(listener->autorelease());
+        if (listener && listener->init(std::move(onPressed), std::move(onReleased))) {
+            listener->autorelease();
+            return listener;
         }
         delete listener;
         return nullptr;
@@ -67,11 +65,9 @@ public:
 
     static EventListenerMouse* create() {
         auto* listener = new (std::nothrow) EventListenerMouse();
-        if (!listener) {
-            return nullptr;
-        }
-        if (listener->init()) {
-            return static_cast<EventListenerMouse*>(listener->autorelease());
+        if (listener && listener->init()) {
+            listener->autorelease();
+            return listener;
         }
         delete listener;
         return nullptr;

@@ -31,6 +31,7 @@ private:
     GLuint _spriteProgram = 0;
     GLint _spriteLocMvp = -1;
     GLint _spriteLocTex = -1;
+    GLint _spriteLocOpacity = -1;
     GLuint _spriteVao = 0;
     GLuint _spriteVbo = 0;
 

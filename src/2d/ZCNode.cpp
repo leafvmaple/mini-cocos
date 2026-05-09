@@ -1,5 +1,6 @@
 #include "2d/ZCNode.h"
 
+#include "base/ZCActionManager.h"
 #include "base/ZCDirector.h"
 #include "base/ZCRenderer.h"
 
@@ -21,6 +22,7 @@ Node* Node::create() {
 
 Node::~Node() {
     Director::getInstance().getEventDispatcher().removeListenersForTarget(this);
+    stopAllActions();
     unscheduleAllCallbacks();
     removeAllChildren();
 }
@@ -46,6 +48,7 @@ void Node::onExit() {
             child->onExit();
         }
     }
+    stopAllActions();
     unscheduleAllCallbacks();
     _running = false;
 }
@@ -66,6 +69,25 @@ void Node::unschedule(const std::string& key) {
 
 void Node::unscheduleAllCallbacks() {
     Director::getInstance().getScheduler().unscheduleAllForTarget(this);
+}
+
+Action* Node::runAction(Action* action) {
+    if (!action) {
+        return nullptr;
+    }
+    Director::getInstance().getActionManager().addAction(action, this);
+    return action;
+}
+
+void Node::stopAction(Action* action) {
+    if (!action) {
+        return;
+    }
+    Director::getInstance().getActionManager().removeAction(action);
+}
+
+void Node::stopAllActions() {
+    Director::getInstance().getActionManager().removeAllActionsFromTarget(this);
 }
 
 void Node::addChild(Node* child) {

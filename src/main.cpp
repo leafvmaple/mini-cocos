@@ -1,5 +1,6 @@
 // Demo: compare with cocos2d-x flow — Application / Director::runWithScene / Scene / Node / Sprite.
 #include "base/ZCApplication.h"
+#include "base/ZCAction.h"
 #include "base/ZCDirector.h"
 #include "base/ZCEventListener.h"
 #include "base/ZCRef.h"
@@ -23,11 +24,9 @@ class DemoSprite : public Sprite {
 public:
     static DemoSprite* create(Director& director) {
         auto* sprite = new (std::nothrow) DemoSprite(director);
-        if (!sprite) {
-            return nullptr;
-        }
-        if (sprite->init()) {
-            return static_cast<DemoSprite*>(sprite->autorelease());
+        if (sprite && sprite->init()) {
+            sprite->autorelease();
+            return sprite;
         }
         delete sprite;
         return nullptr;
@@ -201,8 +200,18 @@ int main(int argc, char** argv) {
     } else {
         child->initWithCheckerboard();
     }
-    child->setPosition(static_cast<float>(dir.getFramebufferWidth()) * 0.5f,
-        static_cast<float>(dir.getFramebufferHeight()) * 0.5f);
+    const float centerX = static_cast<float>(dir.getFramebufferWidth()) * 0.5f;
+    const float centerY = static_cast<float>(dir.getFramebufferHeight()) * 0.5f;
+    const float orbitRadius = std::min(centerX, centerY) * 0.5f;
+    child->setPosition(centerX + orbitRadius, centerY);
+
+    // Action demo: orbit around screen center and spin itself continuously.
+    child->runAction(RepeatForever::create(Sequence::create(
+        {MoveTo::create(0.8f, Vec2{centerX, centerY + orbitRadius}),
+            MoveTo::create(0.8f, Vec2{centerX - orbitRadius, centerY}),
+            MoveTo::create(0.8f, Vec2{centerX, centerY - orbitRadius}),
+            MoveTo::create(0.8f, Vec2{centerX + orbitRadius, centerY})})));
+    child->runAction(RepeatForever::create(RotateBy::create(1.0f, 360.f)));
 
     scene->addChild(child);
 

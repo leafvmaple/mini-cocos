@@ -9,6 +9,7 @@
 namespace zocos {
 
 class Renderer;
+class Action;
 
 class Node : public Ref {
 public:
@@ -41,6 +42,17 @@ public:
     void setVisible(bool v) { _visible = v; }
     bool isVisible() const { return _visible; }
 
+    void setOpacity(float opacity) {
+        if (opacity < 0.f) {
+            _opacity = 0.f;
+        } else if (opacity > 1.f) {
+            _opacity = 1.f;
+        } else {
+            _opacity = opacity;
+        }
+    }
+    float getOpacity() const { return _opacity; }
+
     void setTag(int t) { _tag = t; }
     int getTag() const { return _tag; }
 
@@ -59,6 +71,10 @@ public:
         int priority = 0);
     void unschedule(const std::string& key);
     void unscheduleAllCallbacks();
+
+    Action* runAction(Action* action);
+    void stopAction(Action* action);
+    void stopAllActions();
 
     void addChild(Node* child);
     void removeChild(Node* child);
@@ -94,6 +110,7 @@ protected:
     Vec2 _anchorPoint{0.5f, 0.5f};
     Size _contentSize{};
     bool _visible = true;
+    float _opacity = 1.f;
     int _tag = -1;
 };
 

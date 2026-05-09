@@ -75,6 +75,7 @@ extern void (*glUseProgram)(GLuint);
 extern GLint (*glGetUniformLocation)(GLuint, const GLchar*);
 extern void (*glUniformMatrix4fv)(GLint, GLsizei, GLboolean, const GLfloat*);
 extern void (*glUniform1i)(GLint, GLint);
+extern void (*glUniform1f)(GLint, GLfloat);
 extern void (*glDeleteProgram)(GLuint);
 extern void (*glDeleteTextures)(GLsizei, const GLuint*);
 extern void (*glDeleteVertexArrays)(GLsizei, const GLuint*);

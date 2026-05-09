@@ -22,9 +22,11 @@ void main() {
 const char* kSpriteFs = R"(#version 330 core
 in vec2 vUv;
 uniform sampler2D uTex;
+uniform float uOpacity;
 out vec4 FragColor;
 void main() {
-    FragColor = texture(uTex, vUv);
+    vec4 texColor = texture(uTex, vUv);
+    FragColor = vec4(texColor.rgb, texColor.a * uOpacity);
 }
 )";
 
@@ -202,6 +204,7 @@ bool RenderDeviceGL::ensureSpritePipeline() {
 
     _spriteLocMvp = glGetUniformLocation(_spriteProgram, "uMvp");
     _spriteLocTex = glGetUniformLocation(_spriteProgram, "uTex");
+    _spriteLocOpacity = glGetUniformLocation(_spriteProgram, "uOpacity");
     return true;
 }
 
@@ -249,6 +252,7 @@ void RenderDeviceGL::drawSprite(const DrawSpriteCommand& command) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texId);
     glUniform1i(_spriteLocTex, 0);
+    glUniform1f(_spriteLocOpacity, command.opacity);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 

@@ -28,13 +28,12 @@ void Ref::release() {
     }
 }
 
-Ref* Ref::autorelease() {
+void Ref::autorelease() {
     auto* pool = PoolManager::getInstance().getCurrentPool();
     assert(pool && "No autorelease pool available.");
     if (pool) {
         pool->addObject(this);
     }
-    return this;
 }
 
 std::size_t Ref::getLiveCount() {

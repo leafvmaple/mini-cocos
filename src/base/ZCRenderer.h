@@ -12,7 +12,7 @@ class Renderer {
 public:
     void beginFrame(const Mat4& projection);
     void addDrawSprite(const Mat4& world, const Size& contentSize, TextureHandle texture,
-                       RenderSortKey sortKey = 0);
+                       float opacity = 1.f, RenderSortKey sortKey = 0);
     void flush(RenderDevice& device, int framebufferWidth, int framebufferHeight);
     void endFrame();
 

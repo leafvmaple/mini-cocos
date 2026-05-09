@@ -40,6 +40,7 @@ void (*glUseProgram)(GLuint);
 GLint (*glGetUniformLocation)(GLuint, const GLchar*);
 void (*glUniformMatrix4fv)(GLint, GLsizei, GLboolean, const GLfloat*);
 void (*glUniform1i)(GLint, GLint);
+void (*glUniform1f)(GLint, GLfloat);
 void (*glDeleteProgram)(GLuint);
 void (*glDeleteTextures)(GLsizei, const GLuint*);
 void (*glDeleteVertexArrays)(GLsizei, const GLuint*);
@@ -79,6 +80,7 @@ bool loadOpenGL(void* (*getProc)(const char*)) {
     LOAD(glGetUniformLocation);
     LOAD(glUniformMatrix4fv);
     LOAD(glUniform1i);
+    LOAD(glUniform1f);
     LOAD(glDeleteProgram);
     LOAD(glDeleteTextures);
     LOAD(glDeleteVertexArrays);

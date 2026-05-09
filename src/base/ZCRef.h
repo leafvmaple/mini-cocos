@@ -8,7 +8,7 @@ class Ref {
 public:
     void retain();
     void release();
-    Ref* autorelease();
+    void autorelease();
     static std::size_t getLiveCount();
 
     unsigned int getReferenceCount() const { return _referenceCount; }

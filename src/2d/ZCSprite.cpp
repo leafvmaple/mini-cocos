@@ -136,7 +136,7 @@ void Sprite::draw(Renderer& renderer, const Mat4& world) {
     }
 
     const RenderSortKey sortKey = makeRenderSortKey(0, 0, _texture.value);
-    renderer.addDrawSprite(world, _contentSize, _texture, sortKey);
+    renderer.addDrawSprite(world, _contentSize, _texture, getOpacity(), sortKey);
 }
 
 } // namespace zocos
