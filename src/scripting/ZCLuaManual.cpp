@@ -25,17 +25,26 @@ constexpr const char* kDirectorMeta = "zocos.Director";
 constexpr const char* kNodeMeta = "zocos.Node";
 constexpr const char* kActionMeta = "zocos.Action";
 
-struct LuaDirectorRef {
-    Director* director = nullptr;
-};
+template <typename T>
+T* luaval_to_object(lua_State* tolua_S, int index, const char* metatableName,
+                    const char* expectedMessage) {
+    auto* userData = static_cast<T**>(luaL_checkudata(tolua_S, index, metatableName));
+    luaL_argcheck(tolua_S, userData != nullptr && *userData != nullptr, index, expectedMessage);
+    return *userData;
+}
 
-struct LuaNodeRef {
-    Node* node = nullptr;
-};
+template <typename T>
+void object_to_luaval(lua_State* tolua_S, const char* metatableName, T* object) {
+    if (!object) {
+        lua_pushnil(tolua_S);
+        return;
+    }
 
-struct LuaActionRef {
-    Action* action = nullptr;
-};
+    auto* userData = static_cast<T**>(lua_newuserdata(tolua_S, sizeof(T*)));
+    *userData = object;
+    luaL_getmetatable(tolua_S, metatableName);
+    lua_setmetatable(tolua_S, -2);
+}
 
 using LuaNodeScheduleRefs = std::unordered_map<Node*, std::unordered_map<std::string, int>>;
 
@@ -116,406 +125,563 @@ int classArgBase(lua_State* tolua_S) {
     return 1;
 }
 
-Director* checkDirector(lua_State* tolua_S, int index) {
-    auto* ref = static_cast<LuaDirectorRef*>(luaL_checkudata(tolua_S, index, kDirectorMeta));
-    luaL_argcheck(tolua_S, ref != nullptr && ref->director != nullptr, index, "Director expected");
-    return ref->director;
+int classArgCount(lua_State* tolua_S) {
+    return lua_gettop(tolua_S) - classArgBase(tolua_S) + 1;
 }
 
-Node* checkNode(lua_State* tolua_S, int index) {
-    auto* ref = static_cast<LuaNodeRef*>(luaL_checkudata(tolua_S, index, kNodeMeta));
-    luaL_argcheck(tolua_S, ref != nullptr && ref->node != nullptr, index, "Node expected");
-    return ref->node;
+int reportWrongArgCount(lua_State* tolua_S, const char* funcName, int argc, int expected) {
+    return luaL_error(tolua_S, "%s has wrong number of arguments: %d, was expecting %d", funcName,
+                      argc, expected);
 }
 
-Action* checkAction(lua_State* tolua_S, int index) {
-    auto* ref = static_cast<LuaActionRef*>(luaL_checkudata(tolua_S, index, kActionMeta));
-    luaL_argcheck(tolua_S, ref != nullptr && ref->action != nullptr, index, "Action expected");
-    return ref->action;
+int reportWrongArgCount(lua_State* tolua_S, const char* funcName, int argc, int minExpected,
+                        int maxExpected) {
+    return luaL_error(tolua_S,
+                      "%s has wrong number of arguments: %d, was expecting %d to %d", funcName,
+                      argc, minExpected, maxExpected);
 }
 
-void pushDirector(lua_State* tolua_S, Director* director) {
-    auto* ref = static_cast<LuaDirectorRef*>(lua_newuserdata(tolua_S, sizeof(LuaDirectorRef)));
-    ref->director = director;
-    luaL_getmetatable(tolua_S, kDirectorMeta);
-    lua_setmetatable(tolua_S, -2);
-}
-
-void pushNode(lua_State* tolua_S, Node* node) {
-    if (!node) {
-        lua_pushnil(tolua_S);
-        return;
-    }
-
-    auto* ref = static_cast<LuaNodeRef*>(lua_newuserdata(tolua_S, sizeof(LuaNodeRef)));
-    ref->node = node;
-    luaL_getmetatable(tolua_S, kNodeMeta);
-    lua_setmetatable(tolua_S, -2);
-}
-
-void pushAction(lua_State* tolua_S, Action* action) {
-    if (!action) {
-        lua_pushnil(tolua_S);
-        return;
-    }
-
-    auto* ref = static_cast<LuaActionRef*>(lua_newuserdata(tolua_S, sizeof(LuaActionRef)));
-    ref->action = action;
-    luaL_getmetatable(tolua_S, kActionMeta);
-    lua_setmetatable(tolua_S, -2);
-}
-
-std::vector<Action*> checkActionArray(lua_State* tolua_S, int index) {
+template <typename T>
+std::vector<T*> luaval_to_object_array(lua_State* tolua_S, int index, const char* metatableName,
+                                       const char* expectedMessage) {
     const int absIndex = lua_absindex(tolua_S, index);
     luaL_checktype(tolua_S, absIndex, LUA_TTABLE);
 
     const lua_Integer length = luaL_len(tolua_S, absIndex);
-    std::vector<Action*> actions;
-    actions.reserve(static_cast<std::size_t>(length));
+    std::vector<T*> objects;
+    objects.reserve(static_cast<std::size_t>(length));
 
     for (lua_Integer i = 1; i <= length; ++i) {
         lua_geti(tolua_S, absIndex, i);
-        actions.push_back(checkAction(tolua_S, -1));
+        objects.push_back(luaval_to_object<T>(tolua_S, -1, metatableName, expectedMessage));
         lua_pop(tolua_S, 1);
     }
 
-    return actions;
+    return objects;
 }
 
 int lua_zocos_Director_getInstance(lua_State* tolua_S) {
-    pushDirector(tolua_S, &Director::getInstance());
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 0) {
+        object_to_luaval(tolua_S, kDirectorMeta, &Director::getInstance());
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Director:getInstance", argc, 0);
 }
 
 int lua_zocos_Director_init(lua_State* tolua_S) {
-    Director* director = checkDirector(tolua_S, 1);
-    const int width = static_cast<int>(luaL_checkinteger(tolua_S, 2));
-    const int height = static_cast<int>(luaL_checkinteger(tolua_S, 3));
-    const char* title = luaL_checkstring(tolua_S, 4);
-    lua_pushboolean(tolua_S, director->init(width, height, title));
-    return 1;
+    Director* cobj = luaval_to_object<Director>(tolua_S, 1, kDirectorMeta, "Director expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 3) {
+        const int width = static_cast<int>(luaL_checkinteger(tolua_S, 2));
+        const int height = static_cast<int>(luaL_checkinteger(tolua_S, 3));
+        const char* title = luaL_checkstring(tolua_S, 4);
+        lua_pushboolean(tolua_S, cobj->init(width, height, title));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Director:init", argc, 3);
 }
 
 int lua_zocos_Director_runWithScene(lua_State* tolua_S) {
-    Director* director = checkDirector(tolua_S, 1);
-    Node* node = checkNode(tolua_S, 2);
-    auto* scene = dynamic_cast<Scene*>(node);
-    if (!scene) {
-        return luaL_error(tolua_S, "Director:runWithScene expects a Scene");
+    Director* cobj = luaval_to_object<Director>(tolua_S, 1, kDirectorMeta, "Director expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        Node* node = luaval_to_object<Node>(tolua_S, 2, kNodeMeta, "Node expected");
+        auto* scene = dynamic_cast<Scene*>(node);
+        if (!scene) {
+            return luaL_error(tolua_S, "cc.Director:runWithScene expects Scene as first argument");
+        }
+
+        cobj->runWithScene(scene);
+        return 0;
     }
 
-    director->runWithScene(scene);
-    return 0;
+    return reportWrongArgCount(tolua_S, "cc.Director:runWithScene", argc, 1);
 }
 
 int lua_zocos_Director_shutdown(lua_State* tolua_S) {
-    Director* director = checkDirector(tolua_S, 1);
-    director->shutdown();
-    return 0;
+    Director* cobj = luaval_to_object<Director>(tolua_S, 1, kDirectorMeta, "Director expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        cobj->shutdown();
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Director:shutdown", argc, 0);
 }
 
 int lua_zocos_Director_getFramebufferWidth(lua_State* tolua_S) {
-    Director* director = checkDirector(tolua_S, 1);
-    lua_pushinteger(tolua_S, director->getFramebufferWidth());
-    return 1;
+    Director* cobj = luaval_to_object<Director>(tolua_S, 1, kDirectorMeta, "Director expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        lua_pushinteger(tolua_S, cobj->getFramebufferWidth());
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Director:getFramebufferWidth", argc, 0);
 }
 
 int lua_zocos_Director_getFramebufferHeight(lua_State* tolua_S) {
-    Director* director = checkDirector(tolua_S, 1);
-    lua_pushinteger(tolua_S, director->getFramebufferHeight());
-    return 1;
+    Director* cobj = luaval_to_object<Director>(tolua_S, 1, kDirectorMeta, "Director expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        lua_pushinteger(tolua_S, cobj->getFramebufferHeight());
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Director:getFramebufferHeight", argc, 0);
 }
 
 int lua_zocos_Scene_create(lua_State* tolua_S) {
-    (void)tolua_S;
-    pushNode(tolua_S, Scene::create());
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 0) {
+        object_to_luaval(tolua_S, kNodeMeta, Scene::create());
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Scene:create", argc, 0);
 }
 
 int lua_zocos_Sprite_create(lua_State* tolua_S) {
-    (void)tolua_S;
-    pushNode(tolua_S, Sprite::create(Director::getInstance()));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 0) {
+        object_to_luaval(tolua_S, kNodeMeta, Sprite::create(Director::getInstance()));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Sprite:create", argc, 0);
 }
 
 int lua_zocos_Sprite_createWithFile(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
-    const char* path = luaL_checkstring(tolua_S, base);
-    pushNode(tolua_S, Sprite::createWithFile(Director::getInstance(), path));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 1) {
+        const char* path = luaL_checkstring(tolua_S, base);
+        object_to_luaval(tolua_S, kNodeMeta, Sprite::createWithFile(Director::getInstance(), path));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Sprite:createWithFile", argc, 1);
 }
 
 int lua_zocos_Label_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
-    const char* text = luaL_optstring(tolua_S, base, "");
-    pushNode(tolua_S, Label::create(Director::getInstance(), text));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 0 || argc == 1) {
+        const char* text = luaL_optstring(tolua_S, base, "");
+        object_to_luaval(tolua_S, kNodeMeta, Label::create(Director::getInstance(), text));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Label:create", argc, 0, 1);
 }
 
 int lua_zocos_MoveTo_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
-    const float duration = static_cast<float>(luaL_checknumber(tolua_S, base + 0));
-    const float x = static_cast<float>(luaL_checknumber(tolua_S, base + 1));
-    const float y = static_cast<float>(luaL_checknumber(tolua_S, base + 2));
-    pushAction(tolua_S, MoveTo::create(duration, Vec2{x, y}));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 3) {
+        const float duration = static_cast<float>(luaL_checknumber(tolua_S, base + 0));
+        const float x = static_cast<float>(luaL_checknumber(tolua_S, base + 1));
+        const float y = static_cast<float>(luaL_checknumber(tolua_S, base + 2));
+        object_to_luaval(tolua_S, kActionMeta, MoveTo::create(duration, Vec2{x, y}));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.MoveTo:create", argc, 3);
 }
 
 int lua_zocos_MoveBy_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
-    const float duration = static_cast<float>(luaL_checknumber(tolua_S, base + 0));
-    const float x = static_cast<float>(luaL_checknumber(tolua_S, base + 1));
-    const float y = static_cast<float>(luaL_checknumber(tolua_S, base + 2));
-    pushAction(tolua_S, MoveBy::create(duration, Vec2{x, y}));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 3) {
+        const float duration = static_cast<float>(luaL_checknumber(tolua_S, base + 0));
+        const float x = static_cast<float>(luaL_checknumber(tolua_S, base + 1));
+        const float y = static_cast<float>(luaL_checknumber(tolua_S, base + 2));
+        object_to_luaval(tolua_S, kActionMeta, MoveBy::create(duration, Vec2{x, y}));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.MoveBy:create", argc, 3);
 }
 
 int lua_zocos_RotateBy_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
-    const float duration = static_cast<float>(luaL_checknumber(tolua_S, base + 0));
-    const float delta = static_cast<float>(luaL_checknumber(tolua_S, base + 1));
-    pushAction(tolua_S, RotateBy::create(duration, delta));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 2) {
+        const float duration = static_cast<float>(luaL_checknumber(tolua_S, base + 0));
+        const float delta = static_cast<float>(luaL_checknumber(tolua_S, base + 1));
+        object_to_luaval(tolua_S, kActionMeta, RotateBy::create(duration, delta));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.RotateBy:create", argc, 2);
 }
 
 int lua_zocos_RotateTo_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
-    const float duration = static_cast<float>(luaL_checknumber(tolua_S, base + 0));
-    const float value = static_cast<float>(luaL_checknumber(tolua_S, base + 1));
-    pushAction(tolua_S, RotateTo::create(duration, value));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 2) {
+        const float duration = static_cast<float>(luaL_checknumber(tolua_S, base + 0));
+        const float value = static_cast<float>(luaL_checknumber(tolua_S, base + 1));
+        object_to_luaval(tolua_S, kActionMeta, RotateTo::create(duration, value));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.RotateTo:create", argc, 2);
 }
 
 int lua_zocos_ScaleTo_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
-    const float duration = static_cast<float>(luaL_checknumber(tolua_S, base + 0));
-    const float sx = static_cast<float>(luaL_checknumber(tolua_S, base + 1));
-    const float sy = static_cast<float>(luaL_optnumber(tolua_S, base + 2, sx));
-    pushAction(tolua_S, ScaleTo::create(duration, Vec2{sx, sy}));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 2 || argc == 3) {
+        const float duration = static_cast<float>(luaL_checknumber(tolua_S, base + 0));
+        const float sx = static_cast<float>(luaL_checknumber(tolua_S, base + 1));
+        const float sy = static_cast<float>(luaL_optnumber(tolua_S, base + 2, sx));
+        object_to_luaval(tolua_S, kActionMeta, ScaleTo::create(duration, Vec2{sx, sy}));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.ScaleTo:create", argc, 2, 3);
 }
 
 int lua_zocos_FadeTo_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
-    const float duration = static_cast<float>(luaL_checknumber(tolua_S, base + 0));
-    const float opacity = static_cast<float>(luaL_checknumber(tolua_S, base + 1));
-    pushAction(tolua_S, FadeTo::create(duration, opacity));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 2) {
+        const float duration = static_cast<float>(luaL_checknumber(tolua_S, base + 0));
+        const float opacity = static_cast<float>(luaL_checknumber(tolua_S, base + 1));
+        object_to_luaval(tolua_S, kActionMeta, FadeTo::create(duration, opacity));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.FadeTo:create", argc, 2);
 }
 
 int lua_zocos_DelayTime_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
-    const float duration = static_cast<float>(luaL_checknumber(tolua_S, base));
-    pushAction(tolua_S, DelayTime::create(duration));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 1) {
+        const float duration = static_cast<float>(luaL_checknumber(tolua_S, base));
+        object_to_luaval(tolua_S, kActionMeta, DelayTime::create(duration));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.DelayTime:create", argc, 1);
 }
 
 int lua_zocos_Sequence_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
-    pushAction(tolua_S, Sequence::create(checkActionArray(tolua_S, base)));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 1) {
+        object_to_luaval(tolua_S, kActionMeta,
+                         Sequence::create(luaval_to_object_array<Action>(
+                             tolua_S, base, kActionMeta, "Action expected")));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Sequence:create", argc, 1);
 }
 
 int lua_zocos_Spawn_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
-    pushAction(tolua_S, Spawn::create(checkActionArray(tolua_S, base)));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 1) {
+        object_to_luaval(tolua_S, kActionMeta,
+                         Spawn::create(luaval_to_object_array<Action>(
+                             tolua_S, base, kActionMeta, "Action expected")));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Spawn:create", argc, 1);
 }
 
 int lua_zocos_Repeat_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
-    Action* inner = checkAction(tolua_S, base + 0);
-    const int times = static_cast<int>(luaL_checkinteger(tolua_S, base + 1));
-    pushAction(tolua_S, Repeat::create(inner, times));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 2) {
+        Action* inner = luaval_to_object<Action>(tolua_S, base + 0, kActionMeta, "Action expected");
+        const int times = static_cast<int>(luaL_checkinteger(tolua_S, base + 1));
+        object_to_luaval(tolua_S, kActionMeta, Repeat::create(inner, times));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Repeat:create", argc, 2);
 }
 
 int lua_zocos_RepeatForever_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
-    Action* inner = checkAction(tolua_S, base);
-    pushAction(tolua_S, RepeatForever::create(inner));
-    return 1;
+    const int argc = classArgCount(tolua_S);
+    if (argc == 1) {
+        Action* inner = luaval_to_object<Action>(tolua_S, base, kActionMeta, "Action expected");
+        object_to_luaval(tolua_S, kActionMeta, RepeatForever::create(inner));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.RepeatForever:create", argc, 1);
 }
 
 int lua_zocos_Node_setPosition(lua_State* tolua_S) {
-    Node* node = checkNode(tolua_S, 1);
-    const float x = static_cast<float>(luaL_checknumber(tolua_S, 2));
-    const float y = static_cast<float>(luaL_checknumber(tolua_S, 3));
-    node->setPosition(x, y);
-    return 0;
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 2) {
+        const float x = static_cast<float>(luaL_checknumber(tolua_S, 2));
+        const float y = static_cast<float>(luaL_checknumber(tolua_S, 3));
+        cobj->setPosition(x, y);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setPosition", argc, 2);
 }
 
 int lua_zocos_Node_setScale(lua_State* tolua_S) {
-    Node* node = checkNode(tolua_S, 1);
-    const float sx = static_cast<float>(luaL_checknumber(tolua_S, 2));
-    const float sy = static_cast<float>(luaL_optnumber(tolua_S, 3, sx));
-    node->setScale(Vec2{sx, sy});
-    return 0;
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1 || argc == 2) {
+        const float sx = static_cast<float>(luaL_checknumber(tolua_S, 2));
+        const float sy = static_cast<float>(luaL_optnumber(tolua_S, 3, sx));
+        cobj->setScale(Vec2{sx, sy});
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setScale", argc, 1, 2);
 }
 
 int lua_zocos_Node_setRotation(lua_State* tolua_S) {
-    Node* node = checkNode(tolua_S, 1);
-    const float degrees = static_cast<float>(luaL_checknumber(tolua_S, 2));
-    node->setRotation(degrees);
-    return 0;
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        const float degrees = static_cast<float>(luaL_checknumber(tolua_S, 2));
+        cobj->setRotation(degrees);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setRotation", argc, 1);
 }
 
 int lua_zocos_Node_setAnchorPoint(lua_State* tolua_S) {
-    Node* node = checkNode(tolua_S, 1);
-    const float x = static_cast<float>(luaL_checknumber(tolua_S, 2));
-    const float y = static_cast<float>(luaL_checknumber(tolua_S, 3));
-    node->setAnchorPoint(Vec2{x, y});
-    return 0;
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 2) {
+        const float x = static_cast<float>(luaL_checknumber(tolua_S, 2));
+        const float y = static_cast<float>(luaL_checknumber(tolua_S, 3));
+        cobj->setAnchorPoint(Vec2{x, y});
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setAnchorPoint", argc, 2);
 }
 
 int lua_zocos_Node_setOpacity(lua_State* tolua_S) {
-    Node* node = checkNode(tolua_S, 1);
-    const float opacity = static_cast<float>(luaL_checknumber(tolua_S, 2));
-    node->setOpacity(opacity);
-    return 0;
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        const float opacity = static_cast<float>(luaL_checknumber(tolua_S, 2));
+        cobj->setOpacity(opacity);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setOpacity", argc, 1);
 }
 
 int lua_zocos_Node_addChild(lua_State* tolua_S) {
-    Node* node = checkNode(tolua_S, 1);
-    Node* child = checkNode(tolua_S, 2);
-    node->addChild(child);
-    return 0;
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        Node* child = luaval_to_object<Node>(tolua_S, 2, kNodeMeta, "Node expected");
+        cobj->addChild(child);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:addChild", argc, 1);
 }
 
 int lua_zocos_Node_runAction(lua_State* tolua_S) {
-    Node* node = checkNode(tolua_S, 1);
-    Action* action = checkAction(tolua_S, 2);
-    pushAction(tolua_S, node->runAction(action));
-    return 1;
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        Action* action = luaval_to_object<Action>(tolua_S, 2, kActionMeta, "Action expected");
+        object_to_luaval(tolua_S, kActionMeta, cobj->runAction(action));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:runAction", argc, 1);
 }
 
 int lua_zocos_Node_schedule(lua_State* tolua_S) {
-    Node* node = checkNode(tolua_S, 1);
-    const char* key = luaL_checkstring(tolua_S, 2);
-    luaL_argcheck(tolua_S, key != nullptr && key[0] != '\0', 2, "non-empty key expected");
-    luaL_checktype(tolua_S, 3, LUA_TFUNCTION);
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc >= 2 && argc <= 6) {
+        const char* key = luaL_checkstring(tolua_S, 2);
+        luaL_argcheck(tolua_S, key != nullptr && key[0] != '\0', 2, "non-empty key expected");
+        luaL_checktype(tolua_S, 3, LUA_TFUNCTION);
 
-    const float interval = static_cast<float>(luaL_optnumber(tolua_S, 4, 0.0));
-    const int repeat = static_cast<int>(luaL_optinteger(tolua_S, 5, Node::RepeatForever));
-    const float delay = static_cast<float>(luaL_optnumber(tolua_S, 6, 0.0));
-    const int priority = static_cast<int>(luaL_optinteger(tolua_S, 7, 0));
+        const float interval = static_cast<float>(luaL_optnumber(tolua_S, 4, 0.0));
+        const int repeat = static_cast<int>(luaL_optinteger(tolua_S, 5, Node::RepeatForever));
+        const float delay = static_cast<float>(luaL_optnumber(tolua_S, 6, 0.0));
+        const int priority = static_cast<int>(luaL_optinteger(tolua_S, 7, 0));
 
-    lua_pushvalue(tolua_S, 3);
-    const int callbackRef = luaL_ref(tolua_S, LUA_REGISTRYINDEX);
-    const std::string keyString(key);
-    setLuaScheduleRef(tolua_S, node, keyString, callbackRef);
+        lua_pushvalue(tolua_S, 3);
+        const int callbackRef = luaL_ref(tolua_S, LUA_REGISTRYINDEX);
+        const std::string keyString(key);
+        setLuaScheduleRef(tolua_S, cobj, keyString, callbackRef);
 
-    node->schedule(keyString, [tolua_S, node, keyString](float dt) {
-        const int ref = findLuaScheduleRef(node, keyString);
-        if (ref == LUA_NOREF) {
-            return;
-        }
+        cobj->schedule(keyString, [tolua_S, cobj, keyString](float dt) {
+            const int ref = findLuaScheduleRef(cobj, keyString);
+            if (ref == LUA_NOREF) {
+                return;
+            }
 
-        lua_rawgeti(tolua_S, LUA_REGISTRYINDEX, ref);
-        lua_pushnumber(tolua_S, static_cast<lua_Number>(dt));
-        if (lua_pcall(tolua_S, 1, 0, 0) != LUA_OK) {
-            const char* message = lua_tostring(tolua_S, -1);
-            std::fprintf(stderr, "Lua schedule callback error (%s): %s\n", keyString.c_str(),
-                         message ? message : "(unknown)");
-            lua_pop(tolua_S, 1);
-        }
-    }, interval, repeat, delay, priority);
-    return 0;
+            lua_rawgeti(tolua_S, LUA_REGISTRYINDEX, ref);
+            lua_pushnumber(tolua_S, static_cast<lua_Number>(dt));
+            if (lua_pcall(tolua_S, 1, 0, 0) != LUA_OK) {
+                const char* message = lua_tostring(tolua_S, -1);
+                std::fprintf(stderr, "Lua schedule callback error (%s): %s\n", keyString.c_str(),
+                             message ? message : "(unknown)");
+                lua_pop(tolua_S, 1);
+            }
+        }, interval, repeat, delay, priority);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:schedule", argc, 2, 6);
 }
 
 int lua_zocos_Node_scheduleOnce(lua_State* tolua_S) {
-    Node* node = checkNode(tolua_S, 1);
-    const char* key = luaL_checkstring(tolua_S, 2);
-    luaL_argcheck(tolua_S, key != nullptr && key[0] != '\0', 2, "non-empty key expected");
-    luaL_checktype(tolua_S, 3, LUA_TFUNCTION);
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc >= 2 && argc <= 4) {
+        const char* key = luaL_checkstring(tolua_S, 2);
+        luaL_argcheck(tolua_S, key != nullptr && key[0] != '\0', 2, "non-empty key expected");
+        luaL_checktype(tolua_S, 3, LUA_TFUNCTION);
 
-    const float delay = static_cast<float>(luaL_optnumber(tolua_S, 4, 0.0));
-    const int priority = static_cast<int>(luaL_optinteger(tolua_S, 5, 0));
+        const float delay = static_cast<float>(luaL_optnumber(tolua_S, 4, 0.0));
+        const int priority = static_cast<int>(luaL_optinteger(tolua_S, 5, 0));
 
-    lua_pushvalue(tolua_S, 3);
-    const int callbackRef = luaL_ref(tolua_S, LUA_REGISTRYINDEX);
-    const std::string keyString(key);
-    setLuaScheduleRef(tolua_S, node, keyString, callbackRef);
+        lua_pushvalue(tolua_S, 3);
+        const int callbackRef = luaL_ref(tolua_S, LUA_REGISTRYINDEX);
+        const std::string keyString(key);
+        setLuaScheduleRef(tolua_S, cobj, keyString, callbackRef);
 
-    node->scheduleOnce(keyString, [tolua_S, node, keyString, callbackRef](float dt) {
-        const int ref = findLuaScheduleRef(node, keyString);
-        if (ref == LUA_NOREF) {
-            return;
-        }
+        cobj->scheduleOnce(keyString, [tolua_S, cobj, keyString, callbackRef](float dt) {
+            const int ref = findLuaScheduleRef(cobj, keyString);
+            if (ref == LUA_NOREF) {
+                return;
+            }
 
-        lua_rawgeti(tolua_S, LUA_REGISTRYINDEX, ref);
-        lua_pushnumber(tolua_S, static_cast<lua_Number>(dt));
-        if (lua_pcall(tolua_S, 1, 0, 0) != LUA_OK) {
-            const char* message = lua_tostring(tolua_S, -1);
-            std::fprintf(stderr, "Lua scheduleOnce callback error (%s): %s\n", keyString.c_str(),
-                         message ? message : "(unknown)");
-            lua_pop(tolua_S, 1);
-        }
+            lua_rawgeti(tolua_S, LUA_REGISTRYINDEX, ref);
+            lua_pushnumber(tolua_S, static_cast<lua_Number>(dt));
+            if (lua_pcall(tolua_S, 1, 0, 0) != LUA_OK) {
+                const char* message = lua_tostring(tolua_S, -1);
+                std::fprintf(stderr, "Lua scheduleOnce callback error (%s): %s\n", keyString.c_str(),
+                             message ? message : "(unknown)");
+                lua_pop(tolua_S, 1);
+            }
 
-        clearLuaScheduleRef(tolua_S, node, keyString, callbackRef);
-    }, delay, priority);
-    return 0;
+            clearLuaScheduleRef(tolua_S, cobj, keyString, callbackRef);
+        }, delay, priority);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:scheduleOnce", argc, 2, 4);
 }
 
 int lua_zocos_Node_unschedule(lua_State* tolua_S) {
-    Node* node = checkNode(tolua_S, 1);
-    const char* key = luaL_checkstring(tolua_S, 2);
-    const std::string keyString = key ? key : "";
-    node->unschedule(keyString);
-    clearLuaScheduleRef(tolua_S, node, keyString);
-    return 0;
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        const char* key = luaL_checkstring(tolua_S, 2);
+        const std::string keyString = key ? key : "";
+        cobj->unschedule(keyString);
+        clearLuaScheduleRef(tolua_S, cobj, keyString);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:unschedule", argc, 1);
 }
 
 int lua_zocos_Node_unscheduleAllCallbacks(lua_State* tolua_S) {
-    Node* node = checkNode(tolua_S, 1);
-    node->unscheduleAllCallbacks();
-    clearAllLuaScheduleRefs(tolua_S, node);
-    return 0;
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        cobj->unscheduleAllCallbacks();
+        clearAllLuaScheduleRefs(tolua_S, cobj);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:unscheduleAllCallbacks", argc, 0);
 }
 
 int lua_zocos_Node_initWithFile(lua_State* tolua_S) {
-    auto* sprite = dynamic_cast<Sprite*>(checkNode(tolua_S, 1));
-    if (!sprite) {
-        return luaL_error(tolua_S, "initWithFile is only valid for Sprite");
+    auto* cobj = dynamic_cast<Sprite*>(luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected"));
+    if (!cobj) {
+        return luaL_error(tolua_S, "cc.Node:initWithFile is only valid for Sprite instances");
     }
 
-    const char* path = luaL_checkstring(tolua_S, 2);
-    lua_pushboolean(tolua_S, sprite->initWithFile(path));
-    return 1;
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        const char* path = luaL_checkstring(tolua_S, 2);
+        lua_pushboolean(tolua_S, cobj->initWithFile(path));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:initWithFile", argc, 1);
 }
 
 int lua_zocos_Node_initWithCheckerboard(lua_State* tolua_S) {
-    auto* sprite = dynamic_cast<Sprite*>(checkNode(tolua_S, 1));
-    if (!sprite) {
-        return luaL_error(tolua_S, "initWithCheckerboard is only valid for Sprite");
+    auto* cobj = dynamic_cast<Sprite*>(luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected"));
+    if (!cobj) {
+        return luaL_error(tolua_S,
+                          "cc.Node:initWithCheckerboard is only valid for Sprite instances");
     }
 
-    sprite->initWithCheckerboard();
-    return 0;
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        cobj->initWithCheckerboard();
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:initWithCheckerboard", argc, 0);
 }
 
 int lua_zocos_Node_setString(lua_State* tolua_S) {
-    auto* label = dynamic_cast<Label*>(checkNode(tolua_S, 1));
-    if (!label) {
-        return luaL_error(tolua_S, "setString is only valid for Label");
+    auto* cobj = dynamic_cast<Label*>(luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected"));
+    if (!cobj) {
+        return luaL_error(tolua_S, "cc.Node:setString is only valid for Label instances");
     }
 
-    const char* text = luaL_checkstring(tolua_S, 2);
-    label->setString(text);
-    return 0;
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        const char* text = luaL_checkstring(tolua_S, 2);
+        cobj->setString(text);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setString", argc, 1);
 }
 
 int lua_zocos_Action_setTag(lua_State* tolua_S) {
-    Action* action = checkAction(tolua_S, 1);
-    const int tag = static_cast<int>(luaL_checkinteger(tolua_S, 2));
-    action->setTag(tag);
-    return 0;
+    Action* cobj = luaval_to_object<Action>(tolua_S, 1, kActionMeta, "Action expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        const int tag = static_cast<int>(luaL_checkinteger(tolua_S, 2));
+        cobj->setTag(tag);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Action:setTag", argc, 1);
 }
 
 int lua_zocos_Action_getTag(lua_State* tolua_S) {
-    Action* action = checkAction(tolua_S, 1);
-    lua_pushinteger(tolua_S, action->getTag());
-    return 1;
+    Action* cobj = luaval_to_object<Action>(tolua_S, 1, kActionMeta, "Action expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        lua_pushinteger(tolua_S, cobj->getTag());
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Action:getTag", argc, 0);
 }
 
 void registerMetatable(lua_State* tolua_S, const char* metatableName, const luaL_Reg* methods) {
@@ -722,5 +888,6 @@ int register_all_zocos(lua_State* tolua_S) {
 }
 
 } // namespace zocos
+
 
 
