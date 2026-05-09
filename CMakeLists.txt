@@ -20,6 +20,50 @@ set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(glfw)
 
+FetchContent_Declare(
+  lua_src
+  URL https://www.lua.org/ftp/lua-5.4.6.tar.gz
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(lua_src)
+
+set(LUA_SOURCE_DIR "${lua_src_SOURCE_DIR}/src")
+add_library(lua_static STATIC
+  "${LUA_SOURCE_DIR}/lapi.c"
+  "${LUA_SOURCE_DIR}/lauxlib.c"
+  "${LUA_SOURCE_DIR}/lbaselib.c"
+  "${LUA_SOURCE_DIR}/lcode.c"
+  "${LUA_SOURCE_DIR}/lcorolib.c"
+  "${LUA_SOURCE_DIR}/lctype.c"
+  "${LUA_SOURCE_DIR}/ldblib.c"
+  "${LUA_SOURCE_DIR}/ldebug.c"
+  "${LUA_SOURCE_DIR}/ldo.c"
+  "${LUA_SOURCE_DIR}/ldump.c"
+  "${LUA_SOURCE_DIR}/lfunc.c"
+  "${LUA_SOURCE_DIR}/lgc.c"
+  "${LUA_SOURCE_DIR}/linit.c"
+  "${LUA_SOURCE_DIR}/liolib.c"
+  "${LUA_SOURCE_DIR}/llex.c"
+  "${LUA_SOURCE_DIR}/lmathlib.c"
+  "${LUA_SOURCE_DIR}/lmem.c"
+  "${LUA_SOURCE_DIR}/loadlib.c"
+  "${LUA_SOURCE_DIR}/lobject.c"
+  "${LUA_SOURCE_DIR}/lopcodes.c"
+  "${LUA_SOURCE_DIR}/loslib.c"
+  "${LUA_SOURCE_DIR}/lparser.c"
+  "${LUA_SOURCE_DIR}/lstate.c"
+  "${LUA_SOURCE_DIR}/lstring.c"
+  "${LUA_SOURCE_DIR}/lstrlib.c"
+  "${LUA_SOURCE_DIR}/ltable.c"
+  "${LUA_SOURCE_DIR}/ltablib.c"
+  "${LUA_SOURCE_DIR}/ltm.c"
+  "${LUA_SOURCE_DIR}/lundump.c"
+  "${LUA_SOURCE_DIR}/lutf8lib.c"
+  "${LUA_SOURCE_DIR}/lvm.c"
+  "${LUA_SOURCE_DIR}/lzio.c"
+)
+target_include_directories(lua_static PUBLIC "${LUA_SOURCE_DIR}")
+
 find_package(OpenGL REQUIRED)
 
 file(GLOB_RECURSE ZOCOS_SOURCES CONFIGURE_DEPENDS
@@ -33,7 +77,13 @@ target_include_directories(zocos PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
 )
 
-target_link_libraries(zocos PRIVATE glfw OpenGL::GL)
+target_link_libraries(zocos PRIVATE glfw OpenGL::GL lua_static)
+
+add_custom_command(TARGET zocos POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/scripts"
+    "$<TARGET_FILE_DIR:zocos>/scripts"
+)
 
 if(WIN32)
   target_compile_definitions(zocos PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)

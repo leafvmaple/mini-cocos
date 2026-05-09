@@ -10,14 +10,15 @@
 - 正交 2D 投影（Y 轴向上，帧缓冲左下角为原点）
 - 场景图：父子节点、局部变换（位置、缩放、旋转、锚点、内容尺寸）
 - 带纹理的四边形；可选 PNG/JPEG 等（[stb_image](https://github.com/nothings/stb)，`third_party/stb_image.h`）
-- 示例：旋转棋盘格（或通过命令行传入图片路径）
+- Lua 脚本导出系统（`cc.*`）：可在 Lua 中创建 `Director` / `Scene` / `Sprite` / `Label` 并驱动 `Action`
+- 示例：Lua 脚本中的精灵轨道运动与自转（或通过命令行传入图片路径）
 
 ## Requirements
 
 - **CMake** 3.16+
 - **C++17** 编译器
 - **OpenGL 3.3** 驱动
-- 首次配置需联网（CMake **FetchContent** 拉取 GLFW 3.4）
+- 首次配置需联网（CMake **FetchContent** 拉取 GLFW 3.4 与 Lua 5.4.6）
 
 ## Build
 
@@ -71,6 +72,8 @@ Get-ChildItem -Path src -Recurse -Include *.cpp,*.h | ForEach-Object { clang-for
 ./build/zocos path/to/image.png
 ```
 
+默认会执行 `scripts/main.lua`，CMake 在构建后会自动把 `scripts/` 目录复制到可执行文件同级目录。
+
 ## Project layout（对齐 cocos2d-x 模块划分）
 
 | Path | Role |
@@ -79,8 +82,10 @@ Get-ChildItem -Path src -Recurse -Include *.cpp,*.h | ForEach-Object { clang-for
 | `src/base/ZCDirector.*` | 主循环、GL 上下文、投影、当前场景（类型为 `Director`） |
 | `src/2d/ZCNode.*` | 场景图基类：`visit`、`updateTree`、变换（类型为 `Node` / `Scene`） |
 | `src/2d/ZCSprite.*` | 纹理四边形与简单着色器（类型为 `Sprite`） |
+| `src/scripting/ZCLuaEngine.*` / `src/scripting/ZCLuaManual.*` | Lua 引擎封装、统一导出入口（`register_all_zocos*`）与手动导出 |
 | `src/platform/ZCOpenGLLoader.*` | 最小 GL 3.3 入口（平台 / 图形后端相关） |
-| `src/main.cpp` | 示例入口 |
+| `src/main.cpp` | 引擎入口（加载并执行 Lua demo 脚本） |
+| `scripts/main.lua` | Lua demo 场景脚本 |
 | `.clang-format` / `.clang-format-ignore` | 代码风格（4 空格）；忽略第三方目录 |
 | `third_party/stb_image.h` | 纹理加载 |
 | `CONVENTIONS.md` | 项目命名与设计约定 |
