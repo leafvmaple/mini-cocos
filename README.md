@@ -10,6 +10,7 @@
 - 正交 2D 投影（Y 轴向上，帧缓冲左下角为原点）
 - 场景图：父子节点、局部变换（位置、缩放、旋转、锚点、内容尺寸）
 - 带纹理的四边形；可选 PNG/JPEG 等（[stb_image](https://github.com/nothings/stb)，`third_party/stb_image.h`）
+- 文本渲染：`Label` 使用 TTF/OTF 字体（`stb_truetype`）动态栅格化；仓库内置免费 Noto 字体（`fonts/`）
 - 资源缓存：`TextureCache` 复用纹理并按引用计数自动释放 GPU 资源
 - 帧动画：`Animation` + `Animate`（可通过 `setTextureRect` 切换图集帧）
 - Lua 脚本导出系统（`cc.*`）：可在 Lua 中创建 `Director` / `Scene` / `Sprite` / `Label` 并驱动 `Action`

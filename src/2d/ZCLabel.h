@@ -9,10 +9,15 @@ namespace zocos {
 
 class Director;
 class Renderer;
+class Font;
+class FontAtlas;
 
 class Label : public Node {
 public:
-    static Label* create(Director& director, const std::string& text = "");
+    static Label* create(Director& director, const std::string& text = "",
+        const std::string& fontPath = "", float fontSize = 24.f);
+    static Label* createWithTTF(Director& director, const std::string& text,
+                                const std::string& fontPath, float fontSize = 24.f);
 
     ~Label() override;
 
@@ -21,6 +26,15 @@ public:
     void setString(const std::string& text);
     const std::string& getString() const { return _text; }
 
+    bool setFontAtlas(FontAtlas* fontAtlas);
+    FontAtlas* getFontAtlas() const { return _fontAtlas; }
+
+    bool setTTF(const std::string& fontPath);
+    const std::string& getFontPath() const { return _fontPath; }
+
+    void setFontSize(float fontSize);
+    float getFontSize() const { return _fontSize; }
+
     void draw(Renderer& renderer, const Mat4& world) override;
 
 protected:
@@ -28,9 +42,14 @@ protected:
 
 private:
     bool rebuildTexture();
+    bool ensureFontAtlas();
 
     Director& _director;
     std::string _text;
+    std::string _fontPath;
+    float _fontSize = 24.f;
+    FontAtlas* _fontAtlas = nullptr;
+
     TextureHandle _texture{};
     bool _ready = false;
     bool _dirty = true;

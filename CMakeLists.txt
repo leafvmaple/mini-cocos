@@ -83,6 +83,9 @@ add_custom_command(TARGET zocos POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
     "${CMAKE_CURRENT_SOURCE_DIR}/scripts"
     "$<TARGET_FILE_DIR:zocos>/scripts"
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/fonts"
+    "$<TARGET_FILE_DIR:zocos>/fonts"
 )
 
 if(WIN32)

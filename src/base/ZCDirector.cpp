@@ -1,6 +1,7 @@
 #include "base/ZCDirector.h"
 #include "base/ZCAutoreleasePool.h"
 #include "base/ZCEvent.h"
+#include "base/ZCFontCache.h"
 #include "base/ZCTextureCache.h"
 #include "platform/ZCOpenGLLoader.h"
 #include "platform/ZCRenderDeviceGL.h"
@@ -134,6 +135,13 @@ TextureCache& Director::getTextureCache() {
     return *_textureCache;
 }
 
+FontCache& Director::getFontCache() {
+    if (!_fontCache) {
+        _fontCache = std::make_unique<FontCache>();
+    }
+    return *_fontCache;
+}
+
 bool Director::init(int width, int height, const char* title) {
     if (!glfwInit()) return false;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -162,6 +170,7 @@ bool Director::init(int width, int height, const char* title) {
 
     _renderDevice = std::make_unique<RenderDeviceGL>();
     _textureCache = std::make_unique<TextureCache>();
+    _fontCache = std::make_unique<FontCache>();
 
     glfwGetFramebufferSize(_window, &_fbWidth, &_fbHeight);
     glViewport(0, 0, _fbWidth, _fbHeight);
@@ -195,6 +204,10 @@ void Director::shutdown() {
     _actionManager.removeAllActions();
     _eventDispatcher.removeAllListeners();
     _renderer.endFrame();
+    if (_fontCache) {
+        _fontCache->removeAllFonts();
+        _fontCache.reset();
+    }
     if (_textureCache) {
         _textureCache->removeAllTextures(*this);
         _textureCache.reset();

@@ -3,10 +3,12 @@
 #include "base/ZCAction.h"
 #include "base/ZCActionInterval.h"
 #include "base/ZCDirector.h"
+#include "base/ZCFontAtlas.h"
 #include "2d/ZCLabel.h"
 #include "2d/ZCNode.h"
 #include "2d/ZCScene.h"
 #include "2d/ZCSprite.h"
+#include "ui/UIButton.h"
 
 extern "C" {
 #include <lauxlib.h>
@@ -26,6 +28,7 @@ constexpr const char* kDirectorMeta = "zocos.Director";
 constexpr const char* kNodeMeta = "zocos.Node";
 constexpr const char* kActionMeta = "zocos.Action";
 constexpr const char* kAnimationMeta = "zocos.Animation";
+constexpr const char* kFontAtlasMeta = "zocos.FontAtlas";
 
 template <typename T>
 T* luaval_to_object(lua_State* tolua_S, int index, const char* metatableName,
@@ -49,9 +52,15 @@ void object_to_luaval(lua_State* tolua_S, const char* metatableName, T* object) 
 }
 
 using LuaNodeScheduleRefs = std::unordered_map<Node*, std::unordered_map<std::string, int>>;
+using LuaButtonClickRefs = std::unordered_map<ui::Button*, int>;
 
 LuaNodeScheduleRefs& getLuaNodeScheduleRefs() {
     static LuaNodeScheduleRefs refs;
+    return refs;
+}
+
+LuaButtonClickRefs& getLuaButtonClickRefs() {
+    static LuaButtonClickRefs refs;
     return refs;
 }
 
@@ -118,6 +127,46 @@ void clearAllLuaScheduleRefs(lua_State* tolua_S, Node* node) {
     }
 
     refs.erase(nodeIt);
+}
+
+int findLuaButtonClickRef(ui::Button* button) {
+    auto& refs = getLuaButtonClickRefs();
+    const auto it = refs.find(button);
+    if (it == refs.end()) {
+        return LUA_NOREF;
+    }
+    return it->second;
+}
+
+void setLuaButtonClickRef(lua_State* tolua_S, ui::Button* button, int ref) {
+    if (!button) {
+        luaL_unref(tolua_S, LUA_REGISTRYINDEX, ref);
+        return;
+    }
+
+    auto& refs = getLuaButtonClickRefs();
+    const auto it = refs.find(button);
+    if (it != refs.end()) {
+        luaL_unref(tolua_S, LUA_REGISTRYINDEX, it->second);
+        it->second = ref;
+    } else {
+        refs.emplace(button, ref);
+    }
+}
+
+void clearLuaButtonClickRef(lua_State* tolua_S, ui::Button* button) {
+    if (!button) {
+        return;
+    }
+
+    auto& refs = getLuaButtonClickRefs();
+    const auto it = refs.find(button);
+    if (it == refs.end()) {
+        return;
+    }
+
+    luaL_unref(tolua_S, LUA_REGISTRYINDEX, it->second);
+    refs.erase(it);
 }
 
 int classArgBase(lua_State* tolua_S) {
@@ -313,13 +362,70 @@ int lua_zocos_Sprite_createWithFile(lua_State* tolua_S) {
 int lua_zocos_Label_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
     const int argc = classArgCount(tolua_S);
-    if (argc == 0 || argc == 1) {
+    if (argc >= 0 && argc <= 3) {
         const char* text = luaL_optstring(tolua_S, base, "");
-        object_to_luaval(tolua_S, kNodeMeta, Label::create(Director::getInstance(), text));
+        const char* fontPath = argc >= 2 ? luaL_checkstring(tolua_S, base + 1) : "";
+        const float fontSize =
+            argc >= 3 ? static_cast<float>(luaL_checknumber(tolua_S, base + 2)) : 24.f;
+        object_to_luaval(tolua_S, kNodeMeta,
+                         Label::create(Director::getInstance(), text, fontPath, fontSize));
         return 1;
     }
 
-    return reportWrongArgCount(tolua_S, "cc.Label:create", argc, 0, 1);
+    return reportWrongArgCount(tolua_S, "cc.Label:create", argc, 0, 3);
+}
+
+int lua_zocos_Label_createWithTTF(lua_State* tolua_S) {
+    const int base = classArgBase(tolua_S);
+    const int argc = classArgCount(tolua_S);
+    if (argc == 2 || argc == 3) {
+        const char* text = luaL_checkstring(tolua_S, base);
+        const char* fontPath = luaL_checkstring(tolua_S, base + 1);
+        const float fontSize =
+            argc >= 3 ? static_cast<float>(luaL_checknumber(tolua_S, base + 2)) : 24.f;
+        object_to_luaval(tolua_S, kNodeMeta,
+                         Label::createWithTTF(Director::getInstance(), text, fontPath, fontSize));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Label:createWithTTF", argc, 2, 3);
+}
+
+int lua_zocos_Button_create(lua_State* tolua_S) {
+    const int base = classArgBase(tolua_S);
+    const int argc = classArgCount(tolua_S);
+    if (argc >= 0 && argc <= 3) {
+        const char* text = luaL_optstring(tolua_S, base, "");
+        const char* fontPath = argc >= 2 ? luaL_checkstring(tolua_S, base + 1) : "";
+        const float fontSize =
+            argc >= 3 ? static_cast<float>(luaL_checknumber(tolua_S, base + 2)) : 24.f;
+
+        auto* button = ui::Button::create(Director::getInstance(), text);
+        if (button && argc >= 2) {
+            button->setTitleFontName(fontPath);
+        }
+        if (button && argc >= 3) {
+            button->setTitleFontSize(fontSize);
+        }
+        object_to_luaval(tolua_S, kNodeMeta, button);
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Button:create", argc, 0, 3);
+}
+
+int lua_zocos_FontAtlas_create(lua_State* tolua_S) {
+    const int base = classArgBase(tolua_S);
+    const int argc = classArgCount(tolua_S);
+    if (argc == 1 || argc == 2) {
+        const char* fontPath = luaL_checkstring(tolua_S, base);
+        const float fontSize = argc >= 2 ? static_cast<float>(luaL_checknumber(tolua_S, base + 1)) : 24.f;
+        object_to_luaval(tolua_S, kFontAtlasMeta,
+                         FontAtlas::create(Director::getInstance(), fontPath, fontSize));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.FontAtlas:create", argc, 1, 2);
 }
 
 int lua_zocos_MoveTo_create(lua_State* tolua_S) {
@@ -556,6 +662,19 @@ int lua_zocos_Node_setOpacity(lua_State* tolua_S) {
     return reportWrongArgCount(tolua_S, "cc.Node:setOpacity", argc, 1);
 }
 
+int lua_zocos_Node_setContentSize(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 2) {
+        const float width = static_cast<float>(luaL_checknumber(tolua_S, 2));
+        const float height = static_cast<float>(luaL_checknumber(tolua_S, 3));
+        cobj->setContentSize(Size{width, height});
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setContentSize", argc, 2);
+}
+
 int lua_zocos_Node_addChild(lua_State* tolua_S) {
     Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
     const int argc = lua_gettop(tolua_S) - 1;
@@ -737,19 +856,140 @@ int lua_zocos_Node_setTextureRect(lua_State* tolua_S) {
 }
 
 int lua_zocos_Node_setString(lua_State* tolua_S) {
-    auto* cobj = dynamic_cast<Label*>(luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected"));
-    if (!cobj) {
-        return luaL_error(tolua_S, "cc.Node:setString is only valid for Label instances");
+    auto* node = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        const char* text = luaL_checkstring(tolua_S, 2);
+        if (auto* label = dynamic_cast<Label*>(node)) {
+            label->setString(text);
+            return 0;
+        }
+        if (auto* button = dynamic_cast<ui::Button*>(node)) {
+            button->setString(text);
+            return 0;
+        }
+        return luaL_error(tolua_S, "cc.Node:setString is only valid for Label/Button instances");
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setString", argc, 1);
+}
+
+int lua_zocos_Node_setTitleFontName(lua_State* tolua_S) {
+    auto* button = dynamic_cast<ui::Button*>(luaval_to_object<Node>(tolua_S, 1, kNodeMeta,
+                                                                "Node expected"));
+    if (!button) {
+        return luaL_error(tolua_S,
+                          "cc.Node:setTitleFontName is only valid for Button instances");
     }
 
     const int argc = lua_gettop(tolua_S) - 1;
     if (argc == 1) {
-        const char* text = luaL_checkstring(tolua_S, 2);
-        cobj->setString(text);
+        const char* fontPath = luaL_checkstring(tolua_S, 2);
+        lua_pushboolean(tolua_S, button->setTitleFontName(fontPath));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setTitleFontName", argc, 1);
+}
+
+int lua_zocos_Node_setFontAtlas(lua_State* tolua_S) {
+    auto* node = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        auto* fontAtlas =
+            luaval_to_object<FontAtlas>(tolua_S, 2, kFontAtlasMeta, "FontAtlas expected");
+        if (auto* label = dynamic_cast<Label*>(node)) {
+            lua_pushboolean(tolua_S, label->setFontAtlas(fontAtlas));
+            return 1;
+        }
+        if (auto* button = dynamic_cast<ui::Button*>(node)) {
+            lua_pushboolean(tolua_S, button->setFontAtlas(fontAtlas));
+            return 1;
+        }
+        return luaL_error(tolua_S,
+                          "cc.Node:setFontAtlas is only valid for Label/Button instances");
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setFontAtlas", argc, 1);
+}
+
+int lua_zocos_Node_setFontSize(lua_State* tolua_S) {
+    auto* node = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        const float fontSize = static_cast<float>(luaL_checknumber(tolua_S, 2));
+        if (auto* label = dynamic_cast<Label*>(node)) {
+            label->setFontSize(fontSize);
+            return 0;
+        }
+        if (auto* button = dynamic_cast<ui::Button*>(node)) {
+            button->setTitleFontSize(fontSize);
+            return 0;
+        }
+        return luaL_error(tolua_S,
+                          "cc.Node:setFontSize is only valid for Label/Button instances");
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setFontSize", argc, 1);
+}
+
+int lua_zocos_Node_setTitleFontSize(lua_State* tolua_S) {
+    auto* button = dynamic_cast<ui::Button*>(luaval_to_object<Node>(tolua_S, 1, kNodeMeta,
+                                                                "Node expected"));
+    if (!button) {
+        return luaL_error(tolua_S,
+                          "cc.Node:setTitleFontSize is only valid for Button instances");
+    }
+
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        const float fontSize = static_cast<float>(luaL_checknumber(tolua_S, 2));
+        button->setTitleFontSize(fontSize);
         return 0;
     }
 
-    return reportWrongArgCount(tolua_S, "cc.Node:setString", argc, 1);
+    return reportWrongArgCount(tolua_S, "cc.Node:setTitleFontSize", argc, 1);
+}
+
+int lua_zocos_Node_setOnClick(lua_State* tolua_S) {
+    auto* cobj = dynamic_cast<ui::Button*>(luaval_to_object<Node>(tolua_S, 1, kNodeMeta,
+                                                                  "Node expected"));
+    if (!cobj) {
+        return luaL_error(tolua_S, "cc.Node:setOnClick is only valid for Button instances");
+    }
+
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        if (lua_isnil(tolua_S, 2)) {
+            clearLuaButtonClickRef(tolua_S, cobj);
+            cobj->setOnClick({});
+            return 0;
+        }
+
+        luaL_checktype(tolua_S, 2, LUA_TFUNCTION);
+        lua_pushvalue(tolua_S, 2);
+        const int callbackRef = luaL_ref(tolua_S, LUA_REGISTRYINDEX);
+        setLuaButtonClickRef(tolua_S, cobj, callbackRef);
+
+        cobj->setOnClick([tolua_S, cobj](ui::Button& /*sender*/) {
+            const int ref = findLuaButtonClickRef(cobj);
+            if (ref == LUA_NOREF) {
+                return;
+            }
+
+            lua_rawgeti(tolua_S, LUA_REGISTRYINDEX, ref);
+            object_to_luaval(tolua_S, kNodeMeta, cobj);
+            if (lua_pcall(tolua_S, 1, 0, 0) != LUA_OK) {
+                const char* message = lua_tostring(tolua_S, -1);
+                std::fprintf(stderr, "Lua button onClick callback error: %s\n",
+                             message ? message : "(unknown)");
+                lua_pop(tolua_S, 1);
+            }
+        });
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setOnClick", argc, 1);
 }
 
 int lua_zocos_Action_setTag(lua_State* tolua_S) {
@@ -830,6 +1070,7 @@ int register_all_zocos_manual(lua_State* tolua_S) {
         {"setRotation", lua_zocos_Node_setRotation},
         {"setAnchorPoint", lua_zocos_Node_setAnchorPoint},
         {"setOpacity", lua_zocos_Node_setOpacity},
+        {"setContentSize", lua_zocos_Node_setContentSize},
         {"addChild", lua_zocos_Node_addChild},
         {"runAction", lua_zocos_Node_runAction},
         {"schedule", lua_zocos_Node_schedule},
@@ -840,6 +1081,11 @@ int register_all_zocos_manual(lua_State* tolua_S) {
         {"initWithCheckerboard", lua_zocos_Node_initWithCheckerboard},
         {"setTextureRect", lua_zocos_Node_setTextureRect},
         {"setString", lua_zocos_Node_setString},
+        {"setTitleFontName", lua_zocos_Node_setTitleFontName},
+        {"setFontAtlas", lua_zocos_Node_setFontAtlas},
+        {"setFontSize", lua_zocos_Node_setFontSize},
+        {"setTitleFontSize", lua_zocos_Node_setTitleFontSize},
+        {"setOnClick", lua_zocos_Node_setOnClick},
         {nullptr, nullptr},
     };
 
@@ -853,10 +1099,15 @@ int register_all_zocos_manual(lua_State* tolua_S) {
         {nullptr, nullptr},
     };
 
+    static const luaL_Reg fontAtlasMethods[] = {
+        {nullptr, nullptr},
+    };
+
     registerMetatable(tolua_S, kDirectorMeta, directorMethods);
     registerMetatable(tolua_S, kNodeMeta, nodeMethods);
     registerMetatable(tolua_S, kActionMeta, actionMethods);
     registerMetatable(tolua_S, kAnimationMeta, animationMethods);
+    registerMetatable(tolua_S, kFontAtlasMeta, fontAtlasMethods);
 
     lua_newtable(tolua_S);
 
@@ -878,6 +1129,17 @@ int register_all_zocos_manual(lua_State* tolua_S) {
     tolua_beginmodule(tolua_S, "Label");
     stashCurrentModuleInRegistry(tolua_S, "Label");
     tolua_function(tolua_S, "create", lua_zocos_Label_create);
+    tolua_function(tolua_S, "createWithTTF", lua_zocos_Label_createWithTTF);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "Button");
+    stashCurrentModuleInRegistry(tolua_S, "Button");
+    tolua_function(tolua_S, "create", lua_zocos_Button_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "FontAtlas");
+    stashCurrentModuleInRegistry(tolua_S, "FontAtlas");
+    tolua_function(tolua_S, "create", lua_zocos_FontAtlas_create);
     tolua_endmodule(tolua_S);
 
     tolua_beginmodule(tolua_S, "MoveTo");

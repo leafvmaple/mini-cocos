@@ -14,6 +14,7 @@ struct GLFWwindow;
 namespace zocos {
 
 class TextureCache;
+class FontCache;
 
 class Director {
 public:
@@ -31,6 +32,7 @@ public:
     Renderer& getRenderer() { return _renderer; }
     RenderDevice* getRenderDevice() const { return _renderDevice.get(); }
     TextureCache& getTextureCache();
+    FontCache& getFontCache();
 
     bool hasMousePosition() const { return _hasMousePosition; }
     float getMouseX() const { return _mouseX; }
@@ -62,6 +64,7 @@ private:
     Renderer _renderer;
     std::unique_ptr<RenderDevice> _renderDevice;
     std::unique_ptr<TextureCache> _textureCache;
+    std::unique_ptr<FontCache> _fontCache;
     Mat4 _projection = Mat4::identity();
     int _fbWidth = 0;
     int _fbHeight = 0;
