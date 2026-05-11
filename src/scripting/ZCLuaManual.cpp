@@ -1,6 +1,7 @@
 ﻿#include "scripting/ZCLuaManual.h"
 
 #include "base/ZCAction.h"
+#include "base/ZCActionInterval.h"
 #include "base/ZCDirector.h"
 #include "2d/ZCLabel.h"
 #include "2d/ZCNode.h"
