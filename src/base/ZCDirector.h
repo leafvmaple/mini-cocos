@@ -2,6 +2,7 @@
 
 #include "base/ZCActionManager.h"
 #include "base/ZCEventDispatcher.h"
+#include "base/ZCView.h"
 #include "base/ZCRenderDevice.h"
 #include "base/ZCRenderer.h"
 #include "2d/ZCScene.h"
@@ -9,14 +10,12 @@
 
 #include <memory>
 
-struct GLFWwindow;
-
 namespace zocos {
 
 class TextureCache;
 class FontCache;
 
-class Director {
+class Director : public ViewDelegate {
 public:
     static Director& getInstance();
 
@@ -24,7 +23,7 @@ public:
     void shutdown();
 
     void runWithScene(Scene* scene);
-    void mainLoop();
+    bool mainLoop();
 
     Scheduler& getScheduler() { return _scheduler; }
     ActionManager& getActionManager() { return _actionManager; }
@@ -44,19 +43,24 @@ public:
     }
 
     const Mat4& projectionMatrix() const { return _projection; }
-    GLFWwindow* getWindow() const { return _window; }
 
     int getFramebufferWidth() const { return _fbWidth; }
     int getFramebufferHeight() const { return _fbHeight; }
 
-    void onFramebufferResize(int w, int h);
-
 private:
     Director() = default;
 
+    void onFramebufferResize(int w, int h);
     void updateProjection();
 
-    GLFWwindow* _window = nullptr;
+    void onViewResized(int width, int height) override;
+    bool onViewKeyEvent(int keyCode, int scanCode, int modifiers, bool pressed,
+                        bool repeated) override;
+    void onViewMouseButtonEvent(int button, int modifiers, bool pressed, float x, float y) override;
+    void onViewMouseMoveEvent(float x, float y, float deltaX, float deltaY) override;
+    void onViewMouseScrollEvent(float offsetX, float offsetY, float x, float y) override;
+
+    std::unique_ptr<View> _view;
     Scene* _runningScene = nullptr;
     Scheduler _scheduler;
     ActionManager _actionManager;

@@ -2,124 +2,17 @@
 #include "base/ZCAutoreleasePool.h"
 #include "base/ZCEvent.h"
 #include "base/ZCFontCache.h"
+#include "base/ZCPlatformFactory.h"
 #include "base/ZCTextureCache.h"
-#include "platform/ZCOpenGLLoader.h"
-#include "platform/ZCRenderDeviceGL.h"
-
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
 
 #include <cassert>
 #include <memory>
 
 namespace zocos {
 
-static void framebufferSizeCallback(GLFWwindow* win, int w, int h) {
-    auto* self = static_cast<Director*>(glfwGetWindowUserPointer(win));
-    if (self) self->onFramebufferResize(w, h);
-}
-
-static void toEnginePoint(Director* director, GLFWwindow* win, double x, double y, float& outX,
-                          float& outY) {
-    int winW = 0;
-    int winH = 0;
-    glfwGetWindowSize(win, &winW, &winH);
-    const int fbW = director->getFramebufferWidth();
-    const int fbH = director->getFramebufferHeight();
-    if (winW <= 0 || winH <= 0 || fbW <= 0 || fbH <= 0) {
-        outX = static_cast<float>(x);
-        outY = static_cast<float>(y);
-        return;
-    }
-
-    const double sx = static_cast<double>(fbW) / static_cast<double>(winW);
-    const double sy = static_cast<double>(fbH) / static_cast<double>(winH);
-    outX = static_cast<float>(x * sx);
-    outY = static_cast<float>((static_cast<double>(winH) - y) * sy);
-}
-
-static void keyCallback(GLFWwindow* win, int key, int scancode, int action, int mods) {
-    auto* self = static_cast<Director*>(glfwGetWindowUserPointer(win));
-    if (!self) {
-        return;
-    }
-    if (action != GLFW_PRESS && action != GLFW_REPEAT && action != GLFW_RELEASE) {
-        return;
-    }
-
-    const bool pressed = action != GLFW_RELEASE;
-    const bool repeated = action == GLFW_REPEAT;
-    EventKeyboard event(key, scancode, mods, pressed, repeated);
-    self->getEventDispatcher().dispatchEvent(event);
-
-    if (!event.isStopped() && key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-        glfwSetWindowShouldClose(win, GLFW_TRUE);
-    }
-}
-
-static void mouseButtonCallback(GLFWwindow* win, int button, int action, int mods) {
-    auto* self = static_cast<Director*>(glfwGetWindowUserPointer(win));
-    if (!self) {
-        return;
-    }
-    if (action != GLFW_PRESS && action != GLFW_RELEASE) {
-        return;
-    }
-
-    double x = 0.0;
-    double y = 0.0;
-    glfwGetCursorPos(win, &x, &y);
-    float px = 0.f;
-    float py = 0.f;
-    toEnginePoint(self, win, x, y, px, py);
-
-    EventMouseButton event(button, mods, action == GLFW_PRESS, px, py);
-    self->getEventDispatcher().dispatchEvent(event);
-}
-
-static void cursorPosCallback(GLFWwindow* win, double x, double y) {
-    auto* self = static_cast<Director*>(glfwGetWindowUserPointer(win));
-    if (!self) {
-        return;
-    }
-
-    float px = 0.f;
-    float py = 0.f;
-    toEnginePoint(self, win, x, y, px, py);
-
-    float deltaX = 0.f;
-    float deltaY = 0.f;
-    if (self->hasMousePosition()) {
-        deltaX = px - self->getMouseX();
-        deltaY = py - self->getMouseY();
-    }
-    self->setMousePosition(px, py);
-
-    EventMouseMove event(px, py, deltaX, deltaY);
-    self->getEventDispatcher().dispatchEvent(event);
-}
-
-static void scrollCallback(GLFWwindow* win, double offsetX, double offsetY) {
-    auto* self = static_cast<Director*>(glfwGetWindowUserPointer(win));
-    if (!self) {
-        return;
-    }
-
-    double x = 0.0;
-    double y = 0.0;
-    glfwGetCursorPos(win, &x, &y);
-    float px = 0.f;
-    float py = 0.f;
-    toEnginePoint(self, win, x, y, px, py);
-
-    EventMouseScroll event(static_cast<float>(offsetX), static_cast<float>(offsetY), px, py);
-    self->getEventDispatcher().dispatchEvent(event);
-}
-
 void Director::onFramebufferResize(int w, int h) {
     _fbWidth = w;
     _fbHeight = h;
-    glViewport(0, 0, w, h);
     updateProjection();
 }
 
@@ -143,48 +36,30 @@ FontCache& Director::getFontCache() {
 }
 
 bool Director::init(int width, int height, const char* title) {
-    if (!glfwInit()) return false;
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
-    _window = glfwCreateWindow(width, height, title, nullptr, nullptr);
-    if (!_window) {
-        glfwTerminate();
-        return false;
+    if (!_view) {
+        _view = createDefaultView();
     }
-    glfwMakeContextCurrent(_window);
-    glfwSetWindowUserPointer(_window, this);
-    glfwSetFramebufferSizeCallback(_window, framebufferSizeCallback);
-    glfwSetKeyCallback(_window, keyCallback);
-    glfwSetMouseButtonCallback(_window, mouseButtonCallback);
-    glfwSetCursorPosCallback(_window, cursorPosCallback);
-    glfwSetScrollCallback(_window, scrollCallback);
-
-    if (!loadOpenGL(reinterpret_cast<void* (*)(const char*)>(glfwGetProcAddress))) {
-        shutdown();
+    _view->setDelegate(this);
+    if (!_view->init(width, height, title)) {
+        _view.reset();
         return false;
     }
 
-    _renderDevice = std::make_unique<RenderDeviceGL>();
+    _renderDevice = createDefaultRenderDevice();
     _textureCache = std::make_unique<TextureCache>();
     _fontCache = std::make_unique<FontCache>();
 
-    glfwGetFramebufferSize(_window, &_fbWidth, &_fbHeight);
-    glViewport(0, 0, _fbWidth, _fbHeight);
+    _fbWidth = _view->getFramebufferWidth();
+    _fbHeight = _view->getFramebufferHeight();
 
-    double x = 0.0;
-    double y = 0.0;
-    glfwGetCursorPos(_window, &x, &y);
-    float px = 0.f;
-    float py = 0.f;
-    toEnginePoint(this, _window, x, y, px, py);
-    setMousePosition(px, py);
+    float mouseX = 0.f;
+    float mouseY = 0.f;
+    if (_view->getMousePosition(mouseX, mouseY)) {
+        setMousePosition(mouseX, mouseY);
+    }
 
     updateProjection();
-    _lastTime = glfwGetTime();
+    _lastTime = _view->getTimeSeconds();
     return true;
 }
 
@@ -214,16 +89,22 @@ void Director::shutdown() {
     }
     _renderDevice.reset();
     PoolManager::getInstance().clearRootPool();
-    if (_window) {
-        glfwDestroyWindow(_window);
-        _window = nullptr;
+    if (_view) {
+        _view->setDelegate(nullptr);
+        _view->shutdown();
+        _view.reset();
     }
-    glfwTerminate();
+
+    _fbWidth = 0;
+    _fbHeight = 0;
+    _hasMousePosition = false;
 }
 
 void Director::updateProjection() {
-    if (_fbWidth <= 0 || _fbHeight <= 0) return;
-    _projection = Mat4::ortho(0.f, static_cast<float>(_fbWidth), 0.f, static_cast<float>(_fbHeight), -1.f, 1.f);
+    if (_fbWidth <= 0 || _fbHeight <= 0)
+        return;
+    _projection = Mat4::ortho(0.f, static_cast<float>(_fbWidth), 0.f, static_cast<float>(_fbHeight),
+                              -1.f, 1.f);
 }
 
 void Director::runWithScene(Scene* scene) {
@@ -249,21 +130,22 @@ void Director::runWithScene(Scene* scene) {
     PoolManager::getInstance().clearRootPool();
 }
 
-void Director::mainLoop() {
-    if (!_window || glfwWindowShouldClose(_window)) {
-        return;
+bool Director::mainLoop() {
+    if (!_view || _view->shouldClose()) {
+        return false;
     }
 
     AutoreleasePool framePool("frame autorelease pool");
 
-    const double now = glfwGetTime();
+    const double now = _view->getTimeSeconds();
     const float dt = static_cast<float>(now - _lastTime);
     _lastTime = now;
 
-    glfwPollEvents();
+    _view->pollEvents();
     _scheduler.update(dt);
     _actionManager.update(dt);
-    if (_runningScene) _runningScene->updateTree(dt);
+    if (_runningScene)
+        _runningScene->updateTree(dt);
 
     if (_renderDevice) {
         _renderer.beginFrame(_projection);
@@ -274,7 +156,33 @@ void Director::mainLoop() {
         _renderer.endFrame();
     }
 
-    glfwSwapBuffers(_window);
+    _view->swapBuffers();
+    return !_view->shouldClose();
+}
+
+void Director::onViewResized(int width, int height) { onFramebufferResize(width, height); }
+
+bool Director::onViewKeyEvent(int keyCode, int scanCode, int modifiers, bool pressed,
+                              bool repeated) {
+    EventKeyboard event(keyCode, scanCode, modifiers, pressed, repeated);
+    _eventDispatcher.dispatchEvent(event);
+    return event.isStopped();
+}
+
+void Director::onViewMouseButtonEvent(int button, int modifiers, bool pressed, float x, float y) {
+    EventMouseButton event(button, modifiers, pressed, x, y);
+    _eventDispatcher.dispatchEvent(event);
+}
+
+void Director::onViewMouseMoveEvent(float x, float y, float deltaX, float deltaY) {
+    setMousePosition(x, y);
+    EventMouseMove event(x, y, deltaX, deltaY);
+    _eventDispatcher.dispatchEvent(event);
+}
+
+void Director::onViewMouseScrollEvent(float offsetX, float offsetY, float x, float y) {
+    EventMouseScroll event(offsetX, offsetY, x, y);
+    _eventDispatcher.dispatchEvent(event);
 }
 
 } // namespace zocos
