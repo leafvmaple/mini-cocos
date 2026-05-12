@@ -1,11 +1,6 @@
-# Used when compile_commands.json is absent or incomplete (e.g. MSVC generator).
-# When build/compile_commands.json exists (CMake + Ninja / Makefile), clangd merges it.
 CompileFlags:
+  CompilationDatabase: .
   Add:
-    - -Isrc
-    - -Ithird_party
-    - -Ibuild/_deps/lua_src-src/src
-    - -std=c++17
     - -DNOMINMAX
     - -DWIN32_LEAN_AND_MEAN
 

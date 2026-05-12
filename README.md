@@ -40,18 +40,36 @@ cmake --build build --config Release   # MSVC: 使用 --config Release
 
 ### clangd（Cursor / VS Code）
 
-仓库已包含 **`.clangd`** 与 **`.vscode/settings.json`** 中的 clangd 选项：优先使用 **`build/compile_commands.json`**（与真实编译参数一致，含 FetchContent 的 GLFW 头路径）。
+仓库已包含 **`.clangd`** 与 **`.vscode/settings.json`** 中的 clangd 选项：优先使用仓库根目录的 **`compile_commands.json`**（与真实编译参数一致，含 FetchContent 的 GLFW 头路径）。
 
 1. 安装扩展：**Clangd**（`llvm-vs-code-extensions.vscode-clangd`），若用 CMake 配置工程可再装 **CMake Tools**（见 `.vscode/extensions.json` 推荐列表）。
-2. 配置并生成编译数据库（**Ninja** 在 Windows 上也会生成 `compile_commands.json`，利于 clangd）：
+2. 生成 clangd 专用编译数据库（推荐，**不影响你现有 build 目录**）：
 
    ```bash
-   cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-   cmake --build build
+   .\gen_compile_commands.bat
    ```
 
-3. 若使用 **CMake Tools**，已设置 `cmake.copyCompileCommands`，配置成功后会将 `compile_commands.json` 复制到仓库根目录，便于工具查找。
-4. 纯 **Visual Studio 生成器** 在部分 CMake 版本下可能不产生 `compile_commands.json`，此时 clangd 会回退到项目根目录的 **`.clangd`**（仅含 `-Isrc` 等；GLFW 路径可能不全）。需要完整索引时请改用 **Ninja** 或升级 CMake。
+   该脚本会在 `build-clangd/` 下执行 CMake（Ninja）并把 `compile_commands.json` 复制到仓库根目录，供 clangd 索引。若系统 `PATH` 里没有 Ninja，会自动尝试使用 Visual Studio 自带 Ninja；若当前终端缺少 `cl.exe` 环境，也会自动尝试初始化 VS 构建环境。
+
+3. 也可手动配置并生成编译数据库（**Ninja** 在 Windows 上会生成 `compile_commands.json`，利于 clangd）：
+
+   ```bash
+   cmake -S . -B build-clangd -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+   cmake --build build-clangd
+   ```
+
+4. 若使用 **CMake Tools**，已设置 `cmake.copyCompileCommands`，配置成功后会将 `compile_commands.json` 复制到仓库根目录，便于工具查找。
+5. 纯 **Visual Studio 生成器** 在部分 CMake 版本下可能不产生 `compile_commands.json`，此时 clangd 会回退到项目根目录的 **`.clangd`**（仅含 `-Isrc` 等；GLFW 路径可能不全）。需要完整索引时请改用 **Ninja** 或升级 CMake。
+
+> 为什么之前“加了 json 后反而编译不过”？
+>
+> 常见原因不是 json 本身，而是把 clangd 配置“强写”进真实构建链，例如：
+>
+> - 强制 `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER` 改为 clang（破坏原有 MSVC 工具链）
+> - 把 clangd 专用参数写进全局 `target_compile_options`
+> - 复用同一个 `build/` 目录切换生成器（Visual Studio 和 Ninja 混用）
+>
+> 本仓库现在采用“clangd 专用 build 目录 + 根目录 compile_commands.json”的方式，避免影响正常编译。
 
 ### clang-format
 

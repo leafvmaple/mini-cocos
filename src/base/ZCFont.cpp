@@ -3,13 +3,48 @@
 
 #include <stb_truetype.h>
 
+#include <array>
 #include <utility>
 
 namespace zocos {
 
+const std::vector<std::string>& Font::getDefaultFontCandidates() {
+    static const std::vector<std::string> kDefaultCandidates = {
+        "fonts/NotoSansSC-Regular.otf",
+        "fonts/NotoSans-Regular.ttf",
+        "fonts/NotoSerif-Regular.ttf",
+    };
+    return kDefaultCandidates;
+}
+
+std::string Font::resolveFontPath(const std::string& preferredPath) {
+    auto& fileUtils = FileUtils::getInstance();
+
+    if (!preferredPath.empty()) {
+        const std::string fullPath = fileUtils.fullPathForFilename(preferredPath);
+        if (!fullPath.empty()) {
+            return fullPath;
+        }
+    }
+
+    for (const std::string& candidate : getDefaultFontCandidates()) {
+        const std::string fullPath = fileUtils.fullPathForFilename(candidate);
+        if (!fullPath.empty()) {
+            return fullPath;
+        }
+    }
+
+    return {};
+}
+
 bool Font::loadFromFile(const std::string& path) {
+    const std::string resolvedPath = resolveFontPath(path);
+    if (resolvedPath.empty()) {
+        return false;
+    }
+
     std::vector<unsigned char> bytes;
-    if (!FileUtils::getInstance().getDataFromFile(path, bytes) || bytes.empty()) {
+    if (!FileUtils::getInstance().getDataFromFile(resolvedPath, bytes) || bytes.empty()) {
         return false;
     }
 
@@ -23,7 +58,7 @@ bool Font::loadFromFile(const std::string& path) {
         return false;
     }
 
-    _path = path;
+    _path = resolvedPath;
     _data = std::move(bytes);
     _fontOffset = offset;
     return true;

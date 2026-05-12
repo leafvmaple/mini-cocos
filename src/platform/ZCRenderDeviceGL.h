@@ -3,6 +3,7 @@
 #include "base/ZCRenderDevice.h"
 #include "platform/ZCOpenGLLoader.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <unordered_map>
 
@@ -24,6 +25,9 @@ private:
     bool ensureSpritePipeline();
     void ensureSpriteGeometry();
     void drawSprite(const DrawSpriteCommand& command);
+    void drawQuads(const DrawQuadsCommand& command);
+    void drawVertices(GLuint textureId, const Mat4& world, const QuadVertex* vertices,
+                      std::size_t vertexCount, float opacity);
     GLuint getTextureId(TextureHandle texture) const;
 
     Mat4 _projection = Mat4::identity();

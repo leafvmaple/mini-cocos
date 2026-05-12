@@ -90,7 +90,8 @@ RenderDeviceGL::~RenderDeviceGL() {
     }
 }
 
-void RenderDeviceGL::beginFrame(const Mat4& projection, int framebufferWidth, int framebufferHeight) {
+void RenderDeviceGL::beginFrame(const Mat4& projection, int framebufferWidth,
+                                int framebufferHeight) {
     _projection = projection;
 
     glViewport(0, 0, framebufferWidth, framebufferHeight);
@@ -105,12 +106,13 @@ void RenderDeviceGL::submit(const RenderCommand& command) {
     case RenderCommandType::DrawSprite:
         drawSprite(command.sprite);
         break;
+    case RenderCommandType::DrawQuads:
+        drawQuads(command.quads);
+        break;
     }
 }
 
-void RenderDeviceGL::endFrame() {
-    glBindVertexArray(0);
-}
+void RenderDeviceGL::endFrame() { glBindVertexArray(0); }
 
 TextureHandle RenderDeviceGL::createTexture(const TextureCreateInfo& createInfo) {
     if (createInfo.width <= 0 || createInfo.height <= 0 || !createInfo.initialData.pixels) {
@@ -122,8 +124,9 @@ TextureHandle RenderDeviceGL::createTexture(const TextureCreateInfo& createInfo)
 
     constexpr int kBytesPerPixel = 4;
     const int tightRowPitch = createInfo.width * kBytesPerPixel;
-    const int srcRowPitch = createInfo.initialData.rowPitchBytes > 0 ?
-        createInfo.initialData.rowPitchBytes : tightRowPitch;
+    const int srcRowPitch = createInfo.initialData.rowPitchBytes > 0
+                                ? createInfo.initialData.rowPitchBytes
+                                : tightRowPitch;
     if (srcRowPitch < tightRowPitch) {
         return {};
     }
@@ -140,7 +143,8 @@ TextureHandle RenderDeviceGL::createTexture(const TextureCreateInfo& createInfo)
                 srcY = (createInfo.height - 1) - dstY;
             }
 
-            const auto* src = createInfo.initialData.pixels + static_cast<size_t>(srcY) * srcRowPitch;
+            const auto* src =
+                createInfo.initialData.pixels + static_cast<size_t>(srcY) * srcRowPitch;
             auto* dst = staging.data() + static_cast<size_t>(dstY) * tightRowPitch;
             std::memcpy(dst, src, static_cast<size_t>(tightRowPitch));
         }
@@ -222,10 +226,6 @@ void RenderDeviceGL::drawSprite(const DrawSpriteCommand& command) {
     if (!texId) {
         return;
     }
-    if (!ensureSpritePipeline()) {
-        return;
-    }
-    ensureSpriteGeometry();
 
     const float w = command.contentSize.width;
     const float h = command.contentSize.height;
@@ -233,31 +233,57 @@ void RenderDeviceGL::drawSprite(const DrawSpriteCommand& command) {
     const float v0 = command.uvRect.y;
     const float u1 = command.uvRect.x + command.uvRect.width;
     const float v1 = command.uvRect.y + command.uvRect.height;
-    const float verts[] = {
-        0.f, 0.f, u0, v0,
-        w, 0.f, u1, v0,
-        w, h, u1, v1,
-        0.f, 0.f, u0, v0,
-        w, h, u1, v1,
-        0.f, h, u0, v1,
+
+    const QuadVertex verts[] = {
+        {{0.f, 0.f}, {u0, v0}}, {{w, 0.f}, {u1, v0}}, {{w, h}, {u1, v1}},
+        {{0.f, 0.f}, {u0, v0}}, {{w, h}, {u1, v1}},   {{0.f, h}, {u0, v1}},
     };
+
+    drawVertices(texId, command.world, verts, 6, command.opacity);
+}
+
+void RenderDeviceGL::drawQuads(const DrawQuadsCommand& command) {
+    if (command.vertices.empty()) {
+        return;
+    }
+
+    const GLuint texId = getTextureId(command.texture);
+    if (!texId) {
+        return;
+    }
+
+    drawVertices(texId, command.world, command.vertices.data(), command.vertices.size(),
+                 command.opacity);
+}
+
+void RenderDeviceGL::drawVertices(GLuint textureId, const Mat4& world, const QuadVertex* vertices,
+                                  std::size_t vertexCount, float opacity) {
+    if (!vertices || vertexCount == 0) {
+        return;
+    }
+    if (!ensureSpritePipeline()) {
+        return;
+    }
+    ensureSpriteGeometry();
 
     glBindVertexArray(_spriteVao);
     glBindBuffer(GL_ARRAY_BUFFER, _spriteVbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertexCount * sizeof(QuadVertex)),
+                 vertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(0));
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(QuadVertex), reinterpret_cast<void*>(0));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(8));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(QuadVertex),
+                          reinterpret_cast<void*>(sizeof(Vec2)));
 
-    const Mat4 mvp = _projection * command.world;
+    const Mat4 mvp = _projection * world;
     glUseProgram(_spriteProgram);
     glUniformMatrix4fv(_spriteLocMvp, 1, GL_FALSE, mvp.data());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texId);
+    glBindTexture(GL_TEXTURE_2D, textureId);
     glUniform1i(_spriteLocTex, 0);
-    glUniform1f(_spriteLocOpacity, command.opacity);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glUniform1f(_spriteLocOpacity, opacity);
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertexCount));
 }
 
 GLuint RenderDeviceGL::getTextureId(TextureHandle texture) const {

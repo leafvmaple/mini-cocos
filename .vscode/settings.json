@@ -64,8 +64,8 @@
         "editor.insertSpaces": true
     },
     "clangd.arguments": [
-        "--compile-commands-dir=${workspaceFolder}/build",
-        "--background-index"
+        "--background-index",
+        "--query-driver=C:/Program Files/Microsoft Visual Studio/*/VC/Tools/MSVC/*/bin/Hostx64/x64/cl.exe,C:/PROGRA~1/MICROS~1/*/VC/Tools/MSVC/*/bin/Hostx64/x64/cl.exe,C:/Program Files/LLVM/bin/clang-cl.exe"
     ],
     "cmake.copyCompileCommands": "${workspaceFolder}/compile_commands.json"
 }

@@ -38,16 +38,11 @@ void Action::startWithTarget(Node* target) {
     _target = target;
 }
 
-void Action::stop() {
-    _target = nullptr;
-}
+void Action::stop() { _target = nullptr; }
 
-FiniteTimeAction::FiniteTimeAction(float duration) {
-    _duration = std::max(0.f, duration);
-}
+FiniteTimeAction::FiniteTimeAction(float duration) { _duration = std::max(0.f, duration); }
 
-CallFunc::CallFunc(Callback callback) : _callback(std::move(callback)) {
-}
+CallFunc::CallFunc(Callback callback) : _callback(std::move(callback)) {}
 
 CallFunc* CallFunc::create(Callback callback) {
     auto* action = new (std::nothrow) CallFunc(std::move(callback));
@@ -75,13 +70,9 @@ void CallFunc::step(float dt) {
     _done = true;
 }
 
-bool CallFunc::isDone() const {
-    return _done;
-}
+bool CallFunc::isDone() const { return _done; }
 
-Sequence::Sequence(const std::vector<Action*>& actions)
-    : _actions(retainActions(actions)) {
-}
+Sequence::Sequence(const std::vector<Action*>& actions) : _actions(retainActions(actions)) {}
 
 Sequence* Sequence::create(const std::vector<Action*>& actions) {
     auto* action = new (std::nothrow) Sequence(actions);
@@ -93,9 +84,7 @@ Sequence* Sequence::create(const std::vector<Action*>& actions) {
     return nullptr;
 }
 
-Sequence::~Sequence() {
-    releaseActions(_actions);
-}
+Sequence::~Sequence() { releaseActions(_actions); }
 
 void Sequence::startWithTarget(Node* target) {
     Action::startWithTarget(target);
@@ -151,13 +140,9 @@ void Sequence::step(float dt) {
     }
 }
 
-bool Sequence::isDone() const {
-    return _actions.empty() || _currentIndex >= _actions.size();
-}
+bool Sequence::isDone() const { return _actions.empty() || _currentIndex >= _actions.size(); }
 
-Spawn::Spawn(const std::vector<Action*>& actions)
-    : _actions(retainActions(actions)) {
-}
+Spawn::Spawn(const std::vector<Action*>& actions) : _actions(retainActions(actions)) {}
 
 Spawn* Spawn::create(const std::vector<Action*>& actions) {
     auto* action = new (std::nothrow) Spawn(actions);
@@ -169,9 +154,7 @@ Spawn* Spawn::create(const std::vector<Action*>& actions) {
     return nullptr;
 }
 
-Spawn::~Spawn() {
-    releaseActions(_actions);
-}
+Spawn::~Spawn() { releaseActions(_actions); }
 
 void Spawn::startWithTarget(Node* target) {
     Action::startWithTarget(target);
@@ -270,9 +253,7 @@ void Repeat::step(float dt) {
     }
 }
 
-bool Repeat::isDone() const {
-    return !_innerAction || _times <= 0 || _total >= _times;
-}
+bool Repeat::isDone() const { return !_innerAction || _times <= 0 || _total >= _times; }
 
 RepeatForever::RepeatForever(Action* action) : _innerAction(action) {
     if (_innerAction) {
@@ -328,8 +309,6 @@ void RepeatForever::step(float dt) {
     }
 }
 
-bool RepeatForever::isDone() const {
-    return _innerAction == nullptr;
-}
+bool RepeatForever::isDone() const { return _innerAction == nullptr; }
 
 } // namespace zocos

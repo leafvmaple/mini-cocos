@@ -16,6 +16,9 @@ public:
     void addDrawSprite(const Mat4& world, const Size& contentSize, TextureHandle texture,
                        const Rect& uvRect = Rect{0.f, 0.f, 1.f, 1.f}, float opacity = 1.f,
                        RenderSortKey sortKey = 0);
+    void addDrawQuads(const Mat4& world, TextureHandle texture,
+                      const std::vector<QuadVertex>& vertices, float opacity = 1.f,
+                      RenderSortKey sortKey = 0);
     void flush(RenderDevice& device, int framebufferWidth, int framebufferHeight);
     void endFrame();
 

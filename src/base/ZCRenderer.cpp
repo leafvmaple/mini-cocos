@@ -35,13 +35,32 @@ void Renderer::addDrawSprite(const Mat4& world, const Size& contentSize, Texture
     _commands.push_back(cmd);
 }
 
+void Renderer::addDrawQuads(const Mat4& world, TextureHandle texture,
+                            const std::vector<QuadVertex>& vertices, float opacity,
+                            RenderSortKey sortKey) {
+    if (!texture.isValid() || vertices.empty()) {
+        return;
+    }
+
+    RenderCommand cmd;
+    cmd.type = RenderCommandType::DrawQuads;
+    cmd.sortKey = sortKey;
+    cmd.submissionIndex = _submissionCounter++;
+    cmd.quads.world = world;
+    cmd.quads.texture = texture;
+    cmd.quads.vertices = vertices;
+    cmd.quads.opacity = opacity;
+    _commands.push_back(std::move(cmd));
+}
+
 void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebufferHeight) {
-    std::stable_sort(_commands.begin(), _commands.end(), [](const RenderCommand& a, const RenderCommand& b) {
-        if (a.sortKey != b.sortKey) {
-            return a.sortKey < b.sortKey;
-        }
-        return a.submissionIndex < b.submissionIndex;
-    });
+    std::stable_sort(_commands.begin(), _commands.end(),
+                     [](const RenderCommand& a, const RenderCommand& b) {
+                         if (a.sortKey != b.sortKey) {
+                             return a.sortKey < b.sortKey;
+                         }
+                         return a.submissionIndex < b.submissionIndex;
+                     });
 
     device.beginFrame(_projection, framebufferWidth, framebufferHeight);
     for (const auto& command : _commands) {

@@ -4,18 +4,18 @@
 #include "2d/ZCNode.h"
 
 #include <string>
+#include <vector>
 
 namespace zocos {
 
 class Director;
 class Renderer;
-class Font;
 class FontAtlas;
 
 class Label : public Node {
 public:
     static Label* create(Director& director, const std::string& text = "",
-        const std::string& fontPath = "", float fontSize = 24.f);
+                         const std::string& fontPath = "", float fontSize = 24.f);
     static Label* createWithTTF(Director& director, const std::string& text,
                                 const std::string& fontPath, float fontSize = 24.f);
 
@@ -41,7 +41,7 @@ protected:
     explicit Label(Director& director);
 
 private:
-    bool rebuildTexture();
+    bool updateContent();
     bool ensureFontAtlas();
 
     Director& _director;
@@ -50,7 +50,8 @@ private:
     float _fontSize = 24.f;
     FontAtlas* _fontAtlas = nullptr;
 
-    TextureHandle _texture{};
+    std::vector<QuadVertex> _vertices;
+    std::uint32_t _atlasVersion = 0;
     bool _ready = false;
     bool _dirty = true;
 };

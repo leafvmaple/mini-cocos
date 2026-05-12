@@ -3,6 +3,7 @@
 #include "math/ZCMath.h"
 
 #include <cstdint>
+#include <vector>
 
 namespace zocos {
 
@@ -16,6 +17,12 @@ struct TextureHandle {
 
 enum class RenderCommandType : std::uint8_t {
     DrawSprite = 0,
+    DrawQuads = 1,
+};
+
+struct QuadVertex {
+    Vec2 position{};
+    Vec2 uv{};
 };
 
 struct DrawSpriteCommand {
@@ -26,17 +33,25 @@ struct DrawSpriteCommand {
     float opacity = 1.f;
 };
 
+struct DrawQuadsCommand {
+    Mat4 world = Mat4::identity();
+    TextureHandle texture{};
+    std::vector<QuadVertex> vertices;
+    float opacity = 1.f;
+};
+
 struct RenderCommand {
     RenderCommandType type = RenderCommandType::DrawSprite;
     RenderSortKey sortKey = 0;
     std::uint32_t submissionIndex = 0;
     DrawSpriteCommand sprite{};
+    DrawQuadsCommand quads{};
 };
 
 inline RenderSortKey makeRenderSortKey(std::uint16_t pass, std::uint16_t layer,
-                                        std::uint32_t material) {
-    return (static_cast<RenderSortKey>(pass) << 48) |
-        (static_cast<RenderSortKey>(layer) << 32) | static_cast<RenderSortKey>(material);
+                                       std::uint32_t material) {
+    return (static_cast<RenderSortKey>(pass) << 48) | (static_cast<RenderSortKey>(layer) << 32) |
+           static_cast<RenderSortKey>(material);
 }
 
 } // namespace zocos

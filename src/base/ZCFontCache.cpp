@@ -5,11 +5,12 @@
 namespace zocos {
 
 bool FontCache::acquireFromFile(const std::string& path, Font*& outFont) {
-    if (path.empty()) {
+    const std::string resolvedPath = Font::resolveFontPath(path);
+    if (resolvedPath.empty()) {
         return false;
     }
 
-    auto it = _entriesByKey.find(path);
+    auto it = _entriesByKey.find(resolvedPath);
     if (it != _entriesByKey.end()) {
         it->second.refCount += 1;
         outFont = &it->second.font;
@@ -17,12 +18,12 @@ bool FontCache::acquireFromFile(const std::string& path, Font*& outFont) {
     }
 
     Entry entry;
-    if (!entry.font.loadFromFile(path)) {
+    if (!entry.font.loadFromFile(resolvedPath)) {
         return false;
     }
     entry.refCount = 1;
 
-    auto [insertedIt, inserted] = _entriesByKey.emplace(path, std::move(entry));
+    auto [insertedIt, inserted] = _entriesByKey.emplace(resolvedPath, std::move(entry));
     if (!inserted) {
         return false;
     }
