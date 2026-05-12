@@ -87,7 +87,7 @@ if button then
     button:setPosition(centerX, 78.0)
 
     local clickCount = 0
-    button:setOnClick(function(sender)
+    button:addEventListener(function(sender)
         clickCount = clickCount + 1
         sender:setString(string.format("Clicked %d", clickCount))
         if clickInfo then
