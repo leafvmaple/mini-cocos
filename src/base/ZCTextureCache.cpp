@@ -1,18 +1,24 @@
 #include "base/ZCTextureCache.h"
 
 #include "base/ZCDirector.h"
+#include "platform/ZCFileUtils.h"
 #include "base/ZCRenderDevice.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 #include <cstdio>
+#include <limits>
 #include <vector>
 
 namespace zocos {
 
 bool TextureCache::acquireFromFile(Director& director, const char* path, TextureHandle& outTexture,
                                    Size& outPixelSize) {
+    if (!path || path[0] == '\0') {
+        return false;
+    }
+
     const std::string key = std::string("file://") + path;
     const auto it = _entriesByKey.find(key);
     if (it != _entriesByKey.end()) {
@@ -25,9 +31,21 @@ bool TextureCache::acquireFromFile(Director& director, const char* path, Texture
     int width = 0;
     int height = 0;
     int channels = 0;
-    unsigned char* data = stbi_load(path, &width, &height, &channels, 4);
+    std::vector<unsigned char> encodedBytes;
+    if (!FileUtils::getInstance().getDataFromFile(path, encodedBytes) || encodedBytes.empty()) {
+        std::fprintf(stderr, "readBinaryFile failed: %s\n", path);
+        return false;
+    }
+
+    if (encodedBytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        std::fprintf(stderr, "Image file is too large: %s\n", path);
+        return false;
+    }
+
+    unsigned char* data = stbi_load_from_memory(
+        encodedBytes.data(), static_cast<int>(encodedBytes.size()), &width, &height, &channels, 4);
     if (!data) {
-        std::fprintf(stderr, "stbi_load failed: %s\n", path);
+        std::fprintf(stderr, "stbi_load_from_memory failed: %s\n", path);
         return false;
     }
 

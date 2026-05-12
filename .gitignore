@@ -22,6 +22,8 @@ _deps/
 x64/
 x86/
 Win32/
+!src/platform/win32/
+!src/platform/win32/**
 [Dd]ebug/
 [Rr]elease/
 [Rr]eleases/

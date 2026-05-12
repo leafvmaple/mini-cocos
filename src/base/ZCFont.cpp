@@ -1,26 +1,15 @@
 #include "base/ZCFont.h"
+#include "platform/ZCFileUtils.h"
 
 #include <stb_truetype.h>
 
-#include <fstream>
-#include <iterator>
 #include <utility>
 
 namespace zocos {
 
 bool Font::loadFromFile(const std::string& path) {
-    if (path.empty()) {
-        return false;
-    }
-
-    std::ifstream file(path, std::ios::binary);
-    if (!file) {
-        return false;
-    }
-
-    std::vector<unsigned char> bytes((std::istreambuf_iterator<char>(file)),
-                                     std::istreambuf_iterator<char>());
-    if (bytes.empty()) {
+    std::vector<unsigned char> bytes;
+    if (!FileUtils::getInstance().getDataFromFile(path, bytes) || bytes.empty()) {
         return false;
     }
 
