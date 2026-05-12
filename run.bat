@@ -2,23 +2,28 @@
 setlocal
 cd /d "%~dp0"
 
-cmake -B build || exit /b 1
-cmake --build build --config Debug || exit /b 1
+set "BUILD_DIR=build-run"
+set "BUILD_CONFIG=Debug"
+set "PYTHONUTF8=1"
+set "PYTHONIOENCODING=utf-8"
 
-if exist "build\Debug\zocos.exe" (
-  "build\Debug\zocos.exe" %*
+cmake -S . -B "%BUILD_DIR%" || exit /b 1
+cmake --build "%BUILD_DIR%" --config %BUILD_CONFIG% || exit /b 1
+
+if exist "%BUILD_DIR%\Debug\zocos.exe" (
+  "%BUILD_DIR%\Debug\zocos.exe" %*
   exit /b %errorlevel%
 )
-if exist "build\Release\zocos.exe" (
-  "build\Release\zocos.exe" %*
+if exist "%BUILD_DIR%\Release\zocos.exe" (
+  "%BUILD_DIR%\Release\zocos.exe" %*
   exit /b %errorlevel%
 )
-if exist "build\RelWithDebInfo\zocos.exe" (
-  "build\RelWithDebInfo\zocos.exe" %*
+if exist "%BUILD_DIR%\RelWithDebInfo\zocos.exe" (
+  "%BUILD_DIR%\RelWithDebInfo\zocos.exe" %*
   exit /b %errorlevel%
 )
-if exist "build\zocos.exe" (
-  "build\zocos.exe" %*
+if exist "%BUILD_DIR%\zocos.exe" (
+  "%BUILD_DIR%\zocos.exe" %*
   exit /b %errorlevel%
 )
 

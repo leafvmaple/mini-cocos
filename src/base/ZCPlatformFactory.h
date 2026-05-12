@@ -8,6 +8,6 @@ class View;
 class RenderDevice;
 
 std::unique_ptr<View> createDefaultView();
-std::unique_ptr<RenderDevice> createDefaultRenderDevice();
+std::unique_ptr<RenderDevice> createDefaultRenderDevice(View& view);
 
 } // namespace zocos

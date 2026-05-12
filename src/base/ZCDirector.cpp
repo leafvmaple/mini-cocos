@@ -45,7 +45,7 @@ bool Director::init(int width, int height, const char* title) {
         return false;
     }
 
-    _renderDevice = createDefaultRenderDevice();
+    _renderDevice = createDefaultRenderDevice(*_view);
     _textureCache = std::make_unique<TextureCache>();
     _fontCache = std::make_unique<FontCache>();
 
