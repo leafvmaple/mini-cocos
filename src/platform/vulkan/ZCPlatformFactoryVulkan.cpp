@@ -1,7 +1,7 @@
 #include "base/ZCPlatformFactory.h"
 
-#include "platform/ZCRenderDeviceVulkan.h"
-#include "platform/ZCVulkanViewImpl.h"
+#include "platform/vulkan/ZCRenderDeviceVulkan.h"
+#include "platform/vulkan/ZCVulkanViewImpl.h"
 
 #include <cstdio>
 #include <memory>

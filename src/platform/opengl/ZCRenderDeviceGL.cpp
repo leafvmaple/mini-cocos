@@ -1,4 +1,4 @@
-#include "platform/ZCRenderDeviceGL.h"
+#include "platform/opengl/ZCRenderDeviceGL.h"
 
 #include <cstdio>
 #include <cstring>

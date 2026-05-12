@@ -1,7 +1,7 @@
 #pragma once
 
 #include "base/ZCRenderDevice.h"
-#include "platform/ZCOpenGLLoader.h"
+#include "platform/opengl/ZCOpenGLLoader.h"
 
 #include <cstddef>
 #include <cstdint>

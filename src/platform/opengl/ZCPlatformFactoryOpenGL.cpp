@@ -1,7 +1,7 @@
 #include "base/ZCPlatformFactory.h"
 
-#include "platform/ZCGLViewImpl.h"
-#include "platform/ZCRenderDeviceGL.h"
+#include "platform/opengl/ZCGLViewImpl.h"
+#include "platform/opengl/ZCRenderDeviceGL.h"
 
 #include <memory>
 

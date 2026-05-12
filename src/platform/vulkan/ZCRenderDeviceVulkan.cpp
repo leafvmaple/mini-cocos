@@ -1,4 +1,4 @@
-#include "platform/ZCRenderDeviceVulkan.h"
+#include "platform/vulkan/ZCRenderDeviceVulkan.h"
 
 #include <algorithm>
 #include <array>
@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "platform/ZCVulkanMinimalSpv.inl"
+#include "platform/vulkan/ZCVulkanMinimalSpv.inl"
 
 namespace zocos {
 

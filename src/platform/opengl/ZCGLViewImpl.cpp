@@ -1,6 +1,6 @@
-#include "platform/ZCGLViewImpl.h"
+#include "platform/opengl/ZCGLViewImpl.h"
 
-#include "platform/ZCOpenGLLoader.h"
+#include "platform/opengl/ZCOpenGLLoader.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>

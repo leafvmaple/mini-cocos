@@ -1,10 +1,11 @@
-#include "platform/ZCOpenGLLoader.h"
+#include "platform/opengl/ZCOpenGLLoader.h"
 #include <cstring>
 
-#define LOAD(name) \
-    do { \
-        name = reinterpret_cast<decltype(name)>(getProc(#name)); \
-        if (!name) return false; \
+#define LOAD(name)                                                                                 \
+    do {                                                                                           \
+        name = reinterpret_cast<decltype(name)>(getProc(#name));                                   \
+        if (!name)                                                                                 \
+            return false;                                                                          \
     } while (0)
 
 void (*glClearColor)(GLfloat, GLfloat, GLfloat, GLfloat);
