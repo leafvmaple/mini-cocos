@@ -67,7 +67,7 @@ if errorlevel 1 (
 
 echo Using Ninja: "%NINJA_PATH%"
 
-cmake -S . -B build-clangd -G Ninja "-DCMAKE_MAKE_PROGRAM=%NINJA_PATH%" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON || exit /b 1
+cmake -S . -B build-clangd -G Ninja "-DCMAKE_MAKE_PROGRAM=%NINJA_PATH%" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DZOCOS_RENDER_API=VULKAN || exit /b 1
 
 if not exist "build-clangd\compile_commands.json" (
   echo Failed to generate build-clangd\compile_commands.json.

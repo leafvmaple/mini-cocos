@@ -126,7 +126,7 @@ void Director::runWithScene(Scene* scene) {
         _runningScene->onEnter();
     }
 
-    // Flush startup autoreleased objects; retained objects stay alive.
+    // Flush startup auto released objects; retained objects stay alive.
     PoolManager::getInstance().clearRootPool();
 }
 
