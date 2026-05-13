@@ -8,9 +8,7 @@ class Event {
 public:
     enum class Type {
         Keyboard,
-        MouseButton,
-        MouseMove,
-        MouseScroll,
+        Mouse,
     };
 
     virtual ~Event() = default;
@@ -58,30 +56,47 @@ private:
     bool _repeated = false;
 };
 
-class EventMouseButton : public Event {
+class EventMouse : public Event {
 public:
-    EventMouseButton(int button, int modifiers, bool pressed, float x, float y)
-        : Event(Type::MouseButton), _button(button), _modifiers(modifiers), _pressed(pressed),
-          _x(x), _y(y) {}
+    enum class MouseEventType {
+        MOUSE_DOWN,
+        MOUSE_UP,
+        MOUSE_MOVE,
+        MOUSE_SCROLL,
+    };
+
+    MouseEventType getMouseEventType() const { return _mouseEventType; }
+
+protected:
+    explicit EventMouse(MouseEventType mouseEventType)
+        : Event(Type::Mouse), _mouseEventType(mouseEventType) {}
+
+private:
+    MouseEventType _mouseEventType;
+};
+
+class EventMouseButton : public EventMouse {
+public:
+    EventMouseButton(int button, int modifiers, MouseEventType mouseEventType, float x, float y)
+        : EventMouse(mouseEventType), _button(button), _modifiers(modifiers), _x(x), _y(y) {}
 
     int getButton() const { return _button; }
     int getModifiers() const { return _modifiers; }
-    bool isPressed() const { return _pressed; }
     float getX() const { return _x; }
     float getY() const { return _y; }
 
 private:
     int _button = 0;
     int _modifiers = 0;
-    bool _pressed = false;
     float _x = 0.f;
     float _y = 0.f;
 };
 
-class EventMouseMove : public Event {
+class EventMouseMove : public EventMouse {
 public:
     EventMouseMove(float x, float y, float deltaX, float deltaY)
-        : Event(Type::MouseMove), _x(x), _y(y), _deltaX(deltaX), _deltaY(deltaY) {}
+        : EventMouse(EventMouse::MouseEventType::MOUSE_MOVE), _x(x), _y(y), _deltaX(deltaX),
+          _deltaY(deltaY) {}
 
     float getX() const { return _x; }
     float getY() const { return _y; }
@@ -95,10 +110,11 @@ private:
     float _deltaY = 0.f;
 };
 
-class EventMouseScroll : public Event {
+class EventMouseScroll : public EventMouse {
 public:
     EventMouseScroll(float offsetX, float offsetY, float x, float y)
-        : Event(Type::MouseScroll), _offsetX(offsetX), _offsetY(offsetY), _x(x), _y(y) {}
+        : EventMouse(EventMouse::MouseEventType::MOUSE_SCROLL), _offsetX(offsetX),
+          _offsetY(offsetY), _x(x), _y(y) {}
 
     float getOffsetX() const { return _offsetX; }
     float getOffsetY() const { return _offsetY; }

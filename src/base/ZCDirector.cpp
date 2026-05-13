@@ -167,8 +167,11 @@ bool Director::onViewKeyEvent(int keyCode, int scanCode, int modifiers, bool pre
     return event.isStopped();
 }
 
-void Director::onViewMouseButtonEvent(int button, int modifiers, bool pressed, float x, float y) {
-    EventMouseButton event(button, modifiers, pressed, x, y);
+void Director::onViewMouseButtonEvent(int button, int modifiers, bool buttonActive, float x,
+                                      float y) {
+    const auto mouseEventType = buttonActive ? EventMouse::MouseEventType::MOUSE_DOWN
+                                             : EventMouse::MouseEventType::MOUSE_UP;
+    EventMouseButton event(button, modifiers, mouseEventType, x, y);
     _eventDispatcher.dispatchEvent(event);
 }
 

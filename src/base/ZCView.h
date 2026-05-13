@@ -9,7 +9,7 @@ public:
     virtual void onViewResized(int width, int height) = 0;
     virtual bool onViewKeyEvent(int keyCode, int scanCode, int modifiers, bool pressed,
                                 bool repeated) = 0;
-    virtual void onViewMouseButtonEvent(int button, int modifiers, bool pressed, float x,
+    virtual void onViewMouseButtonEvent(int button, int modifiers, bool buttonActive, float x,
                                         float y) = 0;
     virtual void onViewMouseMoveEvent(float x, float y, float deltaX, float deltaY) = 0;
     virtual void onViewMouseScrollEvent(float offsetX, float offsetY, float x, float y) = 0;

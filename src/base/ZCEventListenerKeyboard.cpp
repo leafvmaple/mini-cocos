@@ -26,6 +26,10 @@ bool EventListenerKeyboard::hasCallbacks() const {
 }
 
 bool EventListenerKeyboard::dispatchEvent(Event& event) {
+    if (event.getType() != Event::Type::Keyboard) {
+        return false;
+    }
+
     auto& keyEvent = static_cast<EventKeyboard&>(event);
     if (keyEvent.isPressed()) {
         if (!onKeyPressed) {

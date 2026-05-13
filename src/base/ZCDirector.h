@@ -56,7 +56,8 @@ private:
     void onViewResized(int width, int height) override;
     bool onViewKeyEvent(int keyCode, int scanCode, int modifiers, bool pressed,
                         bool repeated) override;
-    void onViewMouseButtonEvent(int button, int modifiers, bool pressed, float x, float y) override;
+    void onViewMouseButtonEvent(int button, int modifiers, bool buttonActive, float x,
+                                float y) override;
     void onViewMouseMoveEvent(float x, float y, float deltaX, float deltaY) override;
     void onViewMouseScrollEvent(float offsetX, float offsetY, float x, float y) override;
 

@@ -22,40 +22,43 @@ bool EventListenerMouse::hasCallbacks() const {
 }
 
 bool EventListenerMouse::dispatchEvent(Event& event) {
-    switch (event.getType()) {
-    case Event::Type::MouseButton: {
-        auto& mouseButtonEvent = static_cast<EventMouseButton&>(event);
-        if (mouseButtonEvent.isPressed()) {
-            if (!onMouseDown) {
-                return false;
-            }
-            onMouseDown(mouseButtonEvent);
-            return true;
-        }
-
-        if (!onMouseUp) {
-            return false;
-        }
-        onMouseUp(mouseButtonEvent);
-        return true;
-    }
-    case Event::Type::MouseMove:
-        if (!onMouseMove) {
-            return false;
-        }
-        onMouseMove(static_cast<EventMouseMove&>(event));
-        return true;
-    case Event::Type::MouseScroll:
-        if (!onMouseScroll) {
-            return false;
-        }
-        onMouseScroll(static_cast<EventMouseScroll&>(event));
-        return true;
-    case Event::Type::Keyboard:
+    if (event.getType() == Event::Type::Keyboard) {
         return false;
     }
 
-    return false;
+    auto& mouseEvent = static_cast<EventMouse&>(event);
+
+    bool dispatched = false;
+    switch (mouseEvent.getMouseEventType()) {
+    case EventMouse::MouseEventType::MOUSE_DOWN:
+        if (onMouseDown != nullptr) {
+            onMouseDown(static_cast<EventMouseButton&>(mouseEvent));
+            dispatched = true;
+        }
+        break;
+    case EventMouse::MouseEventType::MOUSE_UP:
+        if (onMouseUp != nullptr) {
+            onMouseUp(static_cast<EventMouseButton&>(mouseEvent));
+            dispatched = true;
+        }
+        break;
+    case EventMouse::MouseEventType::MOUSE_MOVE:
+        if (onMouseMove != nullptr) {
+            onMouseMove(static_cast<EventMouseMove&>(mouseEvent));
+            dispatched = true;
+        }
+        break;
+    case EventMouse::MouseEventType::MOUSE_SCROLL:
+        if (onMouseScroll != nullptr) {
+            onMouseScroll(static_cast<EventMouseScroll&>(mouseEvent));
+            dispatched = true;
+        }
+        break;
+    default:
+        break;
+    }
+
+    return dispatched;
 }
 
 EventListenerMouse::EventListenerMouse() : EventListener(Type::Mouse) {}
