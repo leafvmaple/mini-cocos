@@ -16,7 +16,7 @@ Scene* Scene::create() {
     return nullptr;
 }
 
-void Scene::visitScene(Renderer& renderer) {
+void Scene::render(Renderer& renderer) {
     const Mat4 identity = Mat4::identity();
     visit(renderer, identity);
 }

@@ -147,14 +147,12 @@ bool Director::mainLoop() {
     if (_runningScene)
         _runningScene->updateTree(dt);
 
-    if (_renderDevice) {
-        _renderer.beginFrame(_projection);
-        if (_runningScene) {
-            _runningScene->visitScene(_renderer);
-        }
-        _renderer.flush(*_renderDevice, _fbWidth, _fbHeight);
-        _renderer.endFrame();
+    _renderer.beginFrame(_projection);
+    if (_runningScene) {
+        _runningScene->render(_renderer);
     }
+    _renderer.flush(*_renderDevice, _fbWidth, _fbHeight);
+    _renderer.endFrame();
 
     _view->swapBuffers();
     return !_view->shouldClose();

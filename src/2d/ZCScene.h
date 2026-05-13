@@ -10,7 +10,7 @@ class Scene : public Node {
 public:
     static Scene* create();
 
-    void visitScene(Renderer& renderer);
+    void render(Renderer& renderer);
 
 protected:
     Scene() = default;
