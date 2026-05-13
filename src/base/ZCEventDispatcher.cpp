@@ -7,28 +7,9 @@
 
 namespace zocos {
 
-namespace {
-
-bool hasCallbacks(const EventListener* listener) {
-    if (!listener) {
-        return false;
-    }
-
-    if (listener->getType() == EventListener::Type::Keyboard) {
-        const auto* keyboard = static_cast<const EventListenerKeyboard*>(listener);
-        return static_cast<bool>(keyboard->onKeyPressed) || static_cast<bool>(keyboard->onKeyReleased);
-    }
-
-    const auto* mouse = static_cast<const EventListenerMouse*>(listener);
-    return static_cast<bool>(mouse->onMouseDown) || static_cast<bool>(mouse->onMouseUp)
-        || static_cast<bool>(mouse->onMouseMove) || static_cast<bool>(mouse->onMouseScroll);
-}
-
-} // namespace
-
 EventDispatcher::ListenerID EventDispatcher::addEventListener(EventListener* listener, Node* target,
                                                               int priority) {
-    if (!target || !listener || !hasCallbacks(listener)) {
+    if (!target || !listener || !listener->hasCallbacks()) {
         return 0;
     }
 
@@ -155,64 +136,11 @@ void EventDispatcher::dispatchEvent(Event& event) {
             continue;
         }
 
-        bool invoked = false;
-
-        if (listener.listener->getType() == EventListener::Type::Keyboard
-            && event.getType() == Event::Type::Keyboard) {
-            auto* keyboard = static_cast<EventListenerKeyboard*>(listener.listener);
-            auto& keyEvent = static_cast<EventKeyboard&>(event);
-            if (keyEvent.isPressed()) {
-                if (keyboard->onKeyPressed) {
-                    event.setCurrentTarget(listener.target);
-                    keyboard->onKeyPressed(keyEvent);
-                    invoked = true;
-                }
-            } else {
-                if (keyboard->onKeyReleased) {
-                    event.setCurrentTarget(listener.target);
-                    keyboard->onKeyReleased(keyEvent);
-                    invoked = true;
-                }
-            }
-        } else if (listener.listener->getType() == EventListener::Type::Mouse) {
-            auto* mouse = static_cast<EventListenerMouse*>(listener.listener);
-            switch (event.getType()) {
-            case Event::Type::MouseButton: {
-                auto& mouseButtonEvent = static_cast<EventMouseButton&>(event);
-                if (mouseButtonEvent.isPressed()) {
-                    if (mouse->onMouseDown) {
-                        event.setCurrentTarget(listener.target);
-                        mouse->onMouseDown(mouseButtonEvent);
-                        invoked = true;
-                    }
-                } else {
-                    if (mouse->onMouseUp) {
-                        event.setCurrentTarget(listener.target);
-                        mouse->onMouseUp(mouseButtonEvent);
-                        invoked = true;
-                    }
-                }
-                break;
-            }
-            case Event::Type::MouseMove: {
-                if (mouse->onMouseMove) {
-                    event.setCurrentTarget(listener.target);
-                    mouse->onMouseMove(static_cast<EventMouseMove&>(event));
-                    invoked = true;
-                }
-                break;
-            }
-            case Event::Type::MouseScroll: {
-                if (mouse->onMouseScroll) {
-                    event.setCurrentTarget(listener.target);
-                    mouse->onMouseScroll(static_cast<EventMouseScroll&>(event));
-                    invoked = true;
-                }
-                break;
-            }
-            case Event::Type::Keyboard:
-                break;
-            }
+        Node* previousTarget = event.getCurrentTarget();
+        event.setCurrentTarget(listener.target);
+        bool invoked = listener.listener->dispatchEvent(event);
+        if (!invoked) {
+            event.setCurrentTarget(previousTarget);
         }
 
         if (invoked && event.isStopped()) {
@@ -280,12 +208,13 @@ void EventDispatcher::sortListenersIfNeeded() {
         return;
     }
 
-    std::sort(_listeners.begin(), _listeners.end(), [](const ListenerEntry& a, const ListenerEntry& b) {
-        if (a.priority != b.priority) {
-            return a.priority < b.priority;
-        }
-        return a.order < b.order;
-    });
+    std::sort(_listeners.begin(), _listeners.end(),
+              [](const ListenerEntry& a, const ListenerEntry& b) {
+                  if (a.priority != b.priority) {
+                      return a.priority < b.priority;
+                  }
+                  return a.order < b.order;
+              });
     _dirtyOrder = false;
 }
 

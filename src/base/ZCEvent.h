@@ -41,12 +41,8 @@ private:
 class EventKeyboard : public Event {
 public:
     EventKeyboard(int keyCode, int scanCode, int modifiers, bool pressed, bool repeated)
-        : Event(Type::Keyboard),
-          _keyCode(keyCode),
-          _scanCode(scanCode),
-          _modifiers(modifiers),
-          _pressed(pressed),
-          _repeated(repeated) {}
+        : Event(Type::Keyboard), _keyCode(keyCode), _scanCode(scanCode), _modifiers(modifiers),
+          _pressed(pressed), _repeated(repeated) {}
 
     int getKeyCode() const { return _keyCode; }
     int getScanCode() const { return _scanCode; }
@@ -65,12 +61,8 @@ private:
 class EventMouseButton : public Event {
 public:
     EventMouseButton(int button, int modifiers, bool pressed, float x, float y)
-        : Event(Type::MouseButton),
-          _button(button),
-          _modifiers(modifiers),
-          _pressed(pressed),
-          _x(x),
-          _y(y) {}
+        : Event(Type::MouseButton), _button(button), _modifiers(modifiers), _pressed(pressed),
+          _x(x), _y(y) {}
 
     int getButton() const { return _button; }
     int getModifiers() const { return _modifiers; }

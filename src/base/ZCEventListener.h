@@ -21,6 +21,9 @@ public:
     bool isEnabled() const { return _enabled; }
     void setEnabled(bool enabled) { _enabled = enabled; }
 
+    virtual bool hasCallbacks() const = 0;
+    virtual bool dispatchEvent(Event& event) = 0;
+
 protected:
     explicit EventListener(Type type) : _type(type) {}
     ~EventListener() override = default;
@@ -34,27 +37,19 @@ class EventListenerKeyboard final : public EventListener {
 public:
     using Callback = std::function<void(EventKeyboard&)>;
 
-    static EventListenerKeyboard* create(Callback onPressed = {}, Callback onReleased = {}) {
-        auto* listener = new (std::nothrow) EventListenerKeyboard();
-        if (listener && listener->init(std::move(onPressed), std::move(onReleased))) {
-            listener->autorelease();
-            return listener;
-        }
-        delete listener;
-        return nullptr;
-    }
+    static EventListenerKeyboard* create(Callback onPressed = {}, Callback onReleased = {});
 
-    bool init(Callback onPressed = {}, Callback onReleased = {}) {
-        onKeyPressed = std::move(onPressed);
-        onKeyReleased = std::move(onReleased);
-        return true;
-    }
+    bool init(Callback onPressed = {}, Callback onReleased = {});
+
+    bool hasCallbacks() const override;
+
+    bool dispatchEvent(Event& event) override;
 
     Callback onKeyPressed;
     Callback onKeyReleased;
 
 private:
-    EventListenerKeyboard() : EventListener(Type::Keyboard) {}
+    EventListenerKeyboard();
 };
 
 class EventListenerMouse final : public EventListener {
@@ -63,17 +58,13 @@ public:
     using MoveCallback = std::function<void(EventMouseMove&)>;
     using ScrollCallback = std::function<void(EventMouseScroll&)>;
 
-    static EventListenerMouse* create() {
-        auto* listener = new (std::nothrow) EventListenerMouse();
-        if (listener && listener->init()) {
-            listener->autorelease();
-            return listener;
-        }
-        delete listener;
-        return nullptr;
-    }
+    static EventListenerMouse* create();
 
-    bool init() { return true; }
+    bool init();
+
+    bool hasCallbacks() const override;
+
+    bool dispatchEvent(Event& event) override;
 
     ButtonCallback onMouseDown;
     ButtonCallback onMouseUp;
@@ -81,7 +72,7 @@ public:
     ScrollCallback onMouseScroll;
 
 private:
-    EventListenerMouse() : EventListener(Type::Mouse) {}
+    EventListenerMouse();
 };
 
 } // namespace zocos
