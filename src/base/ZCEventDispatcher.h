@@ -5,6 +5,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <unordered_map>
 #include <vector>
 
 namespace zocos {
@@ -13,13 +15,13 @@ class Node;
 
 class EventDispatcher {
 public:
-    using ListenerID = std::uint64_t;
+    using ListenerHandle = std::uint64_t;
 
-    ListenerID addEventListener(EventListener* listener, Node* target, int priority = 0);
-
-    void removeListener(ListenerID id);
-    void removeListenersForTarget(Node* target);
-    void removeAllListeners();
+    ListenerHandle addEventListenerWithNodePriority(EventListener* listener, Node* node);
+    ListenerHandle addEventListenerWithFixedPriority(EventListener* listener, int fixedPriority);
+    void removeEventListener(ListenerHandle handle);
+    void removeEventListenersForTarget(Node* target);
+    void removeAllEventListeners();
 
     void dispatchEvent(Event& event);
 
@@ -27,7 +29,7 @@ public:
 
 private:
     struct ListenerEntry {
-        ListenerID id = 0;
+        ListenerHandle handle = 0;
         Node* target = nullptr;
         EventListener* listener = nullptr;
         int priority = 0;
@@ -35,17 +37,38 @@ private:
         bool removed = false;
     };
 
-    void addListener(ListenerEntry entry);
-    void mergePending();
-    void sortListenersIfNeeded();
+    struct EventListenerVector {
+        std::vector<ListenerEntry> _fixedListeners;
+        std::vector<ListenerEntry> _nodeListeners;
+        std::size_t _gt0Index = 0;
+        bool _dirtyFixedPriority = false;
+        bool _dirtyNodePriority = false;
+
+        bool empty() const { return _fixedListeners.empty() && _nodeListeners.empty(); }
+    };
+
+    using ListenerCondition = std::function<bool(const ListenerEntry&)>;
+
+    void addEventListenerInternal(ListenerEntry entry);
+    void forceAddEventListener(ListenerEntry entry);
+    void removeEventListenersIf(const ListenerCondition& condition);
+    void updateListeners();
+    void sortEventListeners(EventListenerVector& listeners);
+    bool dispatchEventToListeners(Event& event, std::vector<ListenerEntry>& listeners,
+                                  std::size_t begin, std::size_t end, bool nodePriority);
+    bool cleanRemovedListenersInVector(std::vector<ListenerEntry>& listeners);
+    void cleanToRemovedListeners();
     void releaseListenerEntry(ListenerEntry& entry);
 
-    ListenerID _nextListenerId = 1;
+    static int getListenerID(EventListener::Type type);
+    static int getListenerID(Event::Type type);
+    bool isDispatching() const { return _inDispatch > 0; }
+
+    ListenerHandle _nextListenerHandle = 1;
     std::size_t _nextOrder = 0;
-    bool _dispatching = false;
-    bool _dirtyOrder = false;
-    std::vector<ListenerEntry> _listeners;
-    std::vector<ListenerEntry> _pendingListeners;
+    int _inDispatch = 0;
+    std::unordered_map<int, EventListenerVector> _listenerMap;
+    std::vector<ListenerEntry> _toAddedListeners;
 };
 
 } // namespace zocos

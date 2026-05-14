@@ -21,7 +21,7 @@ Node* Node::create() {
 }
 
 Node::~Node() {
-    Director::getInstance().getEventDispatcher().removeListenersForTarget(this);
+    Director::getInstance().getEventDispatcher().removeEventListenersForTarget(this);
     stopAllActions();
     unscheduleAllCallbacks();
     removeAllChildren();
@@ -55,12 +55,14 @@ void Node::onExit() {
 
 void Node::schedule(const std::string& key, ScheduleCallback callback, float interval, int repeat,
                     float delay, int priority) {
-    Director::getInstance().getScheduler().schedule(this, key, std::move(callback), interval, repeat, delay,
-                                                    priority);
+    Director::getInstance().getScheduler().schedule(this, key, std::move(callback), interval,
+                                                    repeat, delay, priority);
 }
 
-void Node::scheduleOnce(const std::string& key, ScheduleCallback callback, float delay, int priority) {
-    Director::getInstance().getScheduler().scheduleOnce(this, key, std::move(callback), delay, priority);
+void Node::scheduleOnce(const std::string& key, ScheduleCallback callback, float delay,
+                        int priority) {
+    Director::getInstance().getScheduler().scheduleOnce(this, key, std::move(callback), delay,
+                                                        priority);
 }
 
 void Node::unschedule(const std::string& key) {
@@ -152,16 +154,19 @@ void Node::updateTree(float dt) {
     }
 
     for (auto* ch : _children) {
-        if (ch) ch->updateTree(dt);
+        if (ch)
+            ch->updateTree(dt);
     }
 }
 
 void Node::visit(Renderer& renderer, const Mat4& parentWorld) {
-    if (!_visible) return;
+    if (!_visible)
+        return;
     const Mat4 world = parentWorld * localMatrix();
     draw(renderer, world);
     for (auto* ch : _children) {
-        if (ch) ch->visit(renderer, world);
+        if (ch)
+            ch->visit(renderer, world);
     }
 }
 

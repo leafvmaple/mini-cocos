@@ -77,7 +77,7 @@ void Director::shutdown() {
     assert(_eventDispatcher.getListenerCount() == 0 && "Event listeners were not fully released.");
 
     _actionManager.removeAllActions();
-    _eventDispatcher.removeAllListeners();
+    _eventDispatcher.removeAllEventListeners();
     _renderer.endFrame();
     if (_fontCache) {
         _fontCache->removeAllFonts();

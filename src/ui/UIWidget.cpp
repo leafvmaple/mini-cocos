@@ -109,7 +109,8 @@ void Widget::registerInputListener() {
     listener->onMouseUp = [this](EventMouse& event) { handleMouseUp(event); };
     listener->onMouseMove = [this](EventMouse& event) { handleMouseMove(event); };
 
-    _listenerId = Director::getInstance().getEventDispatcher().addEventListener(listener, this);
+    _listenerId = Director::getInstance().getEventDispatcher().addEventListenerWithNodePriority(
+        listener, this);
 }
 
 void Widget::unregisterInputListener() {
@@ -117,7 +118,7 @@ void Widget::unregisterInputListener() {
         return;
     }
 
-    Director::getInstance().getEventDispatcher().removeListener(_listenerId);
+    Director::getInstance().getEventDispatcher().removeEventListener(_listenerId);
     _listenerId = 0;
 }
 

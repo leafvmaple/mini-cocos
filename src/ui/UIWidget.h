@@ -1,6 +1,7 @@
 #pragma once
 
 #include "2d/ZCNode.h"
+#include "base/ZCEventDispatcher.h"
 
 #include <cstdint>
 #include <functional>
@@ -41,7 +42,7 @@ private:
     void handleMouseUp(EventMouse& event);
     void handleMouseMove(EventMouse& event);
 
-    std::uint64_t _listenerId = 0;
+    EventDispatcher::ListenerHandle _listenerId = 0;
     bool _pressed = false;
     bool _trackingPress = false;
     EventCallback _eventCallback;

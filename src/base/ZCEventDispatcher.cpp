@@ -7,215 +7,375 @@
 
 namespace zocos {
 
-EventDispatcher::ListenerID EventDispatcher::addEventListener(EventListener* listener, Node* target,
-                                                              int priority) {
-    if (!target || !listener || !listener->hasCallbacks()) {
+int EventDispatcher::getListenerID(EventListener::Type type) { return static_cast<int>(type); }
+
+int EventDispatcher::getListenerID(Event::Type type) {
+    switch (type) {
+    case Event::Type::Keyboard:
+        return getListenerID(EventListener::Type::Keyboard);
+    case Event::Type::Mouse:
+        return getListenerID(EventListener::Type::Mouse);
+    default:
+        break;
+    }
+    return -1;
+}
+
+EventDispatcher::ListenerHandle
+EventDispatcher::addEventListenerWithNodePriority(EventListener* listener, Node* node) {
+    if (!node || !listener || !listener->hasCallbacks()) {
         return 0;
     }
 
     ListenerEntry entry;
-    entry.id = _nextListenerId++;
-    entry.target = target;
+    entry.handle = _nextListenerHandle++;
+    entry.target = node;
     entry.listener = listener;
-    entry.priority = priority;
+    entry.priority = 0;
     entry.order = _nextOrder++;
     entry.listener->retain();
 
-    addListener(std::move(entry));
-    return entry.id;
+    const ListenerHandle handle = entry.handle;
+    addEventListenerInternal(std::move(entry));
+    return handle;
 }
 
-void EventDispatcher::removeListener(ListenerID id) {
-    if (_dispatching) {
-        for (auto& listener : _listeners) {
-            if (listener.id == id) {
-                listener.removed = true;
+EventDispatcher::ListenerHandle
+EventDispatcher::addEventListenerWithFixedPriority(EventListener* listener, int fixedPriority) {
+    if (!listener || !listener->hasCallbacks() || fixedPriority == 0) {
+        return 0;
+    }
+
+    ListenerEntry entry;
+    entry.handle = _nextListenerHandle++;
+    entry.target = nullptr;
+    entry.listener = listener;
+    entry.priority = fixedPriority;
+    entry.order = _nextOrder++;
+    entry.listener->retain();
+
+    const ListenerHandle handle = entry.handle;
+    addEventListenerInternal(std::move(entry));
+    return handle;
+}
+
+void EventDispatcher::removeEventListener(ListenerHandle handle) {
+    removeEventListenersIf([handle](const ListenerEntry& entry) { return entry.handle == handle; });
+}
+
+void EventDispatcher::removeEventListenersForTarget(Node* target) {
+    removeEventListenersIf([target](const ListenerEntry& entry) { return entry.target == target; });
+}
+
+void EventDispatcher::removeEventListenersIf(const ListenerCondition& condition) {
+    auto markInVector = [&condition](std::vector<ListenerEntry>& entries) {
+        for (auto& entry : entries) {
+            if (condition(entry)) {
+                entry.removed = true;
             }
         }
-        for (auto& listener : _pendingListeners) {
-            if (listener.id == id) {
-                listener.removed = true;
+    };
+
+    auto eraseInVector = [this, &condition](std::vector<ListenerEntry>& entries, bool* dirtyFlag) {
+        for (auto it = entries.begin(); it != entries.end();) {
+            if (condition(*it)) {
+                releaseListenerEntry(*it);
+                it = entries.erase(it);
+                if (dirtyFlag) {
+                    *dirtyFlag = true;
+                }
+            } else {
+                ++it;
             }
         }
+    };
+
+    if (isDispatching()) {
+        for (auto& [_, listeners] : _listenerMap) {
+            markInVector(listeners._fixedListeners);
+            markInVector(listeners._nodeListeners);
+        }
+
+        markInVector(_toAddedListeners);
         return;
     }
 
-    for (auto it = _listeners.begin(); it != _listeners.end();) {
-        if (it->id == id) {
-            releaseListenerEntry(*it);
-            it = _listeners.erase(it);
+    for (auto it = _listenerMap.begin(); it != _listenerMap.end();) {
+        auto& listeners = it->second;
+        eraseInVector(listeners._fixedListeners, &listeners._dirtyFixedPriority);
+        eraseInVector(listeners._nodeListeners, &listeners._dirtyNodePriority);
+
+        if (listeners.empty()) {
+            it = _listenerMap.erase(it);
         } else {
             ++it;
         }
     }
 
-    for (auto it = _pendingListeners.begin(); it != _pendingListeners.end();) {
-        if (it->id == id) {
-            releaseListenerEntry(*it);
-            it = _pendingListeners.erase(it);
-        } else {
-            ++it;
-        }
-    }
+    eraseInVector(_toAddedListeners, nullptr);
 }
 
-void EventDispatcher::removeListenersForTarget(Node* target) {
-    if (_dispatching) {
-        for (auto& listener : _listeners) {
-            if (listener.target == target) {
+void EventDispatcher::removeAllEventListeners() {
+    if (isDispatching()) {
+        for (auto& [_, listeners] : _listenerMap) {
+            for (auto& listener : listeners._fixedListeners) {
+                listener.removed = true;
+            }
+            for (auto& listener : listeners._nodeListeners) {
                 listener.removed = true;
             }
         }
-        for (auto& listener : _pendingListeners) {
-            if (listener.target == target) {
-                listener.removed = true;
-            }
-        }
-        return;
-    }
 
-    for (auto it = _listeners.begin(); it != _listeners.end();) {
-        if (it->target == target) {
-            releaseListenerEntry(*it);
-            it = _listeners.erase(it);
-        } else {
-            ++it;
-        }
-    }
-
-    for (auto it = _pendingListeners.begin(); it != _pendingListeners.end();) {
-        if (it->target == target) {
-            releaseListenerEntry(*it);
-            it = _pendingListeners.erase(it);
-        } else {
-            ++it;
-        }
-    }
-}
-
-void EventDispatcher::removeAllListeners() {
-    if (_dispatching) {
-        for (auto& listener : _listeners) {
+        for (auto& listener : _toAddedListeners) {
             listener.removed = true;
         }
-        for (auto& listener : _pendingListeners) {
-            listener.removed = true;
-        }
         return;
     }
 
-    for (auto& listener : _listeners) {
-        releaseListenerEntry(listener);
+    for (auto& [_, listeners] : _listenerMap) {
+        for (auto& listener : listeners._fixedListeners) {
+            releaseListenerEntry(listener);
+        }
+        for (auto& listener : listeners._nodeListeners) {
+            releaseListenerEntry(listener);
+        }
     }
-    for (auto& listener : _pendingListeners) {
+
+    for (auto& listener : _toAddedListeners) {
         releaseListenerEntry(listener);
     }
 
-    _listeners.clear();
-    _pendingListeners.clear();
+    _listenerMap.clear();
+    _toAddedListeners.clear();
 }
 
 void EventDispatcher::dispatchEvent(Event& event) {
-    mergePending();
-    if (_listeners.empty()) {
+    if (!isDispatching()) {
+        updateListeners();
+    }
+
+    const int eventTypeKey = getListenerID(event.getType());
+    if (eventTypeKey < 0) {
         return;
     }
 
-    sortListenersIfNeeded();
+    auto iter = _listenerMap.find(eventTypeKey);
+    if (iter == _listenerMap.end() || iter->second.empty()) {
+        return;
+    }
+
+    auto& listeners = iter->second;
+    sortEventListeners(listeners);
 
     event.resetForDispatch();
-    _dispatching = true;
-    for (auto& listener : _listeners) {
-        if (listener.removed || !listener.target || !listener.listener) {
+    ++_inDispatch;
+
+    bool shouldStopPropagation = false;
+
+    if (!listeners._fixedListeners.empty()) {
+        shouldStopPropagation = dispatchEventToListeners(event, listeners._fixedListeners, 0,
+                                                         listeners._gt0Index, false);
+    }
+
+    if (!shouldStopPropagation && !listeners._nodeListeners.empty()) {
+        shouldStopPropagation = dispatchEventToListeners(event, listeners._nodeListeners, 0,
+                                                         listeners._nodeListeners.size(), true);
+    }
+
+    if (!shouldStopPropagation && !listeners._fixedListeners.empty()) {
+        shouldStopPropagation =
+            dispatchEventToListeners(event, listeners._fixedListeners, listeners._gt0Index,
+                                     listeners._fixedListeners.size(), false);
+    }
+
+    --_inDispatch;
+    event.setCurrentTarget(nullptr);
+
+    if (!isDispatching()) {
+        updateListeners();
+    }
+}
+
+std::size_t EventDispatcher::getListenerCount() const {
+    std::size_t count = 0;
+    for (const auto& [_, listeners] : _listenerMap) {
+        for (const auto& listener : listeners._fixedListeners) {
+            if (!listener.removed && listener.listener) {
+                ++count;
+            }
+        }
+
+        for (const auto& listener : listeners._nodeListeners) {
+            if (!listener.removed && listener.listener && listener.target) {
+                ++count;
+            }
+        }
+    }
+
+    for (const auto& listener : _toAddedListeners) {
+        if (!listener.removed && listener.listener) {
+            if (listener.priority == 0) {
+                if (listener.target) {
+                    ++count;
+                }
+            } else {
+                ++count;
+            }
+        }
+    }
+
+    return count;
+}
+
+void EventDispatcher::addEventListenerInternal(ListenerEntry entry) {
+    if (isDispatching()) {
+        _toAddedListeners.push_back(std::move(entry));
+        return;
+    }
+
+    forceAddEventListener(std::move(entry));
+}
+
+void EventDispatcher::forceAddEventListener(ListenerEntry entry) {
+    if (!entry.listener) {
+        return;
+    }
+
+    auto& listeners = _listenerMap[getListenerID(entry.listener->getType())];
+    if (entry.priority == 0) {
+        listeners._nodeListeners.push_back(std::move(entry));
+        listeners._dirtyNodePriority = true;
+    } else {
+        listeners._fixedListeners.push_back(std::move(entry));
+        listeners._dirtyFixedPriority = true;
+    }
+}
+
+void EventDispatcher::updateListeners() {
+    if (isDispatching()) {
+        return;
+    }
+
+    if (!_toAddedListeners.empty()) {
+        for (auto& listener : _toAddedListeners) {
+            const bool sceneGraphValid = (listener.priority != 0) || (listener.target != nullptr);
+            if (!listener.removed && listener.listener && sceneGraphValid) {
+                forceAddEventListener(std::move(listener));
+            } else {
+                releaseListenerEntry(listener);
+            }
+        }
+
+        _toAddedListeners.clear();
+    }
+
+    cleanToRemovedListeners();
+}
+
+void EventDispatcher::sortEventListeners(EventListenerVector& listeners) {
+    if (listeners._dirtyFixedPriority) {
+        std::stable_sort(listeners._fixedListeners.begin(), listeners._fixedListeners.end(),
+                         [](const ListenerEntry& a, const ListenerEntry& b) {
+                             if (a.priority != b.priority) {
+                                 return a.priority < b.priority;
+                             }
+                             return a.order < b.order;
+                         });
+
+        std::size_t index = 0;
+        while (index < listeners._fixedListeners.size() &&
+               listeners._fixedListeners[index].priority < 0) {
+            ++index;
+        }
+
+        listeners._gt0Index = index;
+        listeners._dirtyFixedPriority = false;
+    }
+
+    if (listeners._dirtyNodePriority) {
+        // Placeholder: until node-priority traversal is implemented, preserve registration order.
+        std::stable_sort(
+            listeners._nodeListeners.begin(), listeners._nodeListeners.end(),
+            [](const ListenerEntry& a, const ListenerEntry& b) { return a.order < b.order; });
+        listeners._dirtyNodePriority = false;
+    }
+}
+
+bool EventDispatcher::dispatchEventToListeners(Event& event, std::vector<ListenerEntry>& listeners,
+                                               std::size_t begin, std::size_t end,
+                                               bool sceneGraphPriority) {
+    const std::size_t size = listeners.size();
+    if (begin >= size) {
+        return false;
+    }
+
+    const std::size_t clampedEnd = std::min(end, size);
+    for (std::size_t i = begin; i < clampedEnd; ++i) {
+        auto& listener = listeners[i];
+        if (listener.removed || !listener.listener) {
             continue;
         }
-        if (!listener.target->isRunning() || listener.target->isPaused()) {
-            continue;
+
+        if (sceneGraphPriority) {
+            if (!listener.target) {
+                continue;
+            }
+            if (!listener.target->isRunning() || listener.target->isPaused()) {
+                continue;
+            }
         }
+
         if (!listener.listener->isEnabled()) {
             continue;
         }
 
         Node* previousTarget = event.getCurrentTarget();
-        event.setCurrentTarget(listener.target);
-        bool invoked = listener.listener->dispatchEvent(event);
+        event.setCurrentTarget(sceneGraphPriority ? listener.target : nullptr);
+        const bool invoked = listener.listener->dispatchEvent(event);
         if (!invoked) {
             event.setCurrentTarget(previousTarget);
         }
 
         if (invoked && event.isStopped()) {
-            break;
+            return true;
         }
     }
-    _dispatching = false;
-    event.setCurrentTarget(nullptr);
 
-    for (auto it = _listeners.begin(); it != _listeners.end();) {
-        if (it->removed || it->target == nullptr || it->listener == nullptr) {
+    return false;
+}
+
+bool EventDispatcher::cleanRemovedListenersInVector(std::vector<ListenerEntry>& listeners) {
+    bool changed = false;
+    for (auto it = listeners.begin(); it != listeners.end();) {
+        if (it->removed || !it->listener || (it->priority == 0 && !it->target)) {
             releaseListenerEntry(*it);
-            it = _listeners.erase(it);
+            it = listeners.erase(it);
+            changed = true;
         } else {
             ++it;
         }
     }
-
-    mergePending();
-    sortListenersIfNeeded();
+    return changed;
 }
 
-std::size_t EventDispatcher::getListenerCount() const {
-    std::size_t count = 0;
-    for (const auto& listener : _listeners) {
-        if (!listener.removed && listener.target && listener.listener) {
-            ++count;
+void EventDispatcher::cleanToRemovedListeners() {
+    for (auto it = _listenerMap.begin(); it != _listenerMap.end();) {
+        auto& listeners = it->second;
+
+        if (cleanRemovedListenersInVector(listeners._fixedListeners)) {
+            listeners._dirtyFixedPriority = true;
         }
-    }
-    for (const auto& listener : _pendingListeners) {
-        if (!listener.removed && listener.target && listener.listener) {
-            ++count;
+
+        if (cleanRemovedListenersInVector(listeners._nodeListeners)) {
+            listeners._dirtyNodePriority = true;
         }
-    }
-    return count;
-}
 
-void EventDispatcher::addListener(ListenerEntry entry) {
-    if (_dispatching) {
-        _pendingListeners.push_back(std::move(entry));
-        return;
-    }
-    _listeners.push_back(std::move(entry));
-    _dirtyOrder = true;
-}
-
-void EventDispatcher::mergePending() {
-    if (_pendingListeners.empty()) {
-        return;
-    }
-
-    for (auto& listener : _pendingListeners) {
-        if (!listener.removed && listener.target && listener.listener) {
-            _listeners.push_back(std::move(listener));
-            _dirtyOrder = true;
+        if (listeners.empty()) {
+            it = _listenerMap.erase(it);
         } else {
-            releaseListenerEntry(listener);
+            ++it;
         }
     }
-    _pendingListeners.clear();
-}
-
-void EventDispatcher::sortListenersIfNeeded() {
-    if (!_dirtyOrder) {
-        return;
-    }
-
-    std::sort(_listeners.begin(), _listeners.end(),
-              [](const ListenerEntry& a, const ListenerEntry& b) {
-                  if (a.priority != b.priority) {
-                      return a.priority < b.priority;
-                  }
-                  return a.order < b.order;
-              });
-    _dirtyOrder = false;
 }
 
 void EventDispatcher::releaseListenerEntry(ListenerEntry& entry) {
