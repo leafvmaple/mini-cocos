@@ -54,8 +54,8 @@ private:
     void removeEventListenersIf(const ListenerCondition& condition);
     void updateListeners();
     void sortEventListeners(EventListenerVector& listeners);
-    bool dispatchEventToListeners(Event& event, std::vector<ListenerEntry>& listeners,
-                                  std::size_t begin, std::size_t end, bool nodePriority);
+    bool dispatchEventToListeners(EventListenerVector& listeners,
+                                  const std::function<bool(ListenerEntry&)>& onEvent);
     bool cleanRemovedListenersInVector(std::vector<ListenerEntry>& listeners);
     void cleanToRemovedListeners();
     void releaseListenerEntry(ListenerEntry& entry);

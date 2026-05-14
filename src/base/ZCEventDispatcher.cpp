@@ -173,23 +173,13 @@ void EventDispatcher::dispatchEvent(Event& event) {
     event.resetForDispatch();
     ++_inDispatch;
 
-    bool shouldStopPropagation = false;
+    auto onEvent = [&event](ListenerEntry& listenerEntry) -> bool {
+        event.setCurrentTarget(listenerEntry.target);
+        listenerEntry.listener->dispatchEvent(event);
+        return event.isStopped();
+    };
 
-    if (!listeners._fixedListeners.empty()) {
-        shouldStopPropagation = dispatchEventToListeners(event, listeners._fixedListeners, 0,
-                                                         listeners._gt0Index, false);
-    }
-
-    if (!shouldStopPropagation && !listeners._nodeListeners.empty()) {
-        shouldStopPropagation = dispatchEventToListeners(event, listeners._nodeListeners, 0,
-                                                         listeners._nodeListeners.size(), true);
-    }
-
-    if (!shouldStopPropagation && !listeners._fixedListeners.empty()) {
-        shouldStopPropagation =
-            dispatchEventToListeners(event, listeners._fixedListeners, listeners._gt0Index,
-                                     listeners._fixedListeners.size(), false);
-    }
+    dispatchEventToListeners(listeners, onEvent);
 
     --_inDispatch;
     event.setCurrentTarget(nullptr);
@@ -304,47 +294,45 @@ void EventDispatcher::sortEventListeners(EventListenerVector& listeners) {
     }
 }
 
-bool EventDispatcher::dispatchEventToListeners(Event& event, std::vector<ListenerEntry>& listeners,
-                                               std::size_t begin, std::size_t end,
-                                               bool sceneGraphPriority) {
-    const std::size_t size = listeners.size();
-    if (begin >= size) {
+bool EventDispatcher::dispatchEventToListeners(EventListenerVector& listeners,
+                                               const std::function<bool(ListenerEntry&)>& onEvent) {
+    auto dispatchRange = [&onEvent](std::vector<ListenerEntry>& entries, std::size_t begin,
+                                    std::size_t end, bool nodePriority) {
+        const std::size_t clampedEnd = std::min(end, entries.size());
+        for (std::size_t i = begin; i < clampedEnd; ++i) {
+            auto& listenerEntry = entries[i];
+            if (listenerEntry.removed || !listenerEntry.listener) {
+                continue;
+            }
+
+            if (nodePriority) {
+                if (!listenerEntry.target->isRunning() || listenerEntry.target->isPaused()) {
+                    continue;
+                }
+            }
+
+            if (!listenerEntry.listener->isEnabled()) {
+                continue;
+            }
+
+            if (onEvent(listenerEntry)) {
+                return true;
+            }
+        }
+
         return false;
+    };
+
+    if (dispatchRange(listeners._fixedListeners, 0, listeners._gt0Index, false)) {
+        return true;
     }
 
-    const std::size_t clampedEnd = std::min(end, size);
-    for (std::size_t i = begin; i < clampedEnd; ++i) {
-        auto& listener = listeners[i];
-        if (listener.removed || !listener.listener) {
-            continue;
-        }
-
-        if (sceneGraphPriority) {
-            if (!listener.target) {
-                continue;
-            }
-            if (!listener.target->isRunning() || listener.target->isPaused()) {
-                continue;
-            }
-        }
-
-        if (!listener.listener->isEnabled()) {
-            continue;
-        }
-
-        Node* previousTarget = event.getCurrentTarget();
-        event.setCurrentTarget(sceneGraphPriority ? listener.target : nullptr);
-        const bool invoked = listener.listener->dispatchEvent(event);
-        if (!invoked) {
-            event.setCurrentTarget(previousTarget);
-        }
-
-        if (invoked && event.isStopped()) {
-            return true;
-        }
+    if (dispatchRange(listeners._nodeListeners, 0, listeners._nodeListeners.size(), true)) {
+        return true;
     }
 
-    return false;
+    return dispatchRange(listeners._fixedListeners, listeners._gt0Index,
+                         listeners._fixedListeners.size(), false);
 }
 
 bool EventDispatcher::cleanRemovedListenersInVector(std::vector<ListenerEntry>& listeners) {
