@@ -22,7 +22,7 @@ bool EventListenerMouse::hasCallbacks() const {
 }
 
 bool EventListenerMouse::dispatchEvent(Event& event) {
-    if (event.getType() == Event::Type::Keyboard) {
+    if (event.getType() != Event::Type::Mouse) {
         return false;
     }
 
@@ -32,25 +32,25 @@ bool EventListenerMouse::dispatchEvent(Event& event) {
     switch (mouseEvent.getMouseEventType()) {
     case EventMouse::MouseEventType::MOUSE_DOWN:
         if (onMouseDown != nullptr) {
-            onMouseDown(static_cast<EventMouseButton&>(mouseEvent));
+            onMouseDown(mouseEvent);
             dispatched = true;
         }
         break;
     case EventMouse::MouseEventType::MOUSE_UP:
         if (onMouseUp != nullptr) {
-            onMouseUp(static_cast<EventMouseButton&>(mouseEvent));
+            onMouseUp(mouseEvent);
             dispatched = true;
         }
         break;
     case EventMouse::MouseEventType::MOUSE_MOVE:
         if (onMouseMove != nullptr) {
-            onMouseMove(static_cast<EventMouseMove&>(mouseEvent));
+            onMouseMove(mouseEvent);
             dispatched = true;
         }
         break;
     case EventMouse::MouseEventType::MOUSE_SCROLL:
         if (onMouseScroll != nullptr) {
-            onMouseScroll(static_cast<EventMouseScroll&>(mouseEvent));
+            onMouseScroll(mouseEvent);
             dispatched = true;
         }
         break;

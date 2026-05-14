@@ -7,8 +7,7 @@
 
 namespace zocos {
 
-class EventMouseButton;
-class EventMouseMove;
+class EventMouse;
 
 namespace ui {
 
@@ -38,9 +37,9 @@ private:
     void unregisterInputListener();
 
     bool containsWorldPoint(float x, float y) const;
-    void handleMouseDown(EventMouseButton& event);
-    void handleMouseUp(EventMouseButton& event);
-    void handleMouseMove(EventMouseMove& event);
+    void handleMouseDown(EventMouse& event);
+    void handleMouseUp(EventMouse& event);
+    void handleMouseMove(EventMouse& event);
 
     std::uint64_t _listenerId = 0;
     bool _pressed = false;

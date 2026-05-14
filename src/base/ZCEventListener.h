@@ -54,9 +54,10 @@ private:
 
 class EventListenerMouse final : public EventListener {
 public:
-    using ButtonCallback = std::function<void(EventMouseButton&)>;
-    using MoveCallback = std::function<void(EventMouseMove&)>;
-    using ScrollCallback = std::function<void(EventMouseScroll&)>;
+    using Callback = std::function<void(EventMouse&)>;
+    using ButtonCallback = Callback;
+    using MoveCallback = Callback;
+    using ScrollCallback = Callback;
 
     static EventListenerMouse* create();
 

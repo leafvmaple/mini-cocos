@@ -65,67 +65,32 @@ public:
         MOUSE_SCROLL,
     };
 
+    EventMouse(MouseEventType mouseEventType, float x, float y, int button = 0, int modifiers = 0,
+               float deltaX = 0.f, float deltaY = 0.f, float offsetX = 0.f, float offsetY = 0.f)
+        : Event(Type::Mouse), _mouseEventType(mouseEventType), _button(button),
+          _modifiers(modifiers), _x(x), _y(y), _deltaX(deltaX), _deltaY(deltaY), _offsetX(offsetX),
+          _offsetY(offsetY) {}
+
     MouseEventType getMouseEventType() const { return _mouseEventType; }
-
-protected:
-    explicit EventMouse(MouseEventType mouseEventType)
-        : Event(Type::Mouse), _mouseEventType(mouseEventType) {}
-
-private:
-    MouseEventType _mouseEventType;
-};
-
-class EventMouseButton : public EventMouse {
-public:
-    EventMouseButton(int button, int modifiers, MouseEventType mouseEventType, float x, float y)
-        : EventMouse(mouseEventType), _button(button), _modifiers(modifiers), _x(x), _y(y) {}
-
     int getButton() const { return _button; }
     int getModifiers() const { return _modifiers; }
     float getX() const { return _x; }
     float getY() const { return _y; }
+    float getDeltaX() const { return _deltaX; }
+    float getDeltaY() const { return _deltaY; }
+    float getOffsetX() const { return _offsetX; }
+    float getOffsetY() const { return _offsetY; }
 
 private:
+    MouseEventType _mouseEventType;
     int _button = 0;
     int _modifiers = 0;
     float _x = 0.f;
     float _y = 0.f;
-};
-
-class EventMouseMove : public EventMouse {
-public:
-    EventMouseMove(float x, float y, float deltaX, float deltaY)
-        : EventMouse(EventMouse::MouseEventType::MOUSE_MOVE), _x(x), _y(y), _deltaX(deltaX),
-          _deltaY(deltaY) {}
-
-    float getX() const { return _x; }
-    float getY() const { return _y; }
-    float getDeltaX() const { return _deltaX; }
-    float getDeltaY() const { return _deltaY; }
-
-private:
-    float _x = 0.f;
-    float _y = 0.f;
     float _deltaX = 0.f;
     float _deltaY = 0.f;
-};
-
-class EventMouseScroll : public EventMouse {
-public:
-    EventMouseScroll(float offsetX, float offsetY, float x, float y)
-        : EventMouse(EventMouse::MouseEventType::MOUSE_SCROLL), _offsetX(offsetX),
-          _offsetY(offsetY), _x(x), _y(y) {}
-
-    float getOffsetX() const { return _offsetX; }
-    float getOffsetY() const { return _offsetY; }
-    float getX() const { return _x; }
-    float getY() const { return _y; }
-
-private:
     float _offsetX = 0.f;
     float _offsetY = 0.f;
-    float _x = 0.f;
-    float _y = 0.f;
 };
 
 } // namespace zocos

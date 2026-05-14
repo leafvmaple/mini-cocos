@@ -106,9 +106,9 @@ void Widget::registerInputListener() {
         return;
     }
 
-    listener->onMouseDown = [this](EventMouseButton& event) { handleMouseDown(event); };
-    listener->onMouseUp = [this](EventMouseButton& event) { handleMouseUp(event); };
-    listener->onMouseMove = [this](EventMouseMove& event) { handleMouseMove(event); };
+    listener->onMouseDown = [this](EventMouse& event) { handleMouseDown(event); };
+    listener->onMouseUp = [this](EventMouse& event) { handleMouseUp(event); };
+    listener->onMouseMove = [this](EventMouse& event) { handleMouseMove(event); };
 
     _listenerId = Director::getInstance().getEventDispatcher().addEventListener(listener, this);
 }
@@ -137,7 +137,7 @@ bool Widget::containsWorldPoint(float x, float y) const {
     return local.x >= 0.f && local.y >= 0.f && local.x <= size.width && local.y <= size.height;
 }
 
-void Widget::handleMouseDown(EventMouseButton& event) {
+void Widget::handleMouseDown(EventMouse& event) {
     if (event.getButton() != kLeftMouseButton) {
         return;
     }
@@ -152,7 +152,7 @@ void Widget::handleMouseDown(EventMouseButton& event) {
     event.stopPropagation();
 }
 
-void Widget::handleMouseUp(EventMouseButton& event) {
+void Widget::handleMouseUp(EventMouse& event) {
     if (event.getButton() != kLeftMouseButton) {
         return;
     }
@@ -175,7 +175,7 @@ void Widget::handleMouseUp(EventMouseButton& event) {
     event.stopPropagation();
 }
 
-void Widget::handleMouseMove(EventMouseMove& event) {
+void Widget::handleMouseMove(EventMouse& event) {
     if (!_trackingPress) {
         return;
     }

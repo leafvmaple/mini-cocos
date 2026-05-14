@@ -171,18 +171,19 @@ void Director::onViewMouseButtonEvent(int button, int modifiers, bool buttonActi
                                       float y) {
     const auto mouseEventType = buttonActive ? EventMouse::MouseEventType::MOUSE_DOWN
                                              : EventMouse::MouseEventType::MOUSE_UP;
-    EventMouseButton event(button, modifiers, mouseEventType, x, y);
+    EventMouse event(mouseEventType, x, y, button, modifiers);
     _eventDispatcher.dispatchEvent(event);
 }
 
 void Director::onViewMouseMoveEvent(float x, float y, float deltaX, float deltaY) {
     setMousePosition(x, y);
-    EventMouseMove event(x, y, deltaX, deltaY);
+    EventMouse event(EventMouse::MouseEventType::MOUSE_MOVE, x, y, 0, 0, deltaX, deltaY);
     _eventDispatcher.dispatchEvent(event);
 }
 
 void Director::onViewMouseScrollEvent(float offsetX, float offsetY, float x, float y) {
-    EventMouseScroll event(offsetX, offsetY, x, y);
+    EventMouse event(EventMouse::MouseEventType::MOUSE_SCROLL, x, y, 0, 0, 0.f, 0.f, offsetX,
+                     offsetY);
     _eventDispatcher.dispatchEvent(event);
 }
 
