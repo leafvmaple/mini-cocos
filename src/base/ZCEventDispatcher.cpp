@@ -76,18 +76,19 @@ void EventDispatcher::removeEventListenersIf(const ListenerCondition& condition)
         }
     };
 
-    auto eraseInVector = [this, &condition](std::vector<ListenerEntry>& entries, bool* dirtyFlag) {
+    auto eraseInVector = [this, &condition](std::vector<ListenerEntry>& entries) {
+        bool changed = false;
         for (auto it = entries.begin(); it != entries.end();) {
             if (condition(*it)) {
                 releaseListenerEntry(*it);
                 it = entries.erase(it);
-                if (dirtyFlag) {
-                    *dirtyFlag = true;
-                }
+                changed = true;
             } else {
                 ++it;
             }
         }
+
+        return changed;
     };
 
     if (isDispatching()) {
@@ -102,8 +103,10 @@ void EventDispatcher::removeEventListenersIf(const ListenerCondition& condition)
 
     for (auto it = _listenerMap.begin(); it != _listenerMap.end();) {
         auto& listeners = it->second;
-        eraseInVector(listeners._fixedListeners, &listeners._dirtyFixedPriority);
-        eraseInVector(listeners._nodeListeners, &listeners._dirtyNodePriority);
+        if (eraseInVector(listeners._fixedListeners))
+            listeners._dirtyFixedPriority = true;
+        if (eraseInVector(listeners._nodeListeners))
+            listeners._dirtyNodePriority = true;
 
         if (listeners.empty()) {
             it = _listenerMap.erase(it);
@@ -112,7 +115,7 @@ void EventDispatcher::removeEventListenersIf(const ListenerCondition& condition)
         }
     }
 
-    eraseInVector(_toAddedListeners, nullptr);
+    eraseInVector(_toAddedListeners);
 }
 
 void EventDispatcher::removeAllEventListeners() {
