@@ -33,7 +33,6 @@ private:
         Node* target = nullptr;
         EventListener* listener = nullptr;
         int priority = 0;
-        std::size_t order = 0;
         bool removed = false;
     };
 
@@ -54,6 +53,7 @@ private:
     void removeEventListenersIf(const ListenerCondition& condition);
     void updateListeners();
     void sortEventListeners(EventListenerVector& listeners);
+    void visitTarget(Node* node);
     bool dispatchEventToListeners(EventListenerVector& listeners,
                                   const std::function<bool(ListenerEntry&)>& onEvent);
     bool cleanRemovedListenersInVector(std::vector<ListenerEntry>& listeners);
@@ -65,9 +65,10 @@ private:
     bool isDispatching() const { return _inDispatch > 0; }
 
     ListenerHandle _nextListenerHandle = 1;
-    std::size_t _nextOrder = 0;
     int _inDispatch = 0;
     std::unordered_map<int, EventListenerVector> _listenerMap;
+    std::unordered_map<Node*, std::size_t> _nodePriorityMap;
+    std::size_t _nodePriorityIndex = 0;
     std::vector<ListenerEntry> _toAddedListeners;
 };
 

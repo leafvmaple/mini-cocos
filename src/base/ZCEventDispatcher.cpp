@@ -1,6 +1,7 @@
 #include "base/ZCEventDispatcher.h"
 
 #include "2d/ZCNode.h"
+#include "base/ZCDirector.h"
 
 #include <algorithm>
 #include <utility>
@@ -32,7 +33,6 @@ EventDispatcher::addEventListenerWithNodePriority(EventListener* listener, Node*
     entry.target = node;
     entry.listener = listener;
     entry.priority = 0;
-    entry.order = _nextOrder++;
     entry.listener->retain();
 
     const ListenerHandle handle = entry.handle;
@@ -51,7 +51,6 @@ EventDispatcher::addEventListenerWithFixedPriority(EventListener* listener, int 
     entry.target = nullptr;
     entry.listener = listener;
     entry.priority = fixedPriority;
-    entry.order = _nextOrder++;
     entry.listener->retain();
 
     const ListenerHandle handle = entry.handle;
@@ -269,10 +268,7 @@ void EventDispatcher::sortEventListeners(EventListenerVector& listeners) {
     if (listeners._dirtyFixedPriority) {
         std::stable_sort(listeners._fixedListeners.begin(), listeners._fixedListeners.end(),
                          [](const ListenerEntry& a, const ListenerEntry& b) {
-                             if (a.priority != b.priority) {
-                                 return a.priority < b.priority;
-                             }
-                             return a.order < b.order;
+                             return a.priority < b.priority;
                          });
 
         std::size_t index = 0;
@@ -286,11 +282,32 @@ void EventDispatcher::sortEventListeners(EventListenerVector& listeners) {
     }
 
     if (listeners._dirtyNodePriority) {
-        // Placeholder: until node-priority traversal is implemented, preserve registration order.
-        std::stable_sort(
-            listeners._nodeListeners.begin(), listeners._nodeListeners.end(),
-            [](const ListenerEntry& a, const ListenerEntry& b) { return a.order < b.order; });
+        _nodePriorityMap.clear();
+        _nodePriorityIndex = 0;
+
+        Node* rootNode = Director::getInstance().getRunningScene();
+        if (rootNode) {
+            visitTarget(rootNode);
+        }
+
+        std::stable_sort(listeners._nodeListeners.begin(), listeners._nodeListeners.end(),
+                         [this](const ListenerEntry& a, const ListenerEntry& b) {
+                             return _nodePriorityMap[a.target] > _nodePriorityMap[b.target];
+                         });
+
         listeners._dirtyNodePriority = false;
+    }
+}
+
+void EventDispatcher::visitTarget(Node* node) {
+    node->sortAllChildren();
+    _nodePriorityMap[node] = ++_nodePriorityIndex;
+
+    const auto& children = node->getChildren();
+    for (Node* child : children) {
+        if (child) {
+            visitTarget(child);
+        }
     }
 }
 

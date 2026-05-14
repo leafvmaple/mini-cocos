@@ -23,6 +23,8 @@ public:
     void shutdown();
 
     void runWithScene(Scene* scene);
+    Scene* getRunningScene() const { return _runningScene; }
+
     bool mainLoop();
 
     Scheduler& getScheduler() { return _scheduler; }

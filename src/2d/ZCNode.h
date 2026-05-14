@@ -66,9 +66,9 @@ public:
     virtual void onExit();
 
     void schedule(const std::string& key, ScheduleCallback callback, float interval = 0.f,
-        int repeat = RepeatForever, float delay = 0.f, int priority = 0);
+                  int repeat = RepeatForever, float delay = 0.f, int priority = 0);
     void scheduleOnce(const std::string& key, ScheduleCallback callback, float delay = 0.f,
-        int priority = 0);
+                      int priority = 0);
     void unschedule(const std::string& key);
     void unscheduleAllCallbacks();
 
@@ -80,6 +80,7 @@ public:
     void removeChild(Node* child);
     void removeAllChildren();
     const std::vector<Node*>& getChildren() const { return _children; }
+    void sortAllChildren();
 
     Node* getParent() const { return _parent; }
 
@@ -112,6 +113,8 @@ protected:
     bool _visible = true;
     float _opacity = 1.f;
     int _tag = -1;
+    std::size_t _orderOfArrival = 0;
+    bool _reorderChildDirty = false;
 };
 
 } // namespace zocos

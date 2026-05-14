@@ -5,10 +5,15 @@
 #include "base/ZCRenderer.h"
 
 #include <algorithm>
+#include <cassert>
 #include <new>
 #include <utility>
 
 namespace zocos {
+
+namespace {
+std::size_t sGlobalOrderOfArrival = 1;
+}
 
 Node* Node::create() {
     auto* node = new (std::nothrow) Node();
@@ -92,21 +97,31 @@ void Node::stopAllActions() {
     Director::getInstance().getActionManager().removeAllActionsFromTarget(this);
 }
 
-void Node::addChild(Node* child) {
-    if (!child || child == this || child->_parent == this) {
+void Node::sortAllChildren() {
+    if (!_reorderChildDirty) {
         return;
     }
 
-    // Keep child alive if it is being re-parented.
+    std::stable_sort(_children.begin(), _children.end(), [](const Node* a, const Node* b) {
+        return a->_orderOfArrival < b->_orderOfArrival;
+    });
+
+    _reorderChildDirty = false;
+}
+
+void Node::addChild(Node* child) {
+    // Keep child alive while it is detached from the old parent.
     child->retain();
     if (child->_parent) {
         child->_parent->removeChild(child);
     }
 
     child->_parent = this;
+    child->_orderOfArrival = sGlobalOrderOfArrival++;
     child->retain();
     _children.push_back(child);
     child->release();
+    _reorderChildDirty = true;
 
     if (_running) {
         child->onEnter();
@@ -162,6 +177,9 @@ void Node::updateTree(float dt) {
 void Node::visit(Renderer& renderer, const Mat4& parentWorld) {
     if (!_visible)
         return;
+
+    sortAllChildren();
+
     const Mat4 world = parentWorld * localMatrix();
     draw(renderer, world);
     for (auto* ch : _children) {
