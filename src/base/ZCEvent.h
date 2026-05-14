@@ -65,14 +65,38 @@ public:
         MOUSE_SCROLL,
     };
 
-    EventMouse(MouseEventType mouseEventType, float x, float y, int button = 0, int modifiers = 0,
-               float deltaX = 0.f, float deltaY = 0.f, float offsetX = 0.f, float offsetY = 0.f)
-        : Event(Type::Mouse), _mouseEventType(mouseEventType), _button(button),
-          _modifiers(modifiers), _x(x), _y(y), _deltaX(deltaX), _deltaY(deltaY), _offsetX(offsetX),
-          _offsetY(offsetY) {}
+    enum class MouseButton {
+        BUTTON_UNSET = -1,
+        BUTTON_LEFT = 0,
+        BUTTON_RIGHT = 1,
+        BUTTON_MIDDLE = 2,
+        BUTTON_4 = 3,
+        BUTTON_5 = 4,
+        BUTTON_6 = 5,
+        BUTTON_7 = 6,
+        BUTTON_8 = 7,
+    };
+
+    explicit EventMouse(MouseEventType mouseEventType)
+        : Event(Type::Mouse), _mouseEventType(mouseEventType) {}
+
+    void setMouseButton(MouseButton mouseButton) { _mouseButton = mouseButton; }
+    void setModifiers(int modifiers) { _modifiers = modifiers; }
+    void setPosition(float x, float y) {
+        _x = x;
+        _y = y;
+    }
+    void setDelta(float deltaX, float deltaY) {
+        _deltaX = deltaX;
+        _deltaY = deltaY;
+    }
+    void setOffset(float offsetX, float offsetY) {
+        _offsetX = offsetX;
+        _offsetY = offsetY;
+    }
 
     MouseEventType getMouseEventType() const { return _mouseEventType; }
-    int getButton() const { return _button; }
+    MouseButton getMouseButton() const { return _mouseButton; }
     int getModifiers() const { return _modifiers; }
     float getX() const { return _x; }
     float getY() const { return _y; }
@@ -83,7 +107,7 @@ public:
 
 private:
     MouseEventType _mouseEventType;
-    int _button = 0;
+    MouseButton _mouseButton = MouseButton::BUTTON_UNSET;
     int _modifiers = 0;
     float _x = 0.f;
     float _y = 0.f;

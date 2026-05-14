@@ -14,7 +14,6 @@ namespace zocos::ui {
 namespace {
 
 constexpr float kPi = 3.14159265f;
-constexpr int kLeftMouseButton = 0;
 
 bool applyInverseNodeTransform(const Node* node, Vec2& point) {
     if (!node) {
@@ -138,7 +137,7 @@ bool Widget::containsWorldPoint(float x, float y) const {
 }
 
 void Widget::handleMouseDown(EventMouse& event) {
-    if (event.getButton() != kLeftMouseButton) {
+    if (event.getMouseButton() != EventMouse::MouseButton::BUTTON_LEFT) {
         return;
     }
 
@@ -153,7 +152,7 @@ void Widget::handleMouseDown(EventMouse& event) {
 }
 
 void Widget::handleMouseUp(EventMouse& event) {
-    if (event.getButton() != kLeftMouseButton) {
+    if (event.getMouseButton() != EventMouse::MouseButton::BUTTON_LEFT) {
         return;
     }
 

@@ -171,19 +171,29 @@ void Director::onViewMouseButtonEvent(int button, int modifiers, bool buttonActi
                                       float y) {
     const auto mouseEventType = buttonActive ? EventMouse::MouseEventType::MOUSE_DOWN
                                              : EventMouse::MouseEventType::MOUSE_UP;
-    EventMouse event(mouseEventType, x, y, button, modifiers);
+    const auto mouseButton = (button >= static_cast<int>(EventMouse::MouseButton::BUTTON_LEFT) &&
+                              button <= static_cast<int>(EventMouse::MouseButton::BUTTON_8))
+                                 ? static_cast<EventMouse::MouseButton>(button)
+                                 : EventMouse::MouseButton::BUTTON_UNSET;
+    EventMouse event(mouseEventType);
+    event.setPosition(x, y);
+    event.setMouseButton(mouseButton);
+    event.setModifiers(modifiers);
     _eventDispatcher.dispatchEvent(event);
 }
 
 void Director::onViewMouseMoveEvent(float x, float y, float deltaX, float deltaY) {
     setMousePosition(x, y);
-    EventMouse event(EventMouse::MouseEventType::MOUSE_MOVE, x, y, 0, 0, deltaX, deltaY);
+    EventMouse event(EventMouse::MouseEventType::MOUSE_MOVE);
+    event.setPosition(x, y);
+    event.setDelta(deltaX, deltaY);
     _eventDispatcher.dispatchEvent(event);
 }
 
 void Director::onViewMouseScrollEvent(float offsetX, float offsetY, float x, float y) {
-    EventMouse event(EventMouse::MouseEventType::MOUSE_SCROLL, x, y, 0, 0, 0.f, 0.f, offsetX,
-                     offsetY);
+    EventMouse event(EventMouse::MouseEventType::MOUSE_SCROLL);
+    event.setPosition(x, y);
+    event.setOffset(offsetX, offsetY);
     _eventDispatcher.dispatchEvent(event);
 }
 
