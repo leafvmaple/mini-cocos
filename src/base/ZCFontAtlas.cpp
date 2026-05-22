@@ -16,15 +16,15 @@ namespace zocos {
 
 namespace {
 
-constexpr int kFallbackCodepoint = '?';
+constexpr char32_t kFallbackCodepoint = U'?';
 constexpr int kAtlasPadding = 1;
 constexpr int kAtlasWidth = 1024;
 constexpr int kAtlasHeight = 1024;
 
-bool initFontInfo(Font* font, stbtt_fontinfo& outFontInfo) {
-    return font && font->isValid() && font->getData() &&
-           stbtt_InitFont(&outFontInfo, font->getData(), font->getFontOffset()) != 0;
-}
+// ASCII glyphs cached eagerly so the very first frame already has data on
+// the GPU and small Labels never trigger a re-upload during draw.
+constexpr char32_t kAsciiPrewarmFirst = 0x20;
+constexpr char32_t kAsciiPrewarmLast = 0x7E;
 
 } // namespace
 
@@ -41,7 +41,7 @@ FontAtlas* FontAtlas::create(Director& director, const std::string& fontPath, fl
 }
 
 FontAtlas::~FontAtlas() {
-    releaseAtlasTexture();
+    releasePages();
     releaseFont();
 }
 
@@ -51,48 +51,47 @@ bool FontAtlas::init(const std::string& fontPath, float fontSize) {
         return false;
     }
 
-    stbtt_fontinfo fontInfo{};
-    if (!initFontInfo(font, fontInfo)) {
+    auto fontInfo = std::make_unique<stbtt_fontinfo>();
+    if (!font->isValid() || !font->getData() ||
+        stbtt_InitFont(fontInfo.get(), font->getData(), font->getFontOffset()) == 0) {
         _director.getFontCache().release(font);
         return false;
     }
 
-    releaseAtlasTexture();
+    releasePages();
     releaseFont();
 
     _font = font;
+    _fontInfo = std::move(fontInfo);
     _fontPath = _font->getPath();
     _fontSize = std::max(1.f, fontSize);
-    _scale = stbtt_ScaleForPixelHeight(&fontInfo, _fontSize);
+    _scale = stbtt_ScaleForPixelHeight(_fontInfo.get(), _fontSize);
 
-    stbtt_GetFontVMetrics(&fontInfo, &_ascent, &_descent, &_lineGap);
-    _baseline = static_cast<int>(std::ceil(static_cast<float>(_ascent) * _scale));
-    _lineHeight = std::max(
-        1, static_cast<int>(std::ceil(static_cast<float>(_ascent - _descent + _lineGap) * _scale)));
+    int ascent = 0;
+    int descent = 0;
+    int lineGap = 0;
+    stbtt_GetFontVMetrics(_fontInfo.get(), &ascent, &descent, &lineGap);
+    _fontAscender = static_cast<float>(ascent) * _scale;
+    _fontDescender = static_cast<float>(descent) * _scale;
+    _lineHeight = std::max(1.f, static_cast<float>(ascent - descent + lineGap) * _scale);
 
-    _glyphs.clear();
+    _letterDefinitions.clear();
     _atlasWidth = kAtlasWidth;
     _atlasHeight = kAtlasHeight;
-    _packCursorX = 0;
-    _packCursorY = 0;
-    _packRowHeight = 0;
-    _atlasPixels.assign(static_cast<std::size_t>(_atlasWidth * _atlasHeight * 4), 0);
-    _atlasDirty = true;
 
-    FontGlyph fallbackGlyph;
-    if (!getGlyph(kFallbackCodepoint, fallbackGlyph)) {
-        releaseAtlasTexture();
+    if (addNewPage() < 0) {
         releaseFont();
         return false;
     }
 
-    for (int cp = 32; cp <= 126; ++cp) {
-        FontGlyph glyph;
-        getGlyph(cp, glyph);
+    // Pre-warm ASCII so the first Label draw does not pay the rasterise cost.
+    std::u32string ascii;
+    ascii.reserve(kAsciiPrewarmLast - kAsciiPrewarmFirst + 1);
+    for (char32_t cp = kAsciiPrewarmFirst; cp <= kAsciiPrewarmLast; ++cp) {
+        ascii.push_back(cp);
     }
-
-    if (!commitAtlasTexture()) {
-        releaseAtlasTexture();
+    if (!prepareLetterDefinitions(ascii)) {
+        releasePages();
         releaseFont();
         return false;
     }
@@ -100,145 +99,202 @@ bool FontAtlas::init(const std::string& fontPath, float fontSize) {
     return true;
 }
 
-bool FontAtlas::isValid() const {
-    return _font != nullptr && _font->isValid() && _font->getData() != nullptr &&
-           _atlasTexture.isValid();
-}
-
-bool FontAtlas::getGlyph(int codepoint, FontGlyph& outGlyph) {
-    const int normalizedCodepoint =
-        (codepoint >= 0 && codepoint <= 0x10FFFF) ? codepoint : kFallbackCodepoint;
-
-    const auto cached = _glyphs.find(normalizedCodepoint);
-    if (cached != _glyphs.end()) {
-        outGlyph = cached->second;
-        return true;
-    }
-
-    FontGlyph glyph;
-    if (!addGlyphToAtlas(normalizedCodepoint, glyph)) {
-        if (normalizedCodepoint == kFallbackCodepoint) {
+bool FontAtlas::prepareLetterDefinitions(const std::u32string& utf32Text) {
+    for (char32_t cp : utf32Text) {
+        if (_letterDefinitions.find(cp) != _letterDefinitions.end()) {
+            continue;
+        }
+        LetterDefinition def;
+        if (!prepareLetterDefinition(cp, def)) {
             return false;
         }
-        return getGlyph(kFallbackCodepoint, outGlyph);
+        _letterDefinitions.emplace(cp, def);
     }
-
-    _glyphs.emplace(normalizedCodepoint, glyph);
-    outGlyph = glyph;
+    if (!commitDirtyPages()) {
+        return false;
+    }
     return true;
 }
 
-int FontAtlas::getKerning(int lhsCodepoint, int rhsCodepoint) const {
-    if (lhsCodepoint < 0 || rhsCodepoint < 0 || lhsCodepoint > 0x10FFFF ||
-        rhsCodepoint > 0x10FFFF) {
-        return 0;
+bool FontAtlas::findLetterDefinitionForChar(char32_t utf32Char, LetterDefinition& outDef) {
+    auto it = _letterDefinitions.find(utf32Char);
+    if (it != _letterDefinitions.end()) {
+        outDef = it->second;
+        return outDef.validDefinition;
     }
 
-    stbtt_fontinfo fontInfo{};
-    if (!initFontInfo(_font, fontInfo)) {
-        return 0;
+    LetterDefinition def;
+    if (!prepareLetterDefinition(utf32Char, def)) {
+        if (utf32Char == kFallbackCodepoint) {
+            return false;
+        }
+        commitDirtyPages();
+        return findLetterDefinitionForChar(kFallbackCodepoint, outDef);
     }
 
-    return stbtt_GetCodepointKernAdvance(&fontInfo, lhsCodepoint, rhsCodepoint);
+    _letterDefinitions.emplace(utf32Char, def);
+    if (!commitDirtyPages()) {
+        return false;
+    }
+    outDef = def;
+    return def.validDefinition;
 }
 
-bool FontAtlas::commitAtlasTexture() {
-    if (_atlasTexture.isValid() && !_atlasDirty) {
-        return true;
+float FontAtlas::getHorizontalKerningForChars(char32_t first, char32_t second) const {
+    if (!_fontInfo) {
+        return 0.f;
     }
-    return uploadAtlasTexture();
+    const int raw = stbtt_GetCodepointKernAdvance(_fontInfo.get(), static_cast<int>(first),
+                                                  static_cast<int>(second));
+    return static_cast<float>(raw) * _scale;
 }
 
-bool FontAtlas::addGlyphToAtlas(int codepoint, FontGlyph& outGlyph) {
-    stbtt_fontinfo fontInfo{};
-    if (!initFontInfo(_font, fontInfo)) {
+bool FontAtlas::prepareLetterDefinition(char32_t utf32Char, LetterDefinition& outDef) {
+    if (!_fontInfo) {
         return false;
     }
 
-    FontGlyph glyph;
-    glyph.codepoint = codepoint;
+    LetterDefinition def;
+    def.utf32Char = utf32Char;
 
     int advance = 0;
     int leftSideBearing = 0;
-    stbtt_GetCodepointHMetrics(&fontInfo, codepoint, &advance, &leftSideBearing);
-    (void)leftSideBearing;
-    glyph.advance = advance;
+    stbtt_GetCodepointHMetrics(_fontInfo.get(), static_cast<int>(utf32Char), &advance,
+                               &leftSideBearing);
+    def.xAdvance = advance;
 
     int x0 = 0;
     int y0 = 0;
     int x1 = 0;
     int y1 = 0;
-    stbtt_GetCodepointBitmapBox(&fontInfo, codepoint, _scale, _scale, &x0, &y0, &x1, &y1);
-    glyph.bearingX = x0;
-    glyph.bearingY = y0;
-    glyph.width = x1 - x0;
-    glyph.height = y1 - y0;
+    stbtt_GetCodepointBitmapBox(_fontInfo.get(), static_cast<int>(utf32Char), _scale, _scale, &x0,
+                                &y0, &x1, &y1);
+    const int bitmapW = x1 - x0;
+    const int bitmapH = y1 - y0;
+    def.width = static_cast<float>(bitmapW);
+    def.height = static_cast<float>(bitmapH);
+    def.offsetX = static_cast<float>(x0);
+    // y0 is the offset from baseline going downward (typically negative for
+    // glyphs that rise above the baseline). Cocos2d-x stores `offsetY` as the
+    // distance from the line top (= ascender) to the glyph top, which is
+    // positive for normal glyphs.
+    def.offsetY = _fontAscender + static_cast<float>(y0);
 
-    if (glyph.width > 0 && glyph.height > 0) {
-        int atlasX = 0;
-        int atlasY = 0;
-        if (!allocGlyphRect(glyph.width, glyph.height, atlasX, atlasY)) {
-            return false;
-        }
-
-        std::vector<unsigned char> alpha(static_cast<std::size_t>(glyph.width * glyph.height));
-        stbtt_MakeCodepointBitmap(&fontInfo, alpha.data(), glyph.width, glyph.height, glyph.width,
-                                  _scale, _scale, codepoint);
-
-        for (int y = 0; y < glyph.height; ++y) {
-            for (int x = 0; x < glyph.width; ++x) {
-                const std::size_t srcIndex = static_cast<std::size_t>(y * glyph.width + x);
-                const std::size_t dstIndex =
-                    static_cast<std::size_t>(((atlasY + y) * _atlasWidth + (atlasX + x)) * 4);
-                _atlasPixels[dstIndex + 0] = 255;
-                _atlasPixels[dstIndex + 1] = 255;
-                _atlasPixels[dstIndex + 2] = 255;
-                _atlasPixels[dstIndex + 3] = alpha[srcIndex];
-            }
-        }
-
-        glyph.uvRect = toUvRectTopLeft(atlasX, atlasY, glyph.width, glyph.height);
+    if (bitmapW <= 0 || bitmapH <= 0) {
+        def.validDefinition = true; // Whitespace: no rect, but valid for layout.
+        outDef = def;
+        return true;
     }
 
-    _atlasDirty = true;
-    outGlyph = glyph;
-    return true;
-}
-
-bool FontAtlas::allocGlyphRect(int glyphWidth, int glyphHeight, int& outPixelX, int& outPixelY) {
-    if (glyphWidth <= 0 || glyphHeight <= 0) {
+    int pageIndex = 0;
+    int atlasX = 0;
+    int atlasY = 0;
+    if (!allocGlyphRect(bitmapW, bitmapH, pageIndex, atlasX, atlasY)) {
         return false;
     }
 
+    AtlasPage& page = _atlasPages[static_cast<std::size_t>(pageIndex)];
+    std::vector<unsigned char> alpha(static_cast<std::size_t>(bitmapW * bitmapH));
+    stbtt_MakeCodepointBitmap(_fontInfo.get(), alpha.data(), bitmapW, bitmapH, bitmapW, _scale,
+                              _scale, static_cast<int>(utf32Char));
+
+    for (int y = 0; y < bitmapH; ++y) {
+        for (int x = 0; x < bitmapW; ++x) {
+            const std::size_t srcIndex = static_cast<std::size_t>(y * bitmapW + x);
+            const std::size_t dstIndex =
+                static_cast<std::size_t>(((atlasY + y) * _atlasWidth + (atlasX + x)) * 4);
+            page.pixels[dstIndex + 0] = 255;
+            page.pixels[dstIndex + 1] = 255;
+            page.pixels[dstIndex + 2] = 255;
+            page.pixels[dstIndex + 3] = alpha[srcIndex];
+        }
+    }
+
+    page.dirty = true;
+    def.U = static_cast<float>(atlasX);
+    def.V = static_cast<float>(atlasY);
+    def.textureID = pageIndex;
+    def.validDefinition = true;
+
+    outDef = def;
+    return true;
+}
+
+bool FontAtlas::allocGlyphRect(int glyphWidth, int glyphHeight, int& outPageIndex, int& outPixelX,
+                               int& outPixelY) {
     const int paddedWidth = glyphWidth + kAtlasPadding * 2;
     const int paddedHeight = glyphHeight + kAtlasPadding * 2;
     if (paddedWidth > _atlasWidth || paddedHeight > _atlasHeight) {
         return false;
     }
 
-    if (_packCursorX + paddedWidth > _atlasWidth) {
-        _packCursorX = 0;
-        _packCursorY += _packRowHeight;
-        _packRowHeight = 0;
+    for (std::size_t i = 0; i < _atlasPages.size(); ++i) {
+        AtlasPage& page = _atlasPages[i];
+        int cursorX = page.packCursorX;
+        int cursorY = page.packCursorY;
+        int rowHeight = page.packRowHeight;
+        if (cursorX + paddedWidth > _atlasWidth) {
+            cursorX = 0;
+            cursorY += rowHeight;
+            rowHeight = 0;
+        }
+        if (cursorY + paddedHeight > _atlasHeight) {
+            continue;
+        }
+        outPageIndex = static_cast<int>(i);
+        outPixelX = cursorX + kAtlasPadding;
+        outPixelY = cursorY + kAtlasPadding;
+        page.packCursorX = cursorX + paddedWidth;
+        page.packCursorY = cursorY;
+        page.packRowHeight = std::max(rowHeight, paddedHeight);
+        return true;
     }
 
-    if (_packCursorY + paddedHeight > _atlasHeight) {
+    // No existing page has room: spin up a new page and place the glyph in
+    // the top-left corner of it.
+    const int newPage = addNewPage();
+    if (newPage < 0) {
         return false;
     }
-
-    outPixelX = _packCursorX + kAtlasPadding;
-    outPixelY = _packCursorY + kAtlasPadding;
-
-    _packCursorX += paddedWidth;
-    _packRowHeight = std::max(_packRowHeight, paddedHeight);
+    AtlasPage& page = _atlasPages[static_cast<std::size_t>(newPage)];
+    outPageIndex = newPage;
+    outPixelX = kAtlasPadding;
+    outPixelY = kAtlasPadding;
+    page.packCursorX = paddedWidth;
+    page.packCursorY = 0;
+    page.packRowHeight = paddedHeight;
     return true;
 }
 
-bool FontAtlas::uploadAtlasTexture() {
-    if (_atlasPixels.empty() || _atlasWidth <= 0 || _atlasHeight <= 0) {
-        return false;
-    }
+int FontAtlas::addNewPage() {
+    AtlasPage page;
+    page.pixels.assign(static_cast<std::size_t>(_atlasWidth * _atlasHeight * 4), 0);
+    page.dirty = true;
+    _atlasPages.push_back(std::move(page));
+    _atlasTextures.emplace_back();
+    return static_cast<int>(_atlasPages.size()) - 1;
+}
 
+bool FontAtlas::commitDirtyPages() {
+    bool anyUploaded = false;
+    for (std::size_t i = 0; i < _atlasPages.size(); ++i) {
+        AtlasPage& page = _atlasPages[i];
+        if (!page.dirty && page.texture.isValid()) {
+            continue;
+        }
+        if (!uploadPage(page)) {
+            return false;
+        }
+        _atlasTextures[i] = page.texture;
+        anyUploaded = true;
+    }
+    if (anyUploaded) {
+        _atlasVersion += 1;
+    }
+    return true;
+}
+
+bool FontAtlas::uploadPage(AtlasPage& page) {
     auto* device = _director.getRenderDevice();
     if (!device) {
         return false;
@@ -248,7 +304,7 @@ bool FontAtlas::uploadAtlasTexture() {
     createInfo.width = _atlasWidth;
     createInfo.height = _atlasHeight;
     createInfo.format = TextureFormat::RGBA8Unorm;
-    createInfo.initialData.pixels = _atlasPixels.data();
+    createInfo.initialData.pixels = page.pixels.data();
     createInfo.initialData.rowPitchBytes = _atlasWidth * 4;
     createInfo.initialData.origin = TextureDataOrigin::TopLeft;
 
@@ -256,52 +312,33 @@ bool FontAtlas::uploadAtlasTexture() {
     if (!newTexture.isValid()) {
         return false;
     }
-
-    if (_atlasTexture.isValid()) {
-        device->destroyTexture(_atlasTexture);
+    if (page.texture.isValid()) {
+        device->destroyTexture(page.texture);
     }
-
-    _atlasTexture = newTexture;
-    _atlasDirty = false;
-    _atlasVersion += 1;
+    page.texture = newTexture;
+    page.dirty = false;
     return true;
 }
 
-Rect FontAtlas::toUvRectTopLeft(int x, int y, int width, int height) const {
-    if (width <= 0 || height <= 0 || _atlasWidth <= 0 || _atlasHeight <= 0) {
-        return Rect{0.f, 0.f, 0.f, 0.f};
-    }
-
-    const float invW = 1.f / static_cast<float>(_atlasWidth);
-    const float invH = 1.f / static_cast<float>(_atlasHeight);
-
-    Rect uv;
-    uv.x = static_cast<float>(x) * invW;
-    uv.y = static_cast<float>(_atlasHeight - (y + height)) * invH;
-    uv.width = static_cast<float>(width) * invW;
-    uv.height = static_cast<float>(height) * invH;
-    return uv;
-}
-
-void FontAtlas::releaseAtlasTexture() {
-    if (_atlasTexture.isValid()) {
-        if (auto* device = _director.getRenderDevice()) {
-            device->destroyTexture(_atlasTexture);
+void FontAtlas::releasePages() {
+    auto* device = _director.getRenderDevice();
+    for (auto& page : _atlasPages) {
+        if (device && page.texture.isValid()) {
+            device->destroyTexture(page.texture);
         }
-        _atlasTexture = {};
     }
-
+    _atlasPages.clear();
+    _atlasTextures.clear();
     _atlasVersion = 0;
-    _atlasDirty = !_atlasPixels.empty();
 }
 
 void FontAtlas::releaseFont() {
     if (!_font) {
         return;
     }
-
     _director.getFontCache().release(_font);
     _font = nullptr;
+    _fontInfo.reset();
 }
 
 } // namespace zocos

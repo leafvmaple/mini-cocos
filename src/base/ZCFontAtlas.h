@@ -4,23 +4,33 @@
 #include "base/ZCRenderCommand.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+struct stbtt_fontinfo;
 
 namespace zocos {
 
 class Director;
 class Font;
 
-struct FontGlyph {
-    int codepoint = 0;
-    int advance = 0;
-    int bearingX = 0;
-    int bearingY = 0;
-    int width = 0;
-    int height = 0;
-    Rect uvRect{0.f, 0.f, 0.f, 0.f};
+// Cocos2d-x style glyph descriptor produced by FontAtlas. U/V/width/height are
+// in pixels relative to the atlas page identified by `textureID`. offsetX is
+// the glyph bearing along the pen; offsetY is the distance from the line top
+// to the glyph top (positive for visible glyphs).
+struct LetterDefinition {
+    char32_t utf32Char = 0;
+    float U = 0.f;
+    float V = 0.f;
+    float width = 0.f;
+    float height = 0.f;
+    float offsetX = 0.f;
+    float offsetY = 0.f;
+    int textureID = 0;
+    int xAdvance = 0;
+    bool validDefinition = false;
 };
 
 class FontAtlas : public Ref {
@@ -32,57 +42,72 @@ public:
 
     bool init(const std::string& fontPath, float fontSize);
 
-    bool isValid() const;
+    bool isValid() const { return _font != nullptr && !_atlasPages.empty(); }
 
     const std::string& getFontPath() const { return _fontPath; }
     float getFontSize() const { return _fontSize; }
     Font* getFont() const { return _font; }
-    TextureHandle getAtlasTexture() const { return _atlasTexture; }
     std::uint32_t getAtlasVersion() const { return _atlasVersion; }
 
+    // Font metrics in pixels (already scaled).
     float getScale() const { return _scale; }
-    int getAscent() const { return _ascent; }
-    int getDescent() const { return _descent; }
-    int getLineGap() const { return _lineGap; }
-    int getBaseline() const { return _baseline; }
-    int getLineHeight() const { return _lineHeight; }
+    float getLineHeight() const { return _lineHeight; }
+    float getFontAscender() const { return _fontAscender; }
+    float getFontDescender() const { return _fontDescender; }
 
-    bool getGlyph(int codepoint, FontGlyph& outGlyph);
-    int getKerning(int lhsCodepoint, int rhsCodepoint) const;
-    bool commitAtlasTexture();
+    // Lazily rasterise every codepoint in `utf32Text` into the atlas pages.
+    // Newly added glyphs cause affected pages to be re-uploaded before return.
+    bool prepareLetterDefinitions(const std::u32string& utf32Text);
+
+    bool findLetterDefinitionForChar(char32_t utf32Char, LetterDefinition& outDef);
+
+    // Kerning expressed in pixels (already scaled).
+    float getHorizontalKerningForChars(char32_t first, char32_t second) const;
+
+    const std::vector<TextureHandle>& getTextures() const { return _atlasTextures; }
+    int getAtlasPageCount() const { return static_cast<int>(_atlasPages.size()); }
+    int getAtlasWidth() const { return _atlasWidth; }
+    int getAtlasHeight() const { return _atlasHeight; }
 
 protected:
     explicit FontAtlas(Director& director);
 
 private:
-    bool addGlyphToAtlas(int codepoint, FontGlyph& outGlyph);
-    bool allocGlyphRect(int glyphWidth, int glyphHeight, int& outPixelX, int& outPixelY);
-    bool uploadAtlasTexture();
-    Rect toUvRectTopLeft(int x, int y, int width, int height) const;
-    void releaseAtlasTexture();
+    struct AtlasPage {
+        std::vector<unsigned char> pixels; // RGBA8, top-left origin.
+        TextureHandle texture{};
+        int packCursorX = 0;
+        int packCursorY = 0;
+        int packRowHeight = 0;
+        bool dirty = false;
+    };
+
+    bool prepareLetterDefinition(char32_t utf32Char, LetterDefinition& outDef);
+    bool allocGlyphRect(int glyphWidth, int glyphHeight, int& outPageIndex, int& outPixelX,
+                        int& outPixelY);
+    int addNewPage();
+    bool commitDirtyPages();
+    bool uploadPage(AtlasPage& page);
+    void releasePages();
     void releaseFont();
 
     Director& _director;
     Font* _font = nullptr;
+    std::unique_ptr<stbtt_fontinfo> _fontInfo;
     std::string _fontPath;
     float _fontSize = 24.f;
     float _scale = 1.f;
-    int _ascent = 0;
-    int _descent = 0;
-    int _lineGap = 0;
-    int _baseline = 0;
-    int _lineHeight = 1;
+    float _fontAscender = 0.f;
+    float _fontDescender = 0.f;
+    float _lineHeight = 1.f;
 
-    std::unordered_map<int, FontGlyph> _glyphs;
-    std::vector<unsigned char> _atlasPixels;
-    int _atlasWidth = 512;
-    int _atlasHeight = 512;
-    int _packCursorX = 0;
-    int _packCursorY = 0;
-    int _packRowHeight = 0;
-    TextureHandle _atlasTexture{};
+    std::unordered_map<char32_t, LetterDefinition> _letterDefinitions;
+
+    std::vector<AtlasPage> _atlasPages;
+    std::vector<TextureHandle> _atlasTextures; // mirrors _atlasPages[i].texture
+    int _atlasWidth = 1024;
+    int _atlasHeight = 1024;
     std::uint32_t _atlasVersion = 0;
-    bool _atlasDirty = false;
 };
 
 } // namespace zocos

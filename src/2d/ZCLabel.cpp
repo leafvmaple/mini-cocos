@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <cmath>
 #include <new>
-#include <vector>
 
 namespace zocos {
 
@@ -18,15 +17,13 @@ Label* Label::createWithTTF(Director& director, const std::string& text,
                             const std::string& fontPath, float fontSize) {
     auto* label = new (std::nothrow) Label(director);
     if (label && label->init()) {
-        label->setFontSize(fontSize);
-        if (!fontPath.empty()) {
-            label->setTTF(fontPath);
-        } else {
-            label->ensureFontAtlas();
+        label->_fontSize = std::max(1.f, fontSize);
+        auto* atlas = FontAtlas::create(director, fontPath, label->_fontSize);
+        if (atlas && label->setFontAtlas(atlas)) {
+            label->setString(text);
+            label->autorelease();
+            return label;
         }
-        label->setString(text);
-        label->autorelease();
-        return label;
     }
     delete label;
     return nullptr;
@@ -52,18 +49,14 @@ void Label::setString(const std::string& text) {
         return;
     }
     _text = text;
-    _dirty = true;
+    StringUtils::UTF8ToUTF32(_text, _utf32Text);
+    _contentDirty = true;
 }
 
 bool Label::setFontAtlas(FontAtlas* fontAtlas) {
-    if (!fontAtlas || !fontAtlas->isValid()) {
-        return false;
-    }
-
     if (_fontAtlas == fontAtlas) {
         return true;
     }
-
     if (_fontAtlas) {
         _fontAtlas->release();
     }
@@ -74,16 +67,12 @@ bool Label::setFontAtlas(FontAtlas* fontAtlas) {
     _fontPath = _fontAtlas->getFontPath();
     _fontSize = _fontAtlas->getFontSize();
     _atlasVersion = 0;
-    _vertices.clear();
-    _dirty = true;
+    resetLayoutState();
+    _contentDirty = true;
     return true;
 }
 
 bool Label::setTTF(const std::string& fontPath) {
-    if (fontPath.empty()) {
-        return ensureFontAtlas();
-    }
-
     if (_fontAtlas && _fontPath == fontPath &&
         std::fabs(_fontSize - _fontAtlas->getFontSize()) <= 1e-4f) {
         return true;
@@ -93,7 +82,6 @@ bool Label::setTTF(const std::string& fontPath) {
     if (!atlas) {
         return false;
     }
-
     return setFontAtlas(atlas);
 }
 
@@ -102,149 +90,207 @@ void Label::setFontSize(float fontSize) {
     if (std::fabs(_fontSize - clampedSize) <= 1e-4f) {
         return;
     }
-
     _fontSize = clampedSize;
-    if (!_fontPath.empty()) {
-        auto* atlas = FontAtlas::create(_director, _fontPath, _fontSize);
-        if (atlas) {
-            setFontAtlas(atlas);
-            return;
-        }
-    }
 
-    _dirty = true;
-}
-
-bool Label::ensureFontAtlas() {
-    if (_fontAtlas && _fontAtlas->isValid()) {
-        return true;
-    }
-
+    // Mirror cocos2d-x: changing the size means a new FontAtlas (a different
+    // glyph cache, since glyph bitmaps depend on size). _fontPath was set
+    // from the current atlas, so it is a valid resolved path.
     auto* atlas = FontAtlas::create(_director, _fontPath, _fontSize);
     if (atlas) {
-        return setFontAtlas(atlas);
+        setFontAtlas(atlas);
     }
+}
 
-    return false;
+void Label::resetLayoutState() {
+    _lettersInfo.clear();
+    _horizontalKernings.clear();
+    _quadsPerPage.clear();
+    _contentWidth = 0.f;
+    _contentHeight = 0.f;
+    _ready = false;
 }
 
 bool Label::updateContent() {
-    if (!ensureFontAtlas()) {
-        _ready = false;
+    resetLayoutState();
+
+    if (!_fontAtlas) {
         return false;
     }
 
-    if (!_fontAtlas || !_fontAtlas->isValid()) {
-        _ready = false;
+    if (!_fontAtlas->prepareLetterDefinitions(_utf32Text)) {
         return false;
     }
 
-    const std::string view = _text.empty() ? std::string(" ") : _text;
-    const std::vector<int> cps = StringUtils::decodeUtf8(view);
-
-    std::vector<std::vector<int>> lines;
-    lines.emplace_back();
-    for (int cp : cps) {
-        if (cp == '\r') {
-            continue;
-        }
-        if (cp == '\n') {
-            lines.emplace_back();
-            continue;
-        }
-        lines.back().push_back(cp);
+    if (_utf32Text.empty()) {
+        _contentWidth = 1.f;
+        _contentHeight = _fontAtlas->getLineHeight();
+        setContentSize({_contentWidth, _contentHeight});
+        _atlasVersion = _fontAtlas->getAtlasVersion();
+        _ready = true;
+        _contentDirty = false;
+        return true;
     }
 
-    _vertices.clear();
-    _vertices.reserve(cps.size() * 6);
-
-    const float scale = _fontAtlas->getScale();
-    const int baseline = _fontAtlas->getBaseline();
-    const int lineHeight = _fontAtlas->getLineHeight();
-    const float totalHeight =
-        static_cast<float>(std::max(1, lineHeight * static_cast<int>(lines.size())));
-
-    float maxWidthF = 0.f;
-    for (std::size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
-        float penX = 0.f;
-        int prevCodepoint = 0;
-        bool hasPrev = false;
-        const auto& line = lines[lineIndex];
-
-        for (int cp : line) {
-            FontGlyph glyph;
-            if (!_fontAtlas->getGlyph(cp, glyph)) {
-                continue;
-            }
-
-            if (hasPrev) {
-                penX += static_cast<float>(_fontAtlas->getKerning(prevCodepoint, cp)) * scale;
-            }
-
-            if (glyph.width > 0 && glyph.height > 0) {
-                const float x0 = penX + static_cast<float>(glyph.bearingX);
-                const float baselineY =
-                    totalHeight - static_cast<float>(lineIndex * lineHeight + baseline);
-                const float glyphTopY = baselineY - static_cast<float>(glyph.bearingY);
-                const float y0 = glyphTopY - static_cast<float>(glyph.height);
-                const float x1 = x0 + static_cast<float>(glyph.width);
-                const float y1 = glyphTopY;
-
-                const float u0 = glyph.uvRect.x;
-                const float v0 = glyph.uvRect.y;
-                const float u1 = glyph.uvRect.x + glyph.uvRect.width;
-                const float v1 = glyph.uvRect.y + glyph.uvRect.height;
-
-                _vertices.push_back({{x0, y0}, {u0, v0}});
-                _vertices.push_back({{x1, y0}, {u1, v0}});
-                _vertices.push_back({{x1, y1}, {u1, v1}});
-                _vertices.push_back({{x0, y0}, {u0, v0}});
-                _vertices.push_back({{x1, y1}, {u1, v1}});
-                _vertices.push_back({{x0, y1}, {u0, v1}});
-            }
-
-            penX += static_cast<float>(glyph.advance) * scale;
-            prevCodepoint = cp;
-            hasPrev = true;
-        }
-
-        maxWidthF = std::max(maxWidthF, penX);
-    }
-
-    if (!_fontAtlas->commitAtlasTexture()) {
-        _vertices.clear();
-        _ready = false;
-        return false;
-    }
+    computeHorizontalKernings();
+    multilineTextWrap();
+    alignText();
+    updateQuads();
 
     _atlasVersion = _fontAtlas->getAtlasVersion();
-    const int width = std::max(1, static_cast<int>(std::ceil(maxWidthF)));
-    const int height = static_cast<int>(totalHeight);
+    setContentSize({_contentWidth, _contentHeight});
     _ready = true;
-    _dirty = false;
-    setContentSize({static_cast<float>(width), static_cast<float>(height)});
+    _contentDirty = false;
     return true;
+}
+
+void Label::computeHorizontalKernings() {
+    _horizontalKernings.assign(_utf32Text.size(), 0.f);
+    for (std::size_t i = 1; i < _utf32Text.size(); ++i) {
+        _horizontalKernings[i] =
+            _fontAtlas->getHorizontalKerningForChars(_utf32Text[i - 1], _utf32Text[i]);
+    }
+}
+
+void Label::multilineTextWrap() {
+    _lettersInfo.assign(_utf32Text.size(), LetterInfo{});
+
+    const float lineHeight = _fontAtlas->getLineHeight();
+    int lineIndex = 0;
+    float penX = 0.f;
+    float maxLineWidth = 0.f;
+
+    for (std::size_t i = 0; i < _utf32Text.size(); ++i) {
+        const char32_t cp = _utf32Text[i];
+
+        if (cp == U'\r') {
+            recordLetterInfo(i, cp, penX, 0.f, 0, lineIndex);
+            continue;
+        }
+        if (cp == U'\n') {
+            recordLetterInfo(i, cp, penX, 0.f, 0, lineIndex);
+            maxLineWidth = std::max(maxLineWidth, penX);
+            ++lineIndex;
+            penX = 0.f;
+            continue;
+        }
+
+        LetterDefinition def;
+        if (!_fontAtlas->findLetterDefinitionForChar(cp, def) || !def.validDefinition) {
+            recordLetterInfo(i, cp, penX, 0.f, 0, lineIndex);
+            continue;
+        }
+
+        penX += _horizontalKernings[i];
+
+        // Position stored is the top-left of the glyph quad in label-local
+        // coords with the line's top sitting at y = lineIndex * lineHeight.
+        // alignText() will translate Y into Y-up label space below.
+        const float glyphX = penX + def.offsetX;
+        const float glyphY = static_cast<float>(lineIndex) * lineHeight + def.offsetY;
+
+        LetterInfo& info = _lettersInfo[i];
+        info.utf32Char = cp;
+        info.valid = (def.width > 0.f && def.height > 0.f);
+        info.positionX = glyphX;
+        info.positionY = glyphY;
+        info.atlasIndex = def.textureID;
+        info.lineIndex = lineIndex;
+
+        penX += static_cast<float>(def.xAdvance) * _fontAtlas->getScale();
+    }
+
+    maxLineWidth = std::max(maxLineWidth, penX);
+    _contentWidth = std::max(1.f, std::ceil(maxLineWidth));
+    _contentHeight = std::max(lineHeight, static_cast<float>(lineIndex + 1) * lineHeight);
+}
+
+void Label::alignText() {
+    // Mini implementation: left + top alignment only. multilineTextWrap()
+    // already wrote `positionY` as a downward distance from the content top;
+    // here we convert it to label-local Y-up coordinates (origin bottom-left).
+    for (LetterInfo& info : _lettersInfo) {
+        info.positionY = _contentHeight - info.positionY;
+    }
+}
+
+void Label::recordLetterInfo(std::size_t letterIndex, char32_t utf32Char, float positionX,
+                             float positionY, int atlasIndex, int lineIndex) {
+    LetterInfo& info = _lettersInfo[letterIndex];
+    info.utf32Char = utf32Char;
+    info.valid = false;
+    info.positionX = positionX;
+    info.positionY = positionY;
+    info.atlasIndex = atlasIndex;
+    info.lineIndex = lineIndex;
+}
+
+void Label::updateQuads() {
+    const int pageCount = _fontAtlas->getAtlasPageCount();
+    _quadsPerPage.assign(static_cast<std::size_t>(pageCount), {});
+
+    const float atlasW = static_cast<float>(_fontAtlas->getAtlasWidth());
+    const float atlasH = static_cast<float>(_fontAtlas->getAtlasHeight());
+    const float invW = (atlasW > 0.f) ? 1.f / atlasW : 0.f;
+    const float invH = (atlasH > 0.f) ? 1.f / atlasH : 0.f;
+
+    for (std::size_t i = 0; i < _lettersInfo.size(); ++i) {
+        const LetterInfo& info = _lettersInfo[i];
+        if (!info.valid) {
+            continue;
+        }
+        LetterDefinition def;
+        if (!_fontAtlas->findLetterDefinitionForChar(info.utf32Char, def) || !def.validDefinition) {
+            continue;
+        }
+
+        const float xL = info.positionX;
+        const float yT = info.positionY;
+        const float xR = xL + def.width;
+        const float yB = yT - def.height;
+
+        // GL UVs: v=0 is bottom of texture. LetterDefinition.U/V are top-left
+        // atlas pixel coordinates, so the top edge maps to v = 1 - V/atlasH
+        // and the bottom edge to v = 1 - (V+height)/atlasH.
+        const float uL = def.U * invW;
+        const float uR = (def.U + def.width) * invW;
+        const float vT = 1.f - def.V * invH;
+        const float vB = 1.f - (def.V + def.height) * invH;
+
+        auto& quads = _quadsPerPage[static_cast<std::size_t>(def.textureID)];
+        quads.push_back({{xL, yB}, {uL, vB}});
+        quads.push_back({{xR, yB}, {uR, vB}});
+        quads.push_back({{xR, yT}, {uR, vT}});
+        quads.push_back({{xL, yB}, {uL, vB}});
+        quads.push_back({{xR, yT}, {uR, vT}});
+        quads.push_back({{xL, yT}, {uL, vT}});
+    }
 }
 
 void Label::draw(Renderer& renderer, const Mat4& world) {
     if (_fontAtlas && _atlasVersion != _fontAtlas->getAtlasVersion()) {
-        _dirty = true;
+        _contentDirty = true;
     }
-
-    if (_dirty && !updateContent()) {
+    if (_contentDirty && !updateContent()) {
         return;
     }
-    if (!_ready || !_fontAtlas || !_fontAtlas->isValid() || _vertices.empty()) {
-        return;
-    }
-
-    const TextureHandle atlasTexture = _fontAtlas->getAtlasTexture();
-    if (!atlasTexture.isValid()) {
+    if (!_ready || !_fontAtlas) {
         return;
     }
 
-    const RenderSortKey sortKey = makeRenderSortKey(0, 0, atlasTexture.value);
-    renderer.addDrawQuads(world, atlasTexture, _vertices, getOpacity(), sortKey);
+    const auto& textures = _fontAtlas->getTextures();
+    const float opacity = getOpacity();
+    for (std::size_t page = 0; page < _quadsPerPage.size() && page < textures.size(); ++page) {
+        const auto& quads = _quadsPerPage[page];
+        if (quads.empty()) {
+            continue;
+        }
+        const TextureHandle texture = textures[page];
+        if (!texture.isValid()) {
+            continue;
+        }
+        const RenderSortKey sortKey = makeRenderSortKey(0, 0, texture.value);
+        renderer.addDrawQuads(world, texture, quads, opacity, sortKey);
+    }
 }
 
 } // namespace zocos
