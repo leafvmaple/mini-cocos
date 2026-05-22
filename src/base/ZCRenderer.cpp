@@ -81,6 +81,7 @@ void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebuffer
             out.position.x = m0 * v.position.x + m4 * v.position.y + m12;
             out.position.y = m1 * v.position.x + m5 * v.position.y + m13;
             out.uv = v.uv;
+            out.color = v.color;
             dst.push_back(out);
         }
     };
