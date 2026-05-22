@@ -60,7 +60,7 @@ private:
     void multilineTextWrap();
     void alignText();
     void recordLetterInfo(std::size_t letterIndex, char32_t utf32Char, float positionX,
-                          float positionY, int atlasIndex, int lineIndex);
+                          float positionY, int atlasIndex, int lineIndex, bool valid = false);
     void updateQuads();
     void resetLayoutState();
 

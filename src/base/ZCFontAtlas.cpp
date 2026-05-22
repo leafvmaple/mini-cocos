@@ -174,17 +174,8 @@ bool FontAtlas::prepareLetterDefinition(char32_t utf32Char, LetterDefinition& ou
     def.width = static_cast<float>(bitmapW);
     def.height = static_cast<float>(bitmapH);
     def.offsetX = static_cast<float>(x0);
-    // y0 is the offset from baseline going downward (typically negative for
-    // glyphs that rise above the baseline). Cocos2d-x stores `offsetY` as the
-    // distance from the line top (= ascender) to the glyph top, which is
-    // positive for normal glyphs.
     def.offsetY = _fontAscender + static_cast<float>(y0);
-
-    if (bitmapW <= 0 || bitmapH <= 0) {
-        def.validDefinition = true; // Whitespace: no rect, but valid for layout.
-        outDef = def;
-        return true;
-    }
+    assert(bitmapW >= 0 && bitmapH >= 0);
 
     int pageIndex = 0;
     int atlasX = 0;
@@ -224,9 +215,7 @@ bool FontAtlas::allocGlyphRect(int glyphWidth, int glyphHeight, int& outPageInde
                                int& outPixelY) {
     const int paddedWidth = glyphWidth + kAtlasPadding * 2;
     const int paddedHeight = glyphHeight + kAtlasPadding * 2;
-    if (paddedWidth > _atlasWidth || paddedHeight > _atlasHeight) {
-        return false;
-    }
+    assert(paddedWidth <= _atlasWidth && paddedHeight <= _atlasHeight);
 
     for (std::size_t i = 0; i < _atlasPages.size(); ++i) {
         AtlasPage& page = _atlasPages[i];
@@ -333,9 +322,6 @@ void FontAtlas::releasePages() {
 }
 
 void FontAtlas::releaseFont() {
-    if (!_font) {
-        return;
-    }
     _director.getFontCache().release(_font);
     _font = nullptr;
     _fontInfo.reset();

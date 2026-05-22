@@ -188,13 +188,8 @@ void Label::multilineTextWrap() {
         const float glyphX = penX + def.offsetX;
         const float glyphY = static_cast<float>(lineIndex) * lineHeight + def.offsetY;
 
-        LetterInfo& info = _lettersInfo[i];
-        info.utf32Char = cp;
-        info.valid = (def.width > 0.f && def.height > 0.f);
-        info.positionX = glyphX;
-        info.positionY = glyphY;
-        info.atlasIndex = def.textureID;
-        info.lineIndex = lineIndex;
+        const bool hasGlyph = (def.width > 0.f && def.height > 0.f);
+        recordLetterInfo(i, cp, glyphX, glyphY, def.textureID, lineIndex, hasGlyph);
 
         penX += static_cast<float>(def.xAdvance) * _fontAtlas->getScale();
     }
@@ -214,10 +209,10 @@ void Label::alignText() {
 }
 
 void Label::recordLetterInfo(std::size_t letterIndex, char32_t utf32Char, float positionX,
-                             float positionY, int atlasIndex, int lineIndex) {
+                             float positionY, int atlasIndex, int lineIndex, bool valid) {
     LetterInfo& info = _lettersInfo[letterIndex];
     info.utf32Char = utf32Char;
-    info.valid = false;
+    info.valid = valid;
     info.positionX = positionX;
     info.positionY = positionY;
     info.atlasIndex = atlasIndex;
