@@ -24,7 +24,7 @@ int EventDispatcher::getListenerID(Event::Type type) {
 
 EventDispatcher::ListenerHandle
 EventDispatcher::addEventListenerWithNodePriority(EventListener* listener, Node* node) {
-    if (!node || !listener || !listener->hasCallbacks()) {
+    if (!listener->hasCallbacks()) {
         return 0;
     }
 
@@ -42,7 +42,7 @@ EventDispatcher::addEventListenerWithNodePriority(EventListener* listener, Node*
 
 EventDispatcher::ListenerHandle
 EventDispatcher::addEventListenerWithFixedPriority(EventListener* listener, int fixedPriority) {
-    if (!listener || !listener->hasCallbacks() || fixedPriority == 0) {
+    if (!listener->hasCallbacks()) {
         return 0;
     }
 
@@ -67,7 +67,7 @@ void EventDispatcher::removeEventListenersForTarget(Node* target) {
 }
 
 void EventDispatcher::removeEventListenersIf(const ListenerCondition& condition) {
-    auto markInVector = [&condition](std::vector<ListenerEntry>& entries) {
+    auto markInVector = [&condition](ListenerVector& entries) {
         for (auto& entry : entries) {
             if (condition(entry)) {
                 entry.removed = true;
@@ -75,7 +75,7 @@ void EventDispatcher::removeEventListenersIf(const ListenerCondition& condition)
         }
     };
 
-    auto eraseInVector = [this, &condition](std::vector<ListenerEntry>& entries) {
+    auto eraseInVector = [this, &condition](ListenerVector& entries) {
         bool changed = false;
         for (auto it = entries.begin(); it != entries.end();) {
             if (condition(*it)) {
@@ -266,10 +266,9 @@ void EventDispatcher::updateListeners() {
 
 void EventDispatcher::sortEventListeners(EventListenerVector& listeners) {
     if (listeners._dirtyFixedPriority) {
-        std::stable_sort(listeners._fixedListeners.begin(), listeners._fixedListeners.end(),
-                         [](const ListenerEntry& a, const ListenerEntry& b) {
-                             return a.priority < b.priority;
-                         });
+        std::stable_sort(
+            listeners._fixedListeners.begin(), listeners._fixedListeners.end(),
+            [](const ListenerEntry& a, const ListenerEntry& b) { return a.priority < b.priority; });
 
         std::size_t index = 0;
         while (index < listeners._fixedListeners.size() &&
@@ -312,9 +311,9 @@ void EventDispatcher::visitTarget(Node* node) {
 }
 
 bool EventDispatcher::dispatchEventToListeners(EventListenerVector& listeners,
-                                               const std::function<bool(ListenerEntry&)>& onEvent) {
-    auto dispatchRange = [&onEvent](std::vector<ListenerEntry>& entries, std::size_t begin,
-                                    std::size_t end, bool nodePriority) {
+                                               const ListenerEvent& onEvent) {
+    auto dispatchRange = [&onEvent](ListenerVector& entries, std::size_t begin, std::size_t end,
+                                    bool nodePriority) {
         const std::size_t clampedEnd = std::min(end, entries.size());
         for (std::size_t i = begin; i < clampedEnd; ++i) {
             auto& listenerEntry = entries[i];
@@ -352,7 +351,7 @@ bool EventDispatcher::dispatchEventToListeners(EventListenerVector& listeners,
                          listeners._fixedListeners.size(), false);
 }
 
-bool EventDispatcher::cleanRemovedListenersInVector(std::vector<ListenerEntry>& listeners) {
+bool EventDispatcher::cleanRemovedListenersInVector(ListenerVector& listeners) {
     bool changed = false;
     for (auto it = listeners.begin(); it != listeners.end();) {
         if (it->removed || !it->listener || (it->priority == 0 && !it->target)) {

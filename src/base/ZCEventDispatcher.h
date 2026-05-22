@@ -36,9 +36,11 @@ private:
         bool removed = false;
     };
 
+    using ListenerVector = std::vector<ListenerEntry>;
+
     struct EventListenerVector {
-        std::vector<ListenerEntry> _fixedListeners;
-        std::vector<ListenerEntry> _nodeListeners;
+        ListenerVector _fixedListeners;
+        ListenerVector _nodeListeners;
         std::size_t _gt0Index = 0;
         bool _dirtyFixedPriority = false;
         bool _dirtyNodePriority = false;
@@ -47,6 +49,7 @@ private:
     };
 
     using ListenerCondition = std::function<bool(const ListenerEntry&)>;
+    using ListenerEvent = std::function<bool(ListenerEntry&)>;
 
     void addEventListenerInternal(ListenerEntry entry);
     void forceAddEventListener(ListenerEntry entry);
@@ -54,9 +57,8 @@ private:
     void updateListeners();
     void sortEventListeners(EventListenerVector& listeners);
     void visitTarget(Node* node);
-    bool dispatchEventToListeners(EventListenerVector& listeners,
-                                  const std::function<bool(ListenerEntry&)>& onEvent);
-    bool cleanRemovedListenersInVector(std::vector<ListenerEntry>& listeners);
+    bool dispatchEventToListeners(EventListenerVector& listeners, const ListenerEvent& onEvent);
+    bool cleanRemovedListenersInVector(ListenerVector& listeners);
     void cleanToRemovedListeners();
     void releaseListenerEntry(ListenerEntry& entry);
 
@@ -69,7 +71,7 @@ private:
     std::unordered_map<int, EventListenerVector> _listenerMap;
     std::unordered_map<Node*, std::size_t> _nodePriorityMap;
     std::size_t _nodePriorityIndex = 0;
-    std::vector<ListenerEntry> _toAddedListeners;
+    ListenerVector _toAddedListeners;
 };
 
 } // namespace zocos

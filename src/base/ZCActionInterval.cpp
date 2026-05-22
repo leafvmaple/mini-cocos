@@ -10,14 +10,11 @@ namespace zocos {
 
 namespace {
 
-float clamp01(float value) {
-    return std::clamp(value, 0.f, 1.f);
-}
+float clamp01(float value) { return std::clamp(value, 0.f, 1.f); }
 
 } // namespace
 
-ActionInterval::ActionInterval(float duration) : FiniteTimeAction(duration) {
-}
+ActionInterval::ActionInterval(float duration) : FiniteTimeAction(duration) {}
 
 void ActionInterval::startWithTarget(Node* target) {
     Action::startWithTarget(target);
@@ -26,10 +23,6 @@ void ActionInterval::startWithTarget(Node* target) {
 }
 
 void ActionInterval::step(float dt) {
-    if (!_target) {
-        return;
-    }
-
     if (_firstTick) {
         _firstTick = false;
         _elapsed = 0.f;
@@ -45,13 +38,10 @@ void ActionInterval::step(float dt) {
     update(clamp01(_elapsed / _duration));
 }
 
-bool ActionInterval::isDone() const {
-    return _duration <= 0.f || _elapsed >= _duration;
-}
+bool ActionInterval::isDone() const { return _duration <= 0.f || _elapsed >= _duration; }
 
 MoveTo::MoveTo(float duration, const Vec2& endPosition)
-    : ActionInterval(duration), _endPosition(endPosition) {
-}
+    : ActionInterval(duration), _endPosition(endPosition) {}
 
 MoveTo* MoveTo::create(float duration, const Vec2& endPosition) {
     auto* action = new (std::nothrow) MoveTo(duration, endPosition);
@@ -65,23 +55,16 @@ MoveTo* MoveTo::create(float duration, const Vec2& endPosition) {
 
 void MoveTo::startWithTarget(Node* target) {
     ActionInterval::startWithTarget(target);
-    if (!_target) {
-        return;
-    }
     _startPosition = _target->getPosition();
     _delta = {_endPosition.x - _startPosition.x, _endPosition.y - _startPosition.y};
 }
 
 void MoveTo::update(float t) {
-    if (!_target) {
-        return;
-    }
     _target->setPosition(_startPosition.x + _delta.x * t, _startPosition.y + _delta.y * t);
 }
 
 MoveBy::MoveBy(float duration, const Vec2& deltaPosition)
-    : ActionInterval(duration), _deltaPosition(deltaPosition) {
-}
+    : ActionInterval(duration), _deltaPosition(deltaPosition) {}
 
 MoveBy* MoveBy::create(float duration, const Vec2& deltaPosition) {
     auto* action = new (std::nothrow) MoveBy(duration, deltaPosition);
@@ -95,23 +78,16 @@ MoveBy* MoveBy::create(float duration, const Vec2& deltaPosition) {
 
 void MoveBy::startWithTarget(Node* target) {
     ActionInterval::startWithTarget(target);
-    if (!_target) {
-        return;
-    }
     _startPosition = _target->getPosition();
 }
 
 void MoveBy::update(float t) {
-    if (!_target) {
-        return;
-    }
     _target->setPosition(_startPosition.x + _deltaPosition.x * t,
                          _startPosition.y + _deltaPosition.y * t);
 }
 
 RotateTo::RotateTo(float duration, float endRotation)
-    : ActionInterval(duration), _endRotation(endRotation) {
-}
+    : ActionInterval(duration), _endRotation(endRotation) {}
 
 RotateTo* RotateTo::create(float duration, float endRotation) {
     auto* action = new (std::nothrow) RotateTo(duration, endRotation);
@@ -125,23 +101,14 @@ RotateTo* RotateTo::create(float duration, float endRotation) {
 
 void RotateTo::startWithTarget(Node* target) {
     ActionInterval::startWithTarget(target);
-    if (!_target) {
-        return;
-    }
     _startRotation = _target->getRotation();
     _deltaRotation = _endRotation - _startRotation;
 }
 
-void RotateTo::update(float t) {
-    if (!_target) {
-        return;
-    }
-    _target->setRotation(_startRotation + _deltaRotation * t);
-}
+void RotateTo::update(float t) { _target->setRotation(_startRotation + _deltaRotation * t); }
 
 RotateBy::RotateBy(float duration, float deltaRotation)
-    : ActionInterval(duration), _deltaRotation(deltaRotation) {
-}
+    : ActionInterval(duration), _deltaRotation(deltaRotation) {}
 
 RotateBy* RotateBy::create(float duration, float deltaRotation) {
     auto* action = new (std::nothrow) RotateBy(duration, deltaRotation);
@@ -155,22 +122,13 @@ RotateBy* RotateBy::create(float duration, float deltaRotation) {
 
 void RotateBy::startWithTarget(Node* target) {
     ActionInterval::startWithTarget(target);
-    if (!_target) {
-        return;
-    }
     _startRotation = _target->getRotation();
 }
 
-void RotateBy::update(float t) {
-    if (!_target) {
-        return;
-    }
-    _target->setRotation(_startRotation + _deltaRotation * t);
-}
+void RotateBy::update(float t) { _target->setRotation(_startRotation + _deltaRotation * t); }
 
 ScaleTo::ScaleTo(float duration, const Vec2& endScale)
-    : ActionInterval(duration), _endScale(endScale) {
-}
+    : ActionInterval(duration), _endScale(endScale) {}
 
 ScaleTo* ScaleTo::create(float duration, const Vec2& endScale) {
     auto* action = new (std::nothrow) ScaleTo(duration, endScale);
@@ -184,23 +142,16 @@ ScaleTo* ScaleTo::create(float duration, const Vec2& endScale) {
 
 void ScaleTo::startWithTarget(Node* target) {
     ActionInterval::startWithTarget(target);
-    if (!_target) {
-        return;
-    }
     _startScale = _target->getScale();
     _deltaScale = {_endScale.x - _startScale.x, _endScale.y - _startScale.y};
 }
 
 void ScaleTo::update(float t) {
-    if (!_target) {
-        return;
-    }
     _target->setScale({_startScale.x + _deltaScale.x * t, _startScale.y + _deltaScale.y * t});
 }
 
 ScaleBy::ScaleBy(float duration, const Vec2& deltaScale)
-    : ActionInterval(duration), _deltaScale(deltaScale) {
-}
+    : ActionInterval(duration), _deltaScale(deltaScale) {}
 
 ScaleBy* ScaleBy::create(float duration, const Vec2& deltaScale) {
     auto* action = new (std::nothrow) ScaleBy(duration, deltaScale);
@@ -214,22 +165,15 @@ ScaleBy* ScaleBy::create(float duration, const Vec2& deltaScale) {
 
 void ScaleBy::startWithTarget(Node* target) {
     ActionInterval::startWithTarget(target);
-    if (!_target) {
-        return;
-    }
     _startScale = _target->getScale();
 }
 
 void ScaleBy::update(float t) {
-    if (!_target) {
-        return;
-    }
     _target->setScale({_startScale.x + _deltaScale.x * t, _startScale.y + _deltaScale.y * t});
 }
 
 FadeTo::FadeTo(float duration, float endOpacity)
-    : ActionInterval(duration), _endOpacity(clamp01(endOpacity)) {
-}
+    : ActionInterval(duration), _endOpacity(clamp01(endOpacity)) {}
 
 FadeTo* FadeTo::create(float duration, float endOpacity) {
     auto* action = new (std::nothrow) FadeTo(duration, endOpacity);
@@ -243,22 +187,13 @@ FadeTo* FadeTo::create(float duration, float endOpacity) {
 
 void FadeTo::startWithTarget(Node* target) {
     ActionInterval::startWithTarget(target);
-    if (!_target) {
-        return;
-    }
     _startOpacity = clamp01(_target->getOpacity());
     _deltaOpacity = _endOpacity - _startOpacity;
 }
 
-void FadeTo::update(float t) {
-    if (!_target) {
-        return;
-    }
-    _target->setOpacity(_startOpacity + _deltaOpacity * t);
-}
+void FadeTo::update(float t) { _target->setOpacity(_startOpacity + _deltaOpacity * t); }
 
-DelayTime::DelayTime(float duration) : ActionInterval(duration) {
-}
+DelayTime::DelayTime(float duration) : ActionInterval(duration) {}
 
 DelayTime* DelayTime::create(float duration) {
     auto* action = new (std::nothrow) DelayTime(duration);
@@ -270,9 +205,7 @@ DelayTime* DelayTime::create(float duration) {
     return nullptr;
 }
 
-void DelayTime::update(float t) {
-    (void)t;
-}
+void DelayTime::update(float t) { (void)t; }
 
 Animate::Animate(Animation* animation)
     : ActionInterval(animation ? animation->getDuration() : 0.f), _animation(animation) {
@@ -309,15 +242,7 @@ void Animate::startWithTarget(Node* target) {
 }
 
 void Animate::update(float t) {
-    if (!_target || !_animation) {
-        return;
-    }
-
     auto* sprite = dynamic_cast<Sprite*>(_target);
-    if (!sprite) {
-        return;
-    }
-
     const auto& frames = _animation->getFrames();
     if (frames.empty()) {
         return;

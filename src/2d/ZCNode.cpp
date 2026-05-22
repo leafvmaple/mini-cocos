@@ -79,17 +79,11 @@ void Node::unscheduleAllCallbacks() {
 }
 
 Action* Node::runAction(Action* action) {
-    if (!action) {
-        return nullptr;
-    }
     Director::getInstance().getActionManager().addAction(action, this);
     return action;
 }
 
 void Node::stopAction(Action* action) {
-    if (!action) {
-        return;
-    }
     Director::getInstance().getActionManager().removeAction(action);
 }
 
@@ -129,9 +123,6 @@ void Node::addChild(Node* child) {
 }
 
 void Node::removeChild(Node* child) {
-    if (!child) {
-        return;
-    }
     for (auto it = _children.begin(); it != _children.end(); ++it) {
         if (*it == child) {
             if (_running && (*it)->isRunning()) {
@@ -147,9 +138,6 @@ void Node::removeChild(Node* child) {
 
 void Node::removeAllChildren() {
     for (auto* child : _children) {
-        if (!child) {
-            continue;
-        }
         if (_running && child->isRunning()) {
             child->onExit();
         }
@@ -160,10 +148,6 @@ void Node::removeAllChildren() {
 }
 
 void Node::updateTree(float dt) {
-    if (!_running) {
-        return;
-    }
-
     if (!_paused) {
         update(dt);
     }
