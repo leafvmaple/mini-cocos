@@ -435,7 +435,8 @@ int lua_zocos_Label_create(lua_State* tolua_S) {
         const char* fontPath = argc >= 2 ? luaL_checkstring(tolua_S, base + 1) : "";
         const float fontSize =
             argc >= 3 ? static_cast<float>(luaL_checknumber(tolua_S, base + 2)) : 24.f;
-        node_to_luaval(tolua_S, Label::create(Director::getInstance(), text, fontPath, fontSize));
+        node_to_luaval(tolua_S,
+                       Label::createWithTTF(Director::getInstance(), text, fontPath, fontSize));
         return 1;
     }
 

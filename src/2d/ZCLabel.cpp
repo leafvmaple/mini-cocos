@@ -14,8 +14,8 @@ namespace zocos {
 
 Label::Label(Director& director) : _director(director) {}
 
-Label* Label::create(Director& director, const std::string& text, const std::string& fontPath,
-                     float fontSize) {
+Label* Label::createWithTTF(Director& director, const std::string& text,
+                            const std::string& fontPath, float fontSize) {
     auto* label = new (std::nothrow) Label(director);
     if (label && label->init()) {
         label->setFontSize(fontSize);
@@ -30,11 +30,6 @@ Label* Label::create(Director& director, const std::string& text, const std::str
     }
     delete label;
     return nullptr;
-}
-
-Label* Label::createWithTTF(Director& director, const std::string& text,
-                            const std::string& fontPath, float fontSize) {
-    return create(director, text, fontPath, fontSize);
 }
 
 Label::~Label() {

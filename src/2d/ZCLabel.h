@@ -14,10 +14,8 @@ class FontAtlas;
 
 class Label : public Node {
 public:
-    static Label* create(Director& director, const std::string& text = "",
-                         const std::string& fontPath = "", float fontSize = 24.f);
-    static Label* createWithTTF(Director& director, const std::string& text,
-                                const std::string& fontPath, float fontSize = 24.f);
+    static Label* createWithTTF(Director& director, const std::string& text = "",
+                                const std::string& fontPath = "", float fontSize = 24.f);
 
     ~Label() override;
 

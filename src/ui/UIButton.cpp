@@ -74,7 +74,7 @@ bool Button::init() {
         return false;
     }
 
-    _titleLabel = Label::create(_director, "");
+    _titleLabel = Label::createWithTTF(_director);
     if (_titleLabel) {
         _titleLabel->retain();
         _titleLabel->setAnchorPoint({0.5f, 0.5f});
