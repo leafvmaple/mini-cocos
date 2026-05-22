@@ -14,6 +14,7 @@ namespace zocos {
 
 class TextureCache;
 class FontCache;
+class FontAtlasCache;
 
 class Director : public ViewDelegate {
 public:
@@ -34,6 +35,7 @@ public:
     RenderDevice* getRenderDevice() const { return _renderDevice.get(); }
     TextureCache& getTextureCache();
     FontCache& getFontCache();
+    FontAtlasCache& getFontAtlasCache();
 
     bool hasMousePosition() const { return _hasMousePosition; }
     float getMouseX() const { return _mouseX; }
@@ -72,6 +74,7 @@ private:
     std::unique_ptr<RenderDevice> _renderDevice;
     std::unique_ptr<TextureCache> _textureCache;
     std::unique_ptr<FontCache> _fontCache;
+    std::unique_ptr<FontAtlasCache> _fontAtlasCache;
     Mat4 _projection = Mat4::identity();
     int _fbWidth = 0;
     int _fbHeight = 0;

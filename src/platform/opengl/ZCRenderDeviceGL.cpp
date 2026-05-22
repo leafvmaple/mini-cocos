@@ -11,22 +11,24 @@ namespace {
 const char* kSpriteVs = R"(#version 330 core
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in vec2 aUv;
+layout (location = 2) in vec4 aColor;
 uniform mat4 uMvp;
 out vec2 vUv;
+out vec4 vColor;
 void main() {
     vUv = aUv;
+    vColor = aColor;
     gl_Position = uMvp * vec4(aPos, 0.0, 1.0);
 }
 )";
 
 const char* kSpriteFs = R"(#version 330 core
 in vec2 vUv;
+in vec4 vColor;
 uniform sampler2D uTex;
-uniform float uOpacity;
 out vec4 FragColor;
 void main() {
-    vec4 texColor = texture(uTex, vUv);
-    FragColor = vec4(texColor.rgb, texColor.a * uOpacity);
+    FragColor = vColor * texture(uTex, vUv);
 }
 )";
 
@@ -118,12 +120,26 @@ TextureHandle RenderDeviceGL::createTexture(const TextureCreateInfo& createInfo)
     if (createInfo.width <= 0 || createInfo.height <= 0 || !createInfo.initialData.pixels) {
         return {};
     }
-    if (createInfo.format != TextureFormat::RGBA8Unorm) {
+
+    int bytesPerPixel = 4;
+    GLint glInternalFormat = GL_RGBA;
+    GLenum glUploadFormat = GL_RGBA;
+    switch (createInfo.format) {
+    case TextureFormat::RGBA8Unorm:
+        bytesPerPixel = 4;
+        glInternalFormat = GL_RGBA;
+        glUploadFormat = GL_RGBA;
+        break;
+    case TextureFormat::A8Unorm:
+        bytesPerPixel = 1;
+        glInternalFormat = GL_R8;
+        glUploadFormat = GL_RED;
+        break;
+    default:
         return {};
     }
 
-    constexpr int kBytesPerPixel = 4;
-    const int tightRowPitch = createInfo.width * kBytesPerPixel;
+    const int tightRowPitch = createInfo.width * bytesPerPixel;
     const int srcRowPitch = createInfo.initialData.rowPitchBytes > 0
                                 ? createInfo.initialData.rowPitchBytes
                                 : tightRowPitch;
@@ -158,12 +174,28 @@ TextureHandle RenderDeviceGL::createTexture(const TextureCreateInfo& createInfo)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, createInfo.width, createInfo.height, 0, GL_RGBA,
-                 GL_UNSIGNED_BYTE, uploadPixels);
+    // A8 atlas: swizzle so sampling yields (1, 1, 1, r). Lets the shader use
+    // a single `color * texture(...)` formula for both RGBA and A8 atlases.
+    if (createInfo.format == TextureFormat::A8Unorm) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_ONE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_ONE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_ONE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
+    }
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, glInternalFormat, createInfo.width, createInfo.height, 0,
+                 glUploadFormat, GL_UNSIGNED_BYTE, uploadPixels);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
     TextureHandle handle;
     handle.value = _nextTextureHandle++;
-    _textures[handle.value] = tex;
+    GLTextureRecord rec;
+    rec.id = tex;
+    rec.width = createInfo.width;
+    rec.height = createInfo.height;
+    rec.bytesPerPixel = bytesPerPixel;
+    rec.uploadFormat = glUploadFormat;
+    _textures[handle.value] = rec;
     return handle;
 }
 
@@ -175,11 +207,50 @@ void RenderDeviceGL::destroyTexture(TextureHandle texture) {
     if (it == _textures.end()) {
         return;
     }
-    const GLuint texId = it->second;
+    const GLuint texId = it->second.id;
     if (texId) {
         glDeleteTextures(1, &texId);
     }
     _textures.erase(it);
+}
+
+void RenderDeviceGL::updateTextureRegion(TextureHandle texture, int x, int y, int width, int height,
+                                         const TextureUploadData& data) {
+    if (!texture.isValid() || width <= 0 || height <= 0 || !data.pixels) {
+        return;
+    }
+    const auto it = _textures.find(texture.value);
+    if (it == _textures.end()) {
+        return;
+    }
+    const GLTextureRecord& rec = it->second;
+    if (x < 0 || y < 0 || x + width > rec.width || y + height > rec.height) {
+        return;
+    }
+
+    // Textures created with TopLeft origin are flipped row-wise so that GL's
+    // bottom-left UV space matches the source layout (see createTexture).
+    // Apply the same transform here so callers can stay in TopLeft pixel
+    // coords. For BottomLeft sources the rows already line up with GL.
+    const int bytesPerPixel = rec.bytesPerPixel;
+    const int tightRowPitch = width * bytesPerPixel;
+    const int srcRowPitch = data.rowPitchBytes > 0 ? data.rowPitchBytes : tightRowPitch;
+    const bool shouldFlipY = data.origin == TextureDataOrigin::TopLeft;
+    const int glY = shouldFlipY ? (rec.height - y - height) : y;
+
+    std::vector<unsigned char> packed(static_cast<std::size_t>(tightRowPitch * height));
+    for (int row = 0; row < height; ++row) {
+        const int srcRow = shouldFlipY ? (height - 1 - row) : row;
+        const auto* src = data.pixels + static_cast<std::size_t>(srcRow) * srcRowPitch;
+        auto* dst = packed.data() + static_cast<std::size_t>(row) * tightRowPitch;
+        std::memcpy(dst, src, static_cast<std::size_t>(tightRowPitch));
+    }
+
+    glBindTexture(GL_TEXTURE_2D, rec.id);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, x, glY, width, height, rec.uploadFormat, GL_UNSIGNED_BYTE,
+                    packed.data());
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 }
 
 bool RenderDeviceGL::ensureSpritePipeline() {
@@ -208,7 +279,6 @@ bool RenderDeviceGL::ensureSpritePipeline() {
 
     _spriteLocMvp = glGetUniformLocation(_spriteProgram, "uMvp");
     _spriteLocTex = glGetUniformLocation(_spriteProgram, "uTex");
-    _spriteLocOpacity = glGetUniformLocation(_spriteProgram, "uOpacity");
     return true;
 }
 
@@ -234,12 +304,15 @@ void RenderDeviceGL::drawSprite(const DrawSpriteCommand& command) {
     const float u1 = command.uvRect.x + command.uvRect.width;
     const float v1 = command.uvRect.y + command.uvRect.height;
 
+    const float clampedOpacity =
+        command.opacity < 0.f ? 0.f : (command.opacity > 1.f ? 1.f : command.opacity);
+    const Color4B col{255, 255, 255, static_cast<std::uint8_t>(clampedOpacity * 255.f + 0.5f)};
     const QuadVertex verts[] = {
-        {{0.f, 0.f}, {u0, v0}}, {{w, 0.f}, {u1, v0}}, {{w, h}, {u1, v1}},
-        {{0.f, 0.f}, {u0, v0}}, {{w, h}, {u1, v1}},   {{0.f, h}, {u0, v1}},
+        {{0.f, 0.f}, {u0, v0}, col}, {{w, 0.f}, {u1, v0}, col}, {{w, h}, {u1, v1}, col},
+        {{0.f, 0.f}, {u0, v0}, col}, {{w, h}, {u1, v1}, col},   {{0.f, h}, {u0, v1}, col},
     };
 
-    drawVertices(texId, command.world, verts, 6, command.opacity);
+    drawVertices(texId, command.world, verts, 6);
 }
 
 void RenderDeviceGL::drawQuads(const DrawQuadsCommand& command) {
@@ -252,12 +325,11 @@ void RenderDeviceGL::drawQuads(const DrawQuadsCommand& command) {
         return;
     }
 
-    drawVertices(texId, command.world, command.vertices.data(), command.vertices.size(),
-                 command.opacity);
+    drawVertices(texId, command.world, command.vertices.data(), command.vertices.size());
 }
 
 void RenderDeviceGL::drawVertices(GLuint textureId, const Mat4& world, const QuadVertex* vertices,
-                                  std::size_t vertexCount, float opacity) {
+                                  std::size_t vertexCount) {
     if (!vertices || vertexCount == 0) {
         return;
     }
@@ -275,6 +347,9 @@ void RenderDeviceGL::drawVertices(GLuint textureId, const Mat4& world, const Qua
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(QuadVertex),
                           reinterpret_cast<void*>(sizeof(Vec2)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(QuadVertex),
+                          reinterpret_cast<void*>(sizeof(Vec2) * 2));
 
     const Mat4 mvp = _projection * world;
     glUseProgram(_spriteProgram);
@@ -282,7 +357,6 @@ void RenderDeviceGL::drawVertices(GLuint textureId, const Mat4& world, const Qua
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textureId);
     glUniform1i(_spriteLocTex, 0);
-    glUniform1f(_spriteLocOpacity, opacity);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertexCount));
 }
 
@@ -291,7 +365,7 @@ GLuint RenderDeviceGL::getTextureId(TextureHandle texture) const {
     if (it == _textures.end()) {
         return 0;
     }
-    return it->second;
+    return it->second.id;
 }
 
 } // namespace zocos

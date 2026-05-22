@@ -188,11 +188,24 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
     if (createInfo.width <= 0 || createInfo.height <= 0 || !createInfo.initialData.pixels) {
         return {};
     }
-    if (createInfo.format != TextureFormat::RGBA8Unorm) {
+
+    int kBytesPerPixel = 4;
+    VkFormat vkFormat = VK_FORMAT_R8G8B8A8_UNORM;
+    bool isAlphaOnly = false;
+    switch (createInfo.format) {
+    case TextureFormat::RGBA8Unorm:
+        kBytesPerPixel = 4;
+        vkFormat = VK_FORMAT_R8G8B8A8_UNORM;
+        break;
+    case TextureFormat::A8Unorm:
+        kBytesPerPixel = 1;
+        vkFormat = VK_FORMAT_R8_UNORM;
+        isAlphaOnly = true;
+        break;
+    default:
         return {};
     }
 
-    constexpr int kBytesPerPixel = 4;
     const int tightRowPitch = createInfo.width * kBytesPerPixel;
     const int srcRowPitch = createInfo.initialData.rowPitchBytes > 0
                                 ? createInfo.initialData.rowPitchBytes
@@ -312,7 +325,7 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
     imageInfo.extent.depth = 1;
     imageInfo.mipLevels = 1;
     imageInfo.arrayLayers = 1;
-    imageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    imageInfo.format = vkFormat;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -364,7 +377,15 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
     imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     imageViewInfo.image = texture.image;
     imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    imageViewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+    imageViewInfo.format = vkFormat;
+    if (isAlphaOnly) {
+        // Make a single-channel R8 image sample as (1, 1, 1, r) so the
+        // shader's `color * texture(...)` formula works without branching.
+        imageViewInfo.components.r = VK_COMPONENT_SWIZZLE_ONE;
+        imageViewInfo.components.g = VK_COMPONENT_SWIZZLE_ONE;
+        imageViewInfo.components.b = VK_COMPONENT_SWIZZLE_ONE;
+        imageViewInfo.components.a = VK_COMPONENT_SWIZZLE_R;
+    }
     imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     imageViewInfo.subresourceRange.baseMipLevel = 0;
     imageViewInfo.subresourceRange.levelCount = 1;
@@ -513,6 +534,9 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
 
     TextureHandle handle;
     handle.value = _nextTextureHandle++;
+    texture.width = createInfo.width;
+    texture.height = createInfo.height;
+    texture.bytesPerPixel = kBytesPerPixel;
     _textures.emplace(handle.value, texture);
     return handle;
 }
@@ -546,6 +570,166 @@ void RenderDeviceVulkan::destroyTexture(TextureHandle texture) {
     }
 
     _textures.erase(it);
+}
+
+void RenderDeviceVulkan::updateTextureRegion(TextureHandle texture, int x, int y, int width,
+                                             int height, const TextureUploadData& data) {
+    if (!_ready || _device == VK_NULL_HANDLE) {
+        return;
+    }
+    if (!texture.isValid() || width <= 0 || height <= 0 || !data.pixels) {
+        return;
+    }
+    const auto it = _textures.find(texture.value);
+    if (it == _textures.end()) {
+        return;
+    }
+    TextureResource& resource = it->second;
+    if (x < 0 || y < 0 || x + width > resource.width || y + height > resource.height) {
+        return;
+    }
+
+    // Match createTexture: textures are stored Y-flipped relative to TopLeft
+    // origin sources so that the sampler-side UVs line up with GL. Translate
+    // the destination y and reorder the source rows accordingly.
+    const int kBytesPerPixel = resource.bytesPerPixel;
+    const int tightRowPitch = width * kBytesPerPixel;
+    const int srcRowPitch = data.rowPitchBytes > 0 ? data.rowPitchBytes : tightRowPitch;
+    const bool shouldFlipY = data.origin == TextureDataOrigin::TopLeft;
+    const int dstY = shouldFlipY ? (resource.height - y - height) : y;
+
+    const VkDeviceSize uploadSize = static_cast<VkDeviceSize>(tightRowPitch) * height;
+
+    VkBuffer stagingBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
+
+    auto cleanupStaging = [&]() {
+        if (stagingBuffer != VK_NULL_HANDLE) {
+            vkDestroyBuffer(_device, stagingBuffer, nullptr);
+            stagingBuffer = VK_NULL_HANDLE;
+        }
+        if (stagingMemory != VK_NULL_HANDLE) {
+            vkFreeMemory(_device, stagingMemory, nullptr);
+            stagingMemory = VK_NULL_HANDLE;
+        }
+    };
+
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = uploadSize;
+    bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    if (vkCreateBuffer(_device, &bufferInfo, nullptr, &stagingBuffer) != VK_SUCCESS) {
+        return;
+    }
+
+    VkMemoryRequirements requirements{};
+    vkGetBufferMemoryRequirements(_device, stagingBuffer, &requirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = requirements.size;
+    allocInfo.memoryTypeIndex =
+        findMemoryType(requirements.memoryTypeBits,
+                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (allocInfo.memoryTypeIndex == UINT32_MAX ||
+        vkAllocateMemory(_device, &allocInfo, nullptr, &stagingMemory) != VK_SUCCESS) {
+        cleanupStaging();
+        return;
+    }
+    if (vkBindBufferMemory(_device, stagingBuffer, stagingMemory, 0) != VK_SUCCESS) {
+        cleanupStaging();
+        return;
+    }
+
+    void* mapped = nullptr;
+    if (vkMapMemory(_device, stagingMemory, 0, uploadSize, 0, &mapped) != VK_SUCCESS) {
+        cleanupStaging();
+        return;
+    }
+    auto* dst = static_cast<unsigned char*>(mapped);
+    for (int row = 0; row < height; ++row) {
+        const int srcRow = shouldFlipY ? (height - 1 - row) : row;
+        std::memcpy(dst + static_cast<std::size_t>(row) * tightRowPitch,
+                    data.pixels + static_cast<std::size_t>(srcRow) * srcRowPitch,
+                    static_cast<std::size_t>(tightRowPitch));
+    }
+    vkUnmapMemory(_device, stagingMemory);
+
+    // Wait for any in-flight frame to finish sampling the texture before we
+    // transition it to TRANSFER_DST and overwrite a region of it.
+    vkDeviceWaitIdle(_device);
+
+    VkCommandBufferAllocateInfo cmdAllocInfo{};
+    cmdAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    cmdAllocInfo.commandPool = _commandPool;
+    cmdAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    cmdAllocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer cmd = VK_NULL_HANDLE;
+    if (vkAllocateCommandBuffers(_device, &cmdAllocInfo, &cmd) != VK_SUCCESS) {
+        cleanupStaging();
+        return;
+    }
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    if (vkBeginCommandBuffer(cmd, &beginInfo) != VK_SUCCESS) {
+        vkFreeCommandBuffers(_device, _commandPool, 1, &cmd);
+        cleanupStaging();
+        return;
+    }
+
+    VkImageMemoryBarrier toTransfer{};
+    toTransfer.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    toTransfer.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    toTransfer.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    toTransfer.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toTransfer.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toTransfer.image = resource.image;
+    toTransfer.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    toTransfer.subresourceRange.baseMipLevel = 0;
+    toTransfer.subresourceRange.levelCount = 1;
+    toTransfer.subresourceRange.baseArrayLayer = 0;
+    toTransfer.subresourceRange.layerCount = 1;
+    toTransfer.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    toTransfer.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         0, 0, nullptr, 0, nullptr, 1, &toTransfer);
+
+    VkBufferImageCopy copy{};
+    copy.bufferOffset = 0;
+    copy.bufferRowLength = 0;
+    copy.bufferImageHeight = 0;
+    copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copy.imageSubresource.mipLevel = 0;
+    copy.imageSubresource.baseArrayLayer = 0;
+    copy.imageSubresource.layerCount = 1;
+    copy.imageOffset = {x, dstY, 0};
+    copy.imageExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
+    vkCmdCopyBufferToImage(cmd, stagingBuffer, resource.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                           1, &copy);
+
+    VkImageMemoryBarrier toShaderRead = toTransfer;
+    toShaderRead.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    toShaderRead.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    toShaderRead.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    toShaderRead.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                         0, 0, nullptr, 0, nullptr, 1, &toShaderRead);
+
+    vkEndCommandBuffer(cmd);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmd;
+    vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(_graphicsQueue);
+    vkFreeCommandBuffers(_device, _commandPool, 1, &cmd);
+
+    cleanupStaging();
 }
 
 void RenderDeviceVulkan::drawSprite(const DrawSpriteCommand& command) {
@@ -603,10 +787,12 @@ uint32_t RenderDeviceVulkan::appendQuadVertices(const QuadVertex* vertices, std:
         vertex.position[1] = vertices[i].position.y;
         vertex.uv[0] = vertices[i].uv.x;
         vertex.uv[1] = vertices[i].uv.y;
-        vertex.color[0] = 1.0f;
-        vertex.color[1] = 1.0f;
-        vertex.color[2] = 1.0f;
-        vertex.color[3] = intensity;
+        // The shader does `color * texture(...)`. Fold the per-command opacity
+        // into the per-vertex color so a single draw can carry mixed tints.
+        vertex.color[0] = vertices[i].color.r / 255.f;
+        vertex.color[1] = vertices[i].color.g / 255.f;
+        vertex.color[2] = vertices[i].color.b / 255.f;
+        vertex.color[3] = (vertices[i].color.a / 255.f) * intensity;
         _pendingVertices.push_back(vertex);
     }
 

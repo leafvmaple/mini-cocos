@@ -26,6 +26,8 @@ public:
 
     TextureHandle createTexture(const TextureCreateInfo& createInfo) override;
     void destroyTexture(TextureHandle texture) override;
+    void updateTextureRegion(TextureHandle texture, int x, int y, int width, int height,
+                             const TextureUploadData& data) override;
 
 private:
     struct VulkanVertex {
@@ -46,6 +48,9 @@ private:
         VkDeviceMemory memory = VK_NULL_HANDLE;
         VkImageView imageView = VK_NULL_HANDLE;
         VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+        int width = 0;
+        int height = 0;
+        int bytesPerPixel = 4;
     };
 
     struct SwapchainSupport {

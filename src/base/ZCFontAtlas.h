@@ -80,6 +80,12 @@ private:
         int packCursorY = 0;
         int packRowHeight = 0;
         bool dirty = false;
+        // Bounding rectangle (TopLeft pixel coords) of glyph writes that
+        // have not yet been pushed to GPU. Valid only while `dirty` is true.
+        int dirtyMinX = 0;
+        int dirtyMinY = 0;
+        int dirtyMaxX = 0;
+        int dirtyMaxY = 0;
     };
 
     bool prepareLetterDefinition(char32_t utf32Char, LetterDefinition& outDef);
@@ -88,6 +94,8 @@ private:
     int addNewPage();
     bool commitDirtyPages();
     bool uploadPage(AtlasPage& page);
+    bool updatePageRegion(AtlasPage& page);
+    static void markPageDirtyRect(AtlasPage& page, int x, int y, int width, int height);
     void releasePages();
     void releaseFont();
 

@@ -193,15 +193,12 @@ bool FontAtlas::prepareLetterDefinition(char32_t utf32Char, LetterDefinition& ou
         for (int x = 0; x < bitmapW; ++x) {
             const std::size_t srcIndex = static_cast<std::size_t>(y * bitmapW + x);
             const std::size_t dstIndex =
-                static_cast<std::size_t>(((atlasY + y) * _atlasWidth + (atlasX + x)) * 4);
-            page.pixels[dstIndex + 0] = 255;
-            page.pixels[dstIndex + 1] = 255;
-            page.pixels[dstIndex + 2] = 255;
-            page.pixels[dstIndex + 3] = alpha[srcIndex];
+                static_cast<std::size_t>((atlasY + y) * _atlasWidth + (atlasX + x));
+            page.pixels[dstIndex] = alpha[srcIndex];
         }
     }
 
-    page.dirty = true;
+    markPageDirtyRect(page, atlasX, atlasY, bitmapW, bitmapH);
     def.U = static_cast<float>(atlasX);
     def.V = static_cast<float>(atlasY);
     def.textureID = pageIndex;
@@ -257,8 +254,12 @@ bool FontAtlas::allocGlyphRect(int glyphWidth, int glyphHeight, int& outPageInde
 
 int FontAtlas::addNewPage() {
     AtlasPage page;
-    page.pixels.assign(static_cast<std::size_t>(_atlasWidth * _atlasHeight * 4), 0);
+    page.pixels.assign(static_cast<std::size_t>(_atlasWidth * _atlasHeight), 0);
     page.dirty = true;
+    page.dirtyMinX = 0;
+    page.dirtyMinY = 0;
+    page.dirtyMaxX = _atlasWidth;
+    page.dirtyMaxY = _atlasHeight;
     _atlasPages.push_back(std::move(page));
     _atlasTextures.emplace_back();
     return static_cast<int>(_atlasPages.size()) - 1;
@@ -271,8 +272,17 @@ bool FontAtlas::commitDirtyPages() {
         if (!page.dirty && page.texture.isValid()) {
             continue;
         }
-        if (!uploadPage(page)) {
-            return false;
+        // First-time upload for a freshly created page: createTexture.
+        // Subsequent dirty rects only patch the existing texture so we keep
+        // the GPU handle stable across frames and avoid full re-uploads.
+        if (!page.texture.isValid()) {
+            if (!uploadPage(page)) {
+                return false;
+            }
+        } else {
+            if (!updatePageRegion(page)) {
+                return false;
+            }
         }
         _atlasTextures[i] = page.texture;
         anyUploaded = true;
@@ -292,9 +302,9 @@ bool FontAtlas::uploadPage(AtlasPage& page) {
     TextureCreateInfo createInfo;
     createInfo.width = _atlasWidth;
     createInfo.height = _atlasHeight;
-    createInfo.format = TextureFormat::RGBA8Unorm;
+    createInfo.format = TextureFormat::A8Unorm;
     createInfo.initialData.pixels = page.pixels.data();
-    createInfo.initialData.rowPitchBytes = _atlasWidth * 4;
+    createInfo.initialData.rowPitchBytes = _atlasWidth;
     createInfo.initialData.origin = TextureDataOrigin::TopLeft;
 
     const TextureHandle newTexture = device->createTexture(createInfo);
@@ -307,6 +317,45 @@ bool FontAtlas::uploadPage(AtlasPage& page) {
     page.texture = newTexture;
     page.dirty = false;
     return true;
+}
+
+bool FontAtlas::updatePageRegion(AtlasPage& page) {
+    auto* device = _director.getRenderDevice();
+    if (!device) {
+        return false;
+    }
+    const int rectW = page.dirtyMaxX - page.dirtyMinX;
+    const int rectH = page.dirtyMaxY - page.dirtyMinY;
+    if (rectW <= 0 || rectH <= 0) {
+        page.dirty = false;
+        return true;
+    }
+
+    TextureUploadData data;
+    data.pixels = page.pixels.data() +
+                  static_cast<std::size_t>(page.dirtyMinY * _atlasWidth + page.dirtyMinX);
+    data.rowPitchBytes = _atlasWidth;
+    data.origin = TextureDataOrigin::TopLeft;
+    device->updateTextureRegion(page.texture, page.dirtyMinX, page.dirtyMinY, rectW, rectH, data);
+    page.dirty = false;
+    return true;
+}
+
+void FontAtlas::markPageDirtyRect(AtlasPage& page, int x, int y, int width, int height) {
+    const int x1 = x + width;
+    const int y1 = y + height;
+    if (!page.dirty) {
+        page.dirtyMinX = x;
+        page.dirtyMinY = y;
+        page.dirtyMaxX = x1;
+        page.dirtyMaxY = y1;
+        page.dirty = true;
+        return;
+    }
+    page.dirtyMinX = std::min(page.dirtyMinX, x);
+    page.dirtyMinY = std::min(page.dirtyMinY, y);
+    page.dirtyMaxX = std::max(page.dirtyMaxX, x1);
+    page.dirtyMaxY = std::max(page.dirtyMaxY, y1);
 }
 
 void FontAtlas::releasePages() {

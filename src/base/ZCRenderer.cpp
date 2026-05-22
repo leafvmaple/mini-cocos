@@ -62,8 +62,57 @@ void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebuffer
                          return a.submissionIndex < b.submissionIndex;
                      });
 
+    // Cross-node batching: consecutive DrawQuads commands with the same
+    // texture and opacity can be merged into a single draw by pre-transforming
+    // each source quad's vertices into world space and emitting them with an
+    // identity world matrix. Labels sharing one FontAtlas page collapse into
+    // one draw call this way.
+    auto transformVerts = [](const Mat4& world, const std::vector<QuadVertex>& src,
+                             std::vector<QuadVertex>& dst) {
+        dst.reserve(dst.size() + src.size());
+        const float m0 = world.m[0];
+        const float m1 = world.m[1];
+        const float m4 = world.m[4];
+        const float m5 = world.m[5];
+        const float m12 = world.m[12];
+        const float m13 = world.m[13];
+        for (const auto& v : src) {
+            QuadVertex out;
+            out.position.x = m0 * v.position.x + m4 * v.position.y + m12;
+            out.position.y = m1 * v.position.x + m5 * v.position.y + m13;
+            out.uv = v.uv;
+            dst.push_back(out);
+        }
+    };
+
+    std::vector<RenderCommand> merged;
+    merged.reserve(_commands.size());
+    for (auto& command : _commands) {
+        if (command.type == RenderCommandType::DrawQuads && !merged.empty() &&
+            merged.back().type == RenderCommandType::DrawQuads &&
+            merged.back().quads.texture.value == command.quads.texture.value &&
+            merged.back().quads.opacity == command.quads.opacity) {
+            transformVerts(command.quads.world, command.quads.vertices,
+                           merged.back().quads.vertices);
+            continue;
+        }
+        if (command.type == RenderCommandType::DrawQuads) {
+            RenderCommand out;
+            out.type = RenderCommandType::DrawQuads;
+            out.sortKey = command.sortKey;
+            out.submissionIndex = command.submissionIndex;
+            out.quads.world = Mat4::identity();
+            out.quads.texture = command.quads.texture;
+            out.quads.opacity = command.quads.opacity;
+            transformVerts(command.quads.world, command.quads.vertices, out.quads.vertices);
+            merged.push_back(std::move(out));
+            continue;
+        }
+        merged.push_back(std::move(command));
+    }
+
     device.beginFrame(_projection, framebufferWidth, framebufferHeight);
-    for (const auto& command : _commands) {
+    for (const auto& command : merged) {
         device.submit(command);
     }
     device.endFrame();

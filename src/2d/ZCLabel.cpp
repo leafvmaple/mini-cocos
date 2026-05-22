@@ -2,6 +2,7 @@
 
 #include "base/ZCDirector.h"
 #include "base/ZCFontAtlas.h"
+#include "base/ZCFontAtlasCache.h"
 #include "base/ZCRenderer.h"
 #include "base/ZCStringUtils.h"
 
@@ -18,7 +19,7 @@ Label* Label::createWithTTF(Director& director, const std::string& text,
     auto* label = new (std::nothrow) Label(director);
     if (label && label->init()) {
         label->_fontSize = std::max(1.f, fontSize);
-        auto* atlas = FontAtlas::create(director, fontPath, label->_fontSize);
+        auto* atlas = director.getFontAtlasCache().getFontAtlasTTF(fontPath, label->_fontSize);
         if (atlas && label->setFontAtlas(atlas)) {
             label->setString(text);
             label->autorelease();
@@ -78,7 +79,7 @@ bool Label::setTTF(const std::string& fontPath) {
         return true;
     }
 
-    auto* atlas = FontAtlas::create(_director, fontPath, _fontSize);
+    auto* atlas = _director.getFontAtlasCache().getFontAtlasTTF(fontPath, _fontSize);
     if (!atlas) {
         return false;
     }
@@ -92,13 +93,22 @@ void Label::setFontSize(float fontSize) {
     }
     _fontSize = clampedSize;
 
-    // Mirror cocos2d-x: changing the size means a new FontAtlas (a different
-    // glyph cache, since glyph bitmaps depend on size). _fontPath was set
-    // from the current atlas, so it is a valid resolved path.
-    auto* atlas = FontAtlas::create(_director, _fontPath, _fontSize);
+    // Mirror cocos2d-x: changing the size means a different FontAtlas (a
+    // different glyph cache, since bitmaps depend on size). FontAtlasCache
+    // ensures we re-use any previously warmed (path, size) pair.
+    auto* atlas = _director.getFontAtlasCache().getFontAtlasTTF(_fontPath, _fontSize);
     if (atlas) {
         setFontAtlas(atlas);
     }
+}
+
+void Label::setMaxLineWidth(float maxLineWidth) {
+    const float clamped = std::max(0.f, maxLineWidth);
+    if (std::fabs(_maxLineWidth - clamped) <= 1e-4f) {
+        return;
+    }
+    _maxLineWidth = clamped;
+    _contentDirty = true;
 }
 
 void Label::resetLayoutState() {
@@ -155,6 +165,9 @@ void Label::multilineTextWrap() {
     _lettersInfo.assign(_utf32Text.size(), LetterInfo{});
 
     const float lineHeight = _fontAtlas->getLineHeight();
+    const float scale = _fontAtlas->getScale();
+    const bool wrapByWidth = (_maxLineWidth > 0.f);
+
     int lineIndex = 0;
     float penX = 0.f;
     float maxLineWidth = 0.f;
@@ -180,7 +193,20 @@ void Label::multilineTextWrap() {
             continue;
         }
 
-        penX += _horizontalKernings[i];
+        const float kerning = _horizontalKernings[i];
+        const float advance = static_cast<float>(def.xAdvance) * scale;
+
+        // Soft wrap when the next glyph would exceed _maxLineWidth. We only
+        // wrap when the current line already has content so a single glyph
+        // wider than the limit still gets placed (cocos2d-x falls back to
+        // char-break in that case too).
+        if (wrapByWidth && penX > 0.f && (penX + kerning + advance) > _maxLineWidth) {
+            maxLineWidth = std::max(maxLineWidth, penX);
+            ++lineIndex;
+            penX = 0.f;
+        }
+
+        penX += (penX > 0.f) ? kerning : 0.f;
 
         // Position stored is the top-left of the glyph quad in label-local
         // coords with the line's top sitting at y = lineIndex * lineHeight.
@@ -191,7 +217,7 @@ void Label::multilineTextWrap() {
         const bool hasGlyph = (def.width > 0.f && def.height > 0.f);
         recordLetterInfo(i, cp, glyphX, glyphY, def.textureID, lineIndex, hasGlyph);
 
-        penX += static_cast<float>(def.xAdvance) * _fontAtlas->getScale();
+        penX += advance;
     }
 
     maxLineWidth = std::max(maxLineWidth, penX);
@@ -252,13 +278,15 @@ void Label::updateQuads() {
         const float vB = 1.f - (def.V + def.height) * invH;
 
         auto& quads = _quadsPerPage[static_cast<std::size_t>(def.textureID)];
-        quads.push_back({{xL, yB}, {uL, vB}});
-        quads.push_back({{xR, yB}, {uR, vB}});
-        quads.push_back({{xR, yT}, {uR, vT}});
-        quads.push_back({{xL, yB}, {uL, vB}});
-        quads.push_back({{xR, yT}, {uR, vT}});
-        quads.push_back({{xL, yT}, {uL, vT}});
+        const Color4B color{255, 255, 255, 255};
+        quads.push_back({{xL, yB}, {uL, vB}, color});
+        quads.push_back({{xR, yB}, {uR, vB}, color});
+        quads.push_back({{xR, yT}, {uR, vT}, color});
+        quads.push_back({{xL, yB}, {uL, vB}, color});
+        quads.push_back({{xR, yT}, {uR, vT}, color});
+        quads.push_back({{xL, yT}, {uL, vT}, color});
     }
+    _bakedOpacity = 1.f;
 }
 
 void Label::draw(Renderer& renderer, const Mat4& world) {
@@ -274,6 +302,16 @@ void Label::draw(Renderer& renderer, const Mat4& world) {
 
     const auto& textures = _fontAtlas->getTextures();
     const float opacity = getOpacity();
+    if (opacity != _bakedOpacity) {
+        const float clamped = opacity < 0.f ? 0.f : (opacity > 1.f ? 1.f : opacity);
+        const std::uint8_t alphaByte = static_cast<std::uint8_t>(clamped * 255.f + 0.5f);
+        for (auto& quads : _quadsPerPage) {
+            for (auto& v : quads) {
+                v.color.a = alphaByte;
+            }
+        }
+        _bakedOpacity = opacity;
+    }
     for (std::size_t page = 0; page < _quadsPerPage.size() && page < textures.size(); ++page) {
         const auto& quads = _quadsPerPage[page];
         if (quads.empty()) {
@@ -284,7 +322,7 @@ void Label::draw(Renderer& renderer, const Mat4& world) {
             continue;
         }
         const RenderSortKey sortKey = makeRenderSortKey(0, 0, texture.value);
-        renderer.addDrawQuads(world, texture, quads, opacity, sortKey);
+        renderer.addDrawQuads(world, texture, quads, 1.f, sortKey);
     }
 }
 

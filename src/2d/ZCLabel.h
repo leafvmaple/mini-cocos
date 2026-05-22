@@ -48,6 +48,12 @@ public:
     void setFontSize(float fontSize);
     float getFontSize() const { return _fontSize; }
 
+    // Maximum width (in label-local pixels) before a soft line break is
+    // inserted. 0 (the default) disables wrapping and the label only breaks
+    // on explicit '\n' characters. Mirrors cocos2d-x Label::setMaxLineWidth.
+    void setMaxLineWidth(float maxLineWidth);
+    float getMaxLineWidth() const { return _maxLineWidth; }
+
     void draw(Renderer& renderer, const Mat4& world) override;
 
 protected:
@@ -69,6 +75,7 @@ private:
     std::u32string _utf32Text;
     std::string _fontPath;
     float _fontSize = 24.f;
+    float _maxLineWidth = 0.f;
     FontAtlas* _fontAtlas = nullptr;
 
     std::vector<LetterInfo> _lettersInfo;
@@ -78,6 +85,7 @@ private:
     float _contentWidth = 0.f;
     float _contentHeight = 0.f;
     std::uint32_t _atlasVersion = 0;
+    float _bakedOpacity = -1.f;
     bool _ready = false;
     bool _contentDirty = true;
 };

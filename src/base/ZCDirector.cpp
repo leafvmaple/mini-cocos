@@ -1,6 +1,7 @@
 #include "base/ZCDirector.h"
 #include "base/ZCAutoreleasePool.h"
 #include "base/ZCEvent.h"
+#include "base/ZCFontAtlasCache.h"
 #include "base/ZCFontCache.h"
 #include "base/ZCPlatformFactory.h"
 #include "base/ZCTextureCache.h"
@@ -35,6 +36,13 @@ FontCache& Director::getFontCache() {
     return *_fontCache;
 }
 
+FontAtlasCache& Director::getFontAtlasCache() {
+    if (!_fontAtlasCache) {
+        _fontAtlasCache = std::make_unique<FontAtlasCache>(*this);
+    }
+    return *_fontAtlasCache;
+}
+
 bool Director::init(int width, int height, const char* title) {
     if (!_view) {
         _view = createDefaultView();
@@ -48,6 +56,7 @@ bool Director::init(int width, int height, const char* title) {
     _renderDevice = createDefaultRenderDevice(*_view);
     _textureCache = std::make_unique<TextureCache>();
     _fontCache = std::make_unique<FontCache>();
+    _fontAtlasCache = std::make_unique<FontAtlasCache>(*this);
 
     _fbWidth = _view->getFramebufferWidth();
     _fbHeight = _view->getFramebufferHeight();
@@ -79,6 +88,10 @@ void Director::shutdown() {
     _actionManager.removeAllActions();
     _eventDispatcher.removeAllEventListeners();
     _renderer.endFrame();
+    if (_fontAtlasCache) {
+        _fontAtlasCache->removeAllFontAtlas();
+        _fontAtlasCache.reset();
+    }
     if (_fontCache) {
         _fontCache->removeAllFonts();
         _fontCache.reset();

@@ -20,9 +20,17 @@ enum class RenderCommandType : std::uint8_t {
     DrawQuads = 1,
 };
 
+struct Color4B {
+    std::uint8_t r = 255;
+    std::uint8_t g = 255;
+    std::uint8_t b = 255;
+    std::uint8_t a = 255;
+};
+
 struct QuadVertex {
     Vec2 position{};
     Vec2 uv{};
+    Color4B color{};
 };
 
 struct DrawSpriteCommand {
