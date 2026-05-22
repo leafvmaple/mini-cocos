@@ -93,9 +93,6 @@ void Label::setFontSize(float fontSize) {
     }
     _fontSize = clampedSize;
 
-    // Mirror cocos2d-x: changing the size means a different FontAtlas (a
-    // different glyph cache, since bitmaps depend on size). FontAtlasCache
-    // ensures we re-use any previously warmed (path, size) pair.
     auto* atlas = _director.getFontAtlasCache().getFontAtlasTTF(_fontPath, _fontSize);
     if (atlas) {
         setFontAtlas(atlas);
@@ -123,11 +120,7 @@ void Label::resetLayoutState() {
 bool Label::updateContent() {
     resetLayoutState();
 
-    if (!_fontAtlas) {
-        return false;
-    }
-
-    if (!_fontAtlas->prepareLetterDefinitions(_utf32Text)) {
+    if (!_fontAtlas || !_fontAtlas->prepareLetterDefinitions(_utf32Text)) {
         return false;
     }
 
@@ -254,8 +247,7 @@ void Label::updateQuads() {
     const float invW = (atlasW > 0.f) ? 1.f / atlasW : 0.f;
     const float invH = (atlasH > 0.f) ? 1.f / atlasH : 0.f;
 
-    for (std::size_t i = 0; i < _lettersInfo.size(); ++i) {
-        const LetterInfo& info = _lettersInfo[i];
+    for (const auto& info : _lettersInfo) {
         if (!info.valid) {
             continue;
         }
@@ -303,7 +295,7 @@ void Label::draw(Renderer& renderer, const Mat4& world) {
     const auto& textures = _fontAtlas->getTextures();
     const float opacity = getOpacity();
     if (opacity != _bakedOpacity) {
-        const float clamped = opacity < 0.f ? 0.f : (opacity > 1.f ? 1.f : opacity);
+        const float clamped = std::max(0.f, std::min(1.f, opacity));
         const std::uint8_t alphaByte = static_cast<std::uint8_t>(clamped * 255.f + 0.5f);
         for (auto& quads : _quadsPerPage) {
             for (auto& v : quads) {
