@@ -2,12 +2,12 @@
 
 #include "base/ZCRenderer.h"
 
-#include <new>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
 Scene* Scene::create() {
-    auto* scene = new (std::nothrow) Scene();
+    auto* scene = new (mstd::nothrow) Scene();
     if (scene && scene->init()) {
         scene->autorelease();
         return scene;

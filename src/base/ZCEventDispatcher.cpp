@@ -3,8 +3,7 @@
 #include "2d/ZCNode.h"
 #include "base/ZCDirector.h"
 
-#include <algorithm>
-#include <utility>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -36,7 +35,7 @@ EventDispatcher::addEventListenerWithNodePriority(EventListener* listener, Node*
     entry.listener->retain();
 
     const ListenerHandle handle = entry.handle;
-    addEventListenerInternal(std::move(entry));
+    addEventListenerInternal(mstd::move(entry));
     return handle;
 }
 
@@ -54,7 +53,7 @@ EventDispatcher::addEventListenerWithFixedPriority(EventListener* listener, int 
     entry.listener->retain();
 
     const ListenerHandle handle = entry.handle;
-    addEventListenerInternal(std::move(entry));
+    addEventListenerInternal(mstd::move(entry));
     return handle;
 }
 
@@ -188,8 +187,8 @@ void EventDispatcher::dispatchEvent(Event& event) {
     }
 }
 
-std::size_t EventDispatcher::getListenerCount() const {
-    std::size_t count = 0;
+mstd::size_t EventDispatcher::getListenerCount() const {
+    mstd::size_t count = 0;
     for (const auto& [_, listeners] : _listenerMap) {
         for (const auto& listener : listeners._fixedListeners) {
             if (!listener.removed && listener.listener) {
@@ -221,11 +220,11 @@ std::size_t EventDispatcher::getListenerCount() const {
 
 void EventDispatcher::addEventListenerInternal(ListenerEntry entry) {
     if (isDispatching()) {
-        _toAddedListeners.push_back(std::move(entry));
+        _toAddedListeners.push_back(mstd::move(entry));
         return;
     }
 
-    forceAddEventListener(std::move(entry));
+    forceAddEventListener(mstd::move(entry));
 }
 
 void EventDispatcher::forceAddEventListener(ListenerEntry entry) {
@@ -235,10 +234,10 @@ void EventDispatcher::forceAddEventListener(ListenerEntry entry) {
 
     auto& listeners = _listenerMap[getListenerID(entry.listener->getType())];
     if (entry.priority == 0) {
-        listeners._nodeListeners.push_back(std::move(entry));
+        listeners._nodeListeners.push_back(mstd::move(entry));
         listeners._dirtyNodePriority = true;
     } else {
-        listeners._fixedListeners.push_back(std::move(entry));
+        listeners._fixedListeners.push_back(mstd::move(entry));
         listeners._dirtyFixedPriority = true;
     }
 }
@@ -252,7 +251,7 @@ void EventDispatcher::updateListeners() {
         for (auto& listener : _toAddedListeners) {
             const bool sceneGraphValid = (listener.priority != 0) || (listener.target != nullptr);
             if (!listener.removed && listener.listener && sceneGraphValid) {
-                forceAddEventListener(std::move(listener));
+                forceAddEventListener(mstd::move(listener));
             } else {
                 releaseListenerEntry(listener);
             }
@@ -266,11 +265,11 @@ void EventDispatcher::updateListeners() {
 
 void EventDispatcher::sortEventListeners(EventListenerVector& listeners) {
     if (listeners._dirtyFixedPriority) {
-        std::stable_sort(
+        mstd::stable_sort(
             listeners._fixedListeners.begin(), listeners._fixedListeners.end(),
             [](const ListenerEntry& a, const ListenerEntry& b) { return a.priority < b.priority; });
 
-        std::size_t index = 0;
+        mstd::size_t index = 0;
         while (index < listeners._fixedListeners.size() &&
                listeners._fixedListeners[index].priority < 0) {
             ++index;
@@ -289,7 +288,7 @@ void EventDispatcher::sortEventListeners(EventListenerVector& listeners) {
             visitTarget(rootNode);
         }
 
-        std::stable_sort(listeners._nodeListeners.begin(), listeners._nodeListeners.end(),
+        mstd::stable_sort(listeners._nodeListeners.begin(), listeners._nodeListeners.end(),
                          [this](const ListenerEntry& a, const ListenerEntry& b) {
                              return _nodePriorityMap[a.target] > _nodePriorityMap[b.target];
                          });
@@ -312,10 +311,10 @@ void EventDispatcher::visitTarget(Node* node) {
 
 bool EventDispatcher::dispatchEventToListeners(EventListenerVector& listeners,
                                                const ListenerEvent& onEvent) {
-    auto dispatchRange = [&onEvent](ListenerVector& entries, std::size_t begin, std::size_t end,
+    auto dispatchRange = [&onEvent](ListenerVector& entries, mstd::size_t begin, mstd::size_t end,
                                     bool nodePriority) {
-        const std::size_t clampedEnd = std::min(end, entries.size());
-        for (std::size_t i = begin; i < clampedEnd; ++i) {
+        const mstd::size_t clampedEnd = mstd::min(end, entries.size());
+        for (mstd::size_t i = begin; i < clampedEnd; ++i) {
             auto& listenerEntry = entries[i];
             if (listenerEntry.removed || !listenerEntry.listener) {
                 continue;

@@ -4,7 +4,7 @@
 #include "base/ZCEventDispatcher.h"
 
 #include <cstdint>
-#include <functional>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -14,7 +14,7 @@ namespace ui {
 
 class Widget : public Node {
 public:
-    using EventCallback = std::function<void(Widget&)>;
+    using EventCallback = mstd::function<void(Widget&)>;
 
     ~Widget() override;
 

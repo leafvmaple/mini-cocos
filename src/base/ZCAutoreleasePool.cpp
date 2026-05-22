@@ -1,15 +1,15 @@
 #include "base/ZCAutoreleasePool.h"
 
 #include <cassert>
-#include <utility>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
-AutoreleasePool::AutoreleasePool(std::string name)
-    : AutoreleasePool(std::move(name), true) {}
+AutoreleasePool::AutoreleasePool(mstd::string name)
+    : AutoreleasePool(mstd::move(name), true) {}
 
-AutoreleasePool::AutoreleasePool(std::string name, bool managedByPoolManager)
-    : _name(std::move(name)), _managedByPoolManager(managedByPoolManager) {
+AutoreleasePool::AutoreleasePool(mstd::string name, bool managedByPoolManager)
+    : _name(mstd::move(name)), _managedByPoolManager(managedByPoolManager) {
     if (_managedByPoolManager) {
         PoolManager::getInstance().push(this);
     }
@@ -30,7 +30,7 @@ void AutoreleasePool::addObject(Ref* object) {
 }
 
 void AutoreleasePool::clear() {
-    auto releasing = std::move(_managedObjects);
+    auto releasing = mstd::move(_managedObjects);
     _managedObjects.clear();
     for (auto* object : releasing) {
         object->release();

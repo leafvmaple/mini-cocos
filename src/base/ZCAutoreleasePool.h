@@ -3,8 +3,7 @@
 #include "base/ZCRef.h"
 
 #include <cstddef>
-#include <string>
-#include <vector>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -12,23 +11,23 @@ class PoolManager;
 
 class AutoreleasePool {
 public:
-    explicit AutoreleasePool(std::string name = "autorelease pool");
+    explicit AutoreleasePool(mstd::string name = "autorelease pool");
     ~AutoreleasePool();
 
     void addObject(Ref* object);
     void clear();
 
-    const std::string& getName() const { return _name; }
-    std::size_t size() const { return _managedObjects.size(); }
+    const mstd::string& getName() const { return _name; }
+    mstd::size_t size() const { return _managedObjects.size(); }
 
 private:
     friend class PoolManager;
 
-    AutoreleasePool(std::string name, bool managedByPoolManager);
+    AutoreleasePool(mstd::string name, bool managedByPoolManager);
 
-    std::string _name;
+    mstd::string _name;
     bool _managedByPoolManager = true;
-    std::vector<Ref*> _managedObjects;
+    mstd::vector<Ref*> _managedObjects;
 };
 
 class PoolManager {
@@ -46,7 +45,7 @@ private:
     ~PoolManager();
 
     AutoreleasePool _rootPool;
-    std::vector<AutoreleasePool*> _poolStack;
+    mstd::vector<AutoreleasePool*> _poolStack;
 };
 
 } // namespace zocos

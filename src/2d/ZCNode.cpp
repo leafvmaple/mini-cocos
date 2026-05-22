@@ -4,19 +4,17 @@
 #include "base/ZCDirector.h"
 #include "base/ZCRenderer.h"
 
-#include <algorithm>
+#include "base/ZCStd.h"
 #include <cassert>
-#include <new>
-#include <utility>
 
 namespace zocos {
 
 namespace {
-std::size_t sGlobalOrderOfArrival = 1;
+mstd::size_t sGlobalOrderOfArrival = 1;
 }
 
 Node* Node::create() {
-    auto* node = new (std::nothrow) Node();
+    auto* node = new (mstd::nothrow) Node();
     if (node && node->init()) {
         node->autorelease();
         return node;
@@ -58,19 +56,19 @@ void Node::onExit() {
     _running = false;
 }
 
-void Node::schedule(const std::string& key, ScheduleCallback callback, float interval, int repeat,
+void Node::schedule(const mstd::string& key, ScheduleCallback callback, float interval, int repeat,
                     float delay, int priority) {
-    Director::getInstance().getScheduler().schedule(this, key, std::move(callback), interval,
+    Director::getInstance().getScheduler().schedule(this, key, mstd::move(callback), interval,
                                                     repeat, delay, priority);
 }
 
-void Node::scheduleOnce(const std::string& key, ScheduleCallback callback, float delay,
+void Node::scheduleOnce(const mstd::string& key, ScheduleCallback callback, float delay,
                         int priority) {
-    Director::getInstance().getScheduler().scheduleOnce(this, key, std::move(callback), delay,
+    Director::getInstance().getScheduler().scheduleOnce(this, key, mstd::move(callback), delay,
                                                         priority);
 }
 
-void Node::unschedule(const std::string& key) {
+void Node::unschedule(const mstd::string& key) {
     Director::getInstance().getScheduler().unschedule(this, key);
 }
 
@@ -96,7 +94,7 @@ void Node::sortAllChildren() {
         return;
     }
 
-    std::stable_sort(_children.begin(), _children.end(), [](const Node* a, const Node* b) {
+    mstd::stable_sort(_children.begin(), _children.end(), [](const Node* a, const Node* b) {
         return a->_orderOfArrival < b->_orderOfArrival;
     });
 

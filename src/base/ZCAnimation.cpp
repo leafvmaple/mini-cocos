@@ -1,20 +1,19 @@
 #include "base/ZCAnimation.h"
 
-#include <algorithm>
-#include <new>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
-Animation::Animation(const std::vector<Rect>& frames, float delayPerFrame)
-    : _frames(frames), _delayPerFrame(std::max(0.f, delayPerFrame)) {
+Animation::Animation(const mstd::vector<Rect>& frames, float delayPerFrame)
+    : _frames(frames), _delayPerFrame(mstd::max(0.f, delayPerFrame)) {
 }
 
-Animation* Animation::create(const std::vector<Rect>& frames, float delayPerFrame) {
+Animation* Animation::create(const mstd::vector<Rect>& frames, float delayPerFrame) {
     if (frames.empty()) {
         return nullptr;
     }
 
-    auto* animation = new (std::nothrow) Animation(frames, delayPerFrame);
+    auto* animation = new (mstd::nothrow) Animation(frames, delayPerFrame);
     if (animation) {
         animation->autorelease();
         return animation;

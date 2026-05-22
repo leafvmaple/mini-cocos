@@ -1,11 +1,11 @@
 #include "base/ZCEventListener.h"
 
-#include <new>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
 EventListenerMouse* EventListenerMouse::create() {
-    auto* listener = new (std::nothrow) EventListenerMouse();
+    auto* listener = new (mstd::nothrow) EventListenerMouse();
     if (listener && listener->init()) {
         listener->autorelease();
         return listener;

@@ -8,8 +8,7 @@
 #include <stb_image.h>
 
 #include <cstdio>
-#include <limits>
-#include <vector>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -19,7 +18,7 @@ bool TextureCache::acquireFromFile(Director& director, const char* path, Texture
         return false;
     }
 
-    const std::string key = std::string("file://") + path;
+    const mstd::string key = mstd::string("file://") + path;
     const auto it = _entriesByKey.find(key);
     if (it != _entriesByKey.end()) {
         it->second.refCount += 1;
@@ -31,13 +30,13 @@ bool TextureCache::acquireFromFile(Director& director, const char* path, Texture
     int width = 0;
     int height = 0;
     int channels = 0;
-    std::vector<unsigned char> encodedBytes;
+    mstd::vector<unsigned char> encodedBytes;
     if (!FileUtils::getInstance().getDataFromFile(path, encodedBytes) || encodedBytes.empty()) {
         std::fprintf(stderr, "readBinaryFile failed: %s\n", path);
         return false;
     }
 
-    if (encodedBytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    if (encodedBytes.size() > static_cast<mstd::size_t>(mstd::numeric_limits<int>::max())) {
         std::fprintf(stderr, "Image file is too large: %s\n", path);
         return false;
     }
@@ -58,7 +57,7 @@ bool TextureCache::acquireFromFile(Director& director, const char* path, Texture
 bool TextureCache::acquireCheckerboard(Director& director, int size, TextureHandle& outTexture,
                                        Size& outPixelSize) {
     const int dimension = size > 0 ? size : 64;
-    const std::string key = "builtin://checkerboard/" + std::to_string(dimension);
+    const mstd::string key = "builtin://checkerboard/" + mstd::to_string(dimension);
 
     const auto it = _entriesByKey.find(key);
     if (it != _entriesByKey.end()) {
@@ -68,7 +67,7 @@ bool TextureCache::acquireCheckerboard(Director& director, int size, TextureHand
         return true;
     }
 
-    std::vector<unsigned char> pixels(static_cast<std::size_t>(dimension * dimension * 4));
+    mstd::vector<unsigned char> pixels(static_cast<mstd::size_t>(dimension * dimension * 4));
     for (int y = 0; y < dimension; ++y) {
         for (int x = 0; x < dimension; ++x) {
             const bool checker = ((x / 8) + (y / 8)) % 2 == 0;
@@ -77,7 +76,7 @@ bool TextureCache::acquireCheckerboard(Director& director, int size, TextureHand
             const unsigned char g = static_cast<unsigned char>((base + y * 5) % 256);
             const unsigned char b = static_cast<unsigned char>(checker ? 180 : 110);
 
-            const std::size_t index = static_cast<std::size_t>((y * dimension + x) * 4);
+            const mstd::size_t index = static_cast<mstd::size_t>((y * dimension + x) * 4);
             pixels[index + 0] = r;
             pixels[index + 1] = g;
             pixels[index + 2] = b;
@@ -150,7 +149,7 @@ void TextureCache::removeAllTextures(Director& director) {
     _keyByTexture.clear();
 }
 
-bool TextureCache::uploadFromPixels(Director& director, const std::string& key, int width, int height,
+bool TextureCache::uploadFromPixels(Director& director, const mstd::string& key, int width, int height,
                                     const unsigned char* pixels, int rowPitchBytes,
                                     TextureDataOrigin origin, TextureHandle& outTexture,
                                     Size& outPixelSize) {

@@ -4,8 +4,7 @@
 #include "base/ZCRenderer.h"
 #include "base/ZCTextureCache.h"
 
-#include <algorithm>
-#include <new>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -23,13 +22,13 @@ Rect sanitizeRect(const Rect& rect, const Size& textureSize) {
         clamped.height = -clamped.height;
     }
 
-    clamped.x = std::clamp(clamped.x, 0.f, textureSize.width);
-    clamped.y = std::clamp(clamped.y, 0.f, textureSize.height);
+    clamped.x = mstd::clamp(clamped.x, 0.f, textureSize.width);
+    clamped.y = mstd::clamp(clamped.y, 0.f, textureSize.height);
 
-    const float maxX = std::clamp(clamped.x + clamped.width, 0.f, textureSize.width);
-    const float maxY = std::clamp(clamped.y + clamped.height, 0.f, textureSize.height);
-    clamped.width = std::max(0.f, maxX - clamped.x);
-    clamped.height = std::max(0.f, maxY - clamped.y);
+    const float maxX = mstd::clamp(clamped.x + clamped.width, 0.f, textureSize.width);
+    const float maxY = mstd::clamp(clamped.y + clamped.height, 0.f, textureSize.height);
+    clamped.width = mstd::max(0.f, maxX - clamped.x);
+    clamped.height = mstd::max(0.f, maxY - clamped.y);
     return clamped;
 }
 
@@ -56,7 +55,7 @@ Sprite::Sprite(Director& director) : _director(director) {
 }
 
 Sprite* Sprite::create(Director& director) {
-    auto* sprite = new (std::nothrow) Sprite(director);
+    auto* sprite = new (mstd::nothrow) Sprite(director);
     if (sprite && sprite->init()) {
         sprite->autorelease();
         return sprite;

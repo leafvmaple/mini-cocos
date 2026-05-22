@@ -1,11 +1,11 @@
 #include "base/ZCFontCache.h"
 
-#include <utility>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
-bool FontCache::acquireFromFile(const std::string& path, Font*& outFont) {
-    const std::string resolvedPath = Font::resolveFontPath(path);
+bool FontCache::acquireFromFile(const mstd::string& path, Font*& outFont) {
+    const mstd::string resolvedPath = Font::resolveFontPath(path);
     if (resolvedPath.empty()) {
         return false;
     }
@@ -23,7 +23,7 @@ bool FontCache::acquireFromFile(const std::string& path, Font*& outFont) {
     }
     entry.refCount = 1;
 
-    auto [insertedIt, inserted] = _entriesByKey.emplace(resolvedPath, std::move(entry));
+    auto [insertedIt, inserted] = _entriesByKey.emplace(resolvedPath, mstd::move(entry));
     if (!inserted) {
         return false;
     }

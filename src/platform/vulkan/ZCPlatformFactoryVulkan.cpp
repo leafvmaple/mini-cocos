@@ -4,20 +4,20 @@
 #include "platform/vulkan/ZCVulkanViewImpl.h"
 
 #include <cstdio>
-#include <memory>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
-std::unique_ptr<View> createDefaultView() { return std::make_unique<VulkanViewImpl>(); }
+mstd::unique_ptr<View> createDefaultView() { return mstd::make_unique<VulkanViewImpl>(); }
 
-std::unique_ptr<RenderDevice> createDefaultRenderDevice(View& view) {
+mstd::unique_ptr<RenderDevice> createDefaultRenderDevice(View& view) {
     auto* vkView = dynamic_cast<VulkanViewImpl*>(&view);
     if (!vkView) {
         std::fprintf(stderr, "Vulkan backend requires VulkanViewImpl.\n");
         return {};
     }
 
-    auto renderDevice = std::make_unique<RenderDeviceVulkan>(vkView->window());
+    auto renderDevice = mstd::make_unique<RenderDeviceVulkan>(vkView->window());
     if (!renderDevice->isReady()) {
         return {};
     }

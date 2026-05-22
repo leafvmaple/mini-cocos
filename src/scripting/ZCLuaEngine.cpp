@@ -10,8 +10,7 @@ extern "C" {
 }
 
 #include <cstdio>
-#include <string>
-#include <vector>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -34,7 +33,7 @@ void setScriptArgs(lua_State* state, const char* scriptPath, int argc, char** ar
     lua_setglobal(state, "arg");
 }
 
-void appendPackagePath(lua_State* state, const std::string& pattern) {
+void appendPackagePath(lua_State* state, const mstd::string& pattern) {
     if (pattern.empty()) {
         return;
     }
@@ -48,8 +47,8 @@ void appendPackagePath(lua_State* state, const std::string& pattern) {
     lua_getfield(state, -1, "path");
     const char* currentPath = lua_tostring(state, -1);
 
-    std::string mergedPath = currentPath ? currentPath : "";
-    if (mergedPath.find(pattern) == std::string::npos) {
+    mstd::string mergedPath = currentPath ? currentPath : "";
+    if (mergedPath.find(pattern) == mstd::string::npos) {
         if (!mergedPath.empty()) {
             mergedPath.push_back(';');
         }
@@ -96,14 +95,14 @@ bool LuaEngine::executeScriptFile(const char* scriptPath, int argc, char** argv)
         return false;
     }
 
-    const std::string scriptDir = FileUtils::getInstance().parentPath(scriptPath);
+    const mstd::string scriptDir = FileUtils::getInstance().parentPath(scriptPath);
     if (!scriptDir.empty()) {
         appendPackagePath(_state, scriptDir + "/?.lua");
     }
 
     setScriptArgs(_state, scriptPath, argc, argv);
 
-    std::vector<unsigned char> chunkBytes;
+    mstd::vector<unsigned char> chunkBytes;
     if (!FileUtils::getInstance().getDataFromFile(scriptPath, chunkBytes)) {
         std::fprintf(stderr, "Lua read error: %s\n", scriptPath);
         return false;

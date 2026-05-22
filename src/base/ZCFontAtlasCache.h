@@ -1,7 +1,6 @@
 #pragma once
 
-#include <string>
-#include <unordered_map>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -30,15 +29,15 @@ public:
     FontAtlasCache(const FontAtlasCache&) = delete;
     FontAtlasCache& operator=(const FontAtlasCache&) = delete;
 
-    FontAtlas* getFontAtlasTTF(const std::string& fontPath, float fontSize);
+    FontAtlas* getFontAtlasTTF(const mstd::string& fontPath, float fontSize);
 
     void removeAllFontAtlas();
 
 private:
-    static std::string makeKey(const std::string& fontPath, float fontSize);
+    static mstd::string makeKey(const mstd::string& fontPath, float fontSize);
 
     Director& _director;
-    std::unordered_map<std::string, FontAtlas*> _atlases;
+    mstd::unordered_map<mstd::string, FontAtlas*> _atlases;
 };
 
 } // namespace zocos

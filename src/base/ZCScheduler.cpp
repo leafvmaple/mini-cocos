@@ -2,12 +2,11 @@
 
 #include "2d/ZCNode.h"
 
-#include <algorithm>
-#include <utility>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
-void Scheduler::schedule(Node* target, const std::string& key, Callback callback, float interval, int repeat,
+void Scheduler::schedule(Node* target, const mstd::string& key, Callback callback, float interval, int repeat,
                          float delay, int priority) {
     if (!target || key.empty() || !callback) {
         return;
@@ -18,7 +17,7 @@ void Scheduler::schedule(Node* target, const std::string& key, Callback callback
     const int safeRepeat = repeat < RepeatForever ? RepeatForever : repeat;
 
     auto refreshEntry = [&](Entry& entry) {
-        entry.callback = std::move(callback);
+        entry.callback = mstd::move(callback);
         entry.interval = safeInterval;
         entry.delay = safeDelay;
         entry.elapsed = 0.f;
@@ -46,7 +45,7 @@ void Scheduler::schedule(Node* target, const std::string& key, Callback callback
     Entry entry;
     entry.target = target;
     entry.key = key;
-    entry.callback = std::move(callback);
+    entry.callback = mstd::move(callback);
     entry.interval = safeInterval;
     entry.delay = safeDelay;
     entry.elapsed = 0.f;
@@ -57,20 +56,20 @@ void Scheduler::schedule(Node* target, const std::string& key, Callback callback
     entry.cancelled = false;
 
     if (_updating) {
-        _pendingEntries.push_back(std::move(entry));
+        _pendingEntries.push_back(mstd::move(entry));
         return;
     }
 
-    _entries.push_back(std::move(entry));
+    _entries.push_back(mstd::move(entry));
     _dirtyOrder = true;
 }
 
-void Scheduler::scheduleOnce(Node* target, const std::string& key, Callback callback, float delay,
+void Scheduler::scheduleOnce(Node* target, const mstd::string& key, Callback callback, float delay,
                              int priority) {
-    schedule(target, key, std::move(callback), 0.f, 0, delay, priority);
+    schedule(target, key, mstd::move(callback), 0.f, 0, delay, priority);
 }
 
-void Scheduler::unschedule(Node* target, const std::string& key) {
+void Scheduler::unschedule(Node* target, const mstd::string& key) {
     if (!target || key.empty()) {
         return;
     }
@@ -89,12 +88,12 @@ void Scheduler::unschedule(Node* target, const std::string& key) {
         return;
     }
 
-    _entries.erase(std::remove_if(_entries.begin(), _entries.end(),
+    _entries.erase(mstd::remove_if(_entries.begin(), _entries.end(),
                                   [target, &key](const Entry& entry) {
                                       return entry.target == target && entry.key == key;
                                   }),
                    _entries.end());
-    _pendingEntries.erase(std::remove_if(_pendingEntries.begin(), _pendingEntries.end(),
+    _pendingEntries.erase(mstd::remove_if(_pendingEntries.begin(), _pendingEntries.end(),
                                          [target, &key](const Entry& entry) {
                                              return entry.target == target && entry.key == key;
                                          }),
@@ -120,10 +119,10 @@ void Scheduler::unscheduleAllForTarget(Node* target) {
         return;
     }
 
-    _entries.erase(std::remove_if(_entries.begin(), _entries.end(),
+    _entries.erase(mstd::remove_if(_entries.begin(), _entries.end(),
                                   [target](const Entry& entry) { return entry.target == target; }),
                    _entries.end());
-    _pendingEntries.erase(std::remove_if(_pendingEntries.begin(), _pendingEntries.end(),
+    _pendingEntries.erase(mstd::remove_if(_pendingEntries.begin(), _pendingEntries.end(),
                                          [target](const Entry& entry) { return entry.target == target; }),
                           _pendingEntries.end());
 }
@@ -135,7 +134,7 @@ void Scheduler::mergePendingEntries() {
 
     for (auto& entry : _pendingEntries) {
         if (!entry.cancelled) {
-            _entries.push_back(std::move(entry));
+            _entries.push_back(mstd::move(entry));
             _dirtyOrder = true;
         }
     }
@@ -147,7 +146,7 @@ void Scheduler::sortEntriesIfNeeded() {
         return;
     }
 
-    std::sort(_entries.begin(), _entries.end(), [](const Entry& a, const Entry& b) {
+    mstd::sort(_entries.begin(), _entries.end(), [](const Entry& a, const Entry& b) {
         if (a.priority != b.priority) {
             return a.priority < b.priority;
         }
@@ -205,7 +204,7 @@ void Scheduler::update(float dt) {
     }
     _updating = false;
 
-    _entries.erase(std::remove_if(_entries.begin(), _entries.end(),
+    _entries.erase(mstd::remove_if(_entries.begin(), _entries.end(),
                                   [](const Entry& entry) {
                                       return entry.cancelled || !entry.target || !entry.target->isRunning();
                                   }),
@@ -215,8 +214,8 @@ void Scheduler::update(float dt) {
     sortEntriesIfNeeded();
 }
 
-std::size_t Scheduler::getScheduledCount() const {
-    std::size_t count = 0;
+mstd::size_t Scheduler::getScheduledCount() const {
+    mstd::size_t count = 0;
     for (const auto& entry : _entries) {
         if (!entry.cancelled && entry.target) {
             ++count;

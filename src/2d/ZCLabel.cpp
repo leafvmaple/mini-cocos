@@ -6,19 +6,18 @@
 #include "base/ZCRenderer.h"
 #include "base/ZCStringUtils.h"
 
-#include <algorithm>
+#include "base/ZCStd.h"
 #include <cmath>
-#include <new>
 
 namespace zocos {
 
 Label::Label(Director& director) : _director(director) {}
 
-Label* Label::createWithTTF(Director& director, const std::string& text,
-                            const std::string& fontPath, float fontSize) {
-    auto* label = new (std::nothrow) Label(director);
+Label* Label::createWithTTF(Director& director, const mstd::string& text,
+                            const mstd::string& fontPath, float fontSize) {
+    auto* label = new (mstd::nothrow) Label(director);
     if (label && label->init()) {
-        label->_fontSize = std::max(1.f, fontSize);
+        label->_fontSize = mstd::max(1.f, fontSize);
         auto* atlas = director.getFontAtlasCache().getFontAtlasTTF(fontPath, label->_fontSize);
         if (atlas && label->setFontAtlas(atlas)) {
             label->setString(text);
@@ -45,7 +44,7 @@ bool Label::init() {
     return true;
 }
 
-void Label::setString(const std::string& text) {
+void Label::setString(const mstd::string& text) {
     if (_text == text) {
         return;
     }
@@ -73,7 +72,7 @@ bool Label::setFontAtlas(FontAtlas* fontAtlas) {
     return true;
 }
 
-bool Label::setTTF(const std::string& fontPath) {
+bool Label::setTTF(const mstd::string& fontPath) {
     if (_fontAtlas && _fontPath == fontPath &&
         std::fabs(_fontSize - _fontAtlas->getFontSize()) <= 1e-4f) {
         return true;
@@ -87,7 +86,7 @@ bool Label::setTTF(const std::string& fontPath) {
 }
 
 void Label::setFontSize(float fontSize) {
-    const float clampedSize = std::max(1.f, fontSize);
+    const float clampedSize = mstd::max(1.f, fontSize);
     if (std::fabs(_fontSize - clampedSize) <= 1e-4f) {
         return;
     }
@@ -100,7 +99,7 @@ void Label::setFontSize(float fontSize) {
 }
 
 void Label::setMaxLineWidth(float maxLineWidth) {
-    const float clamped = std::max(0.f, maxLineWidth);
+    const float clamped = mstd::max(0.f, maxLineWidth);
     if (std::fabs(_maxLineWidth - clamped) <= 1e-4f) {
         return;
     }
@@ -148,7 +147,7 @@ bool Label::updateContent() {
 
 void Label::computeHorizontalKernings() {
     _horizontalKernings.assign(_utf32Text.size(), 0.f);
-    for (std::size_t i = 1; i < _utf32Text.size(); ++i) {
+    for (mstd::size_t i = 1; i < _utf32Text.size(); ++i) {
         _horizontalKernings[i] =
             _fontAtlas->getHorizontalKerningForChars(_utf32Text[i - 1], _utf32Text[i]);
     }
@@ -165,7 +164,7 @@ void Label::multilineTextWrap() {
     float penX = 0.f;
     float maxLineWidth = 0.f;
 
-    for (std::size_t i = 0; i < _utf32Text.size(); ++i) {
+    for (mstd::size_t i = 0; i < _utf32Text.size(); ++i) {
         const char32_t cp = _utf32Text[i];
 
         if (cp == U'\r') {
@@ -174,7 +173,7 @@ void Label::multilineTextWrap() {
         }
         if (cp == U'\n') {
             recordLetterInfo(i, cp, penX, 0.f, 0, lineIndex);
-            maxLineWidth = std::max(maxLineWidth, penX);
+            maxLineWidth = mstd::max(maxLineWidth, penX);
             ++lineIndex;
             penX = 0.f;
             continue;
@@ -194,7 +193,7 @@ void Label::multilineTextWrap() {
         // wider than the limit still gets placed (cocos2d-x falls back to
         // char-break in that case too).
         if (wrapByWidth && penX > 0.f && (penX + kerning + advance) > _maxLineWidth) {
-            maxLineWidth = std::max(maxLineWidth, penX);
+            maxLineWidth = mstd::max(maxLineWidth, penX);
             ++lineIndex;
             penX = 0.f;
         }
@@ -213,9 +212,9 @@ void Label::multilineTextWrap() {
         penX += advance;
     }
 
-    maxLineWidth = std::max(maxLineWidth, penX);
-    _contentWidth = std::max(1.f, std::ceil(maxLineWidth));
-    _contentHeight = std::max(lineHeight, static_cast<float>(lineIndex + 1) * lineHeight);
+    maxLineWidth = mstd::max(maxLineWidth, penX);
+    _contentWidth = mstd::max(1.f, std::ceil(maxLineWidth));
+    _contentHeight = mstd::max(lineHeight, static_cast<float>(lineIndex + 1) * lineHeight);
 }
 
 void Label::alignText() {
@@ -227,7 +226,7 @@ void Label::alignText() {
     }
 }
 
-void Label::recordLetterInfo(std::size_t letterIndex, char32_t utf32Char, float positionX,
+void Label::recordLetterInfo(mstd::size_t letterIndex, char32_t utf32Char, float positionX,
                              float positionY, int atlasIndex, int lineIndex, bool valid) {
     LetterInfo& info = _lettersInfo[letterIndex];
     info.utf32Char = utf32Char;
@@ -240,7 +239,7 @@ void Label::recordLetterInfo(std::size_t letterIndex, char32_t utf32Char, float 
 
 void Label::updateQuads() {
     const int pageCount = _fontAtlas->getAtlasPageCount();
-    _quadsPerPage.assign(static_cast<std::size_t>(pageCount), {});
+    _quadsPerPage.assign(static_cast<mstd::size_t>(pageCount), {});
 
     const float atlasW = static_cast<float>(_fontAtlas->getAtlasWidth());
     const float atlasH = static_cast<float>(_fontAtlas->getAtlasHeight());
@@ -269,7 +268,7 @@ void Label::updateQuads() {
         const float vT = 1.f - def.V * invH;
         const float vB = 1.f - (def.V + def.height) * invH;
 
-        auto& quads = _quadsPerPage[static_cast<std::size_t>(def.textureID)];
+        auto& quads = _quadsPerPage[static_cast<mstd::size_t>(def.textureID)];
         const Color4B color{255, 255, 255, 255};
         quads.push_back({{xL, yB}, {uL, vB}, color});
         quads.push_back({{xR, yB}, {uR, vB}, color});
@@ -295,7 +294,7 @@ void Label::draw(Renderer& renderer, const Mat4& world) {
     const auto& textures = _fontAtlas->getTextures();
     const float opacity = getOpacity();
     if (opacity != _bakedOpacity) {
-        const float clamped = std::max(0.f, std::min(1.f, opacity));
+        const float clamped = mstd::max(0.f, mstd::min(1.f, opacity));
         const std::uint8_t alphaByte = static_cast<std::uint8_t>(clamped * 255.f + 0.5f);
         for (auto& quads : _quadsPerPage) {
             for (auto& v : quads) {
@@ -304,7 +303,7 @@ void Label::draw(Renderer& renderer, const Mat4& world) {
         }
         _bakedOpacity = opacity;
     }
-    for (std::size_t page = 0; page < _quadsPerPage.size() && page < textures.size(); ++page) {
+    for (mstd::size_t page = 0; page < _quadsPerPage.size() && page < textures.size(); ++page) {
         const auto& quads = _quadsPerPage[page];
         if (quads.empty()) {
             continue;

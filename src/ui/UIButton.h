@@ -3,7 +3,7 @@
 #include "base/ZCRenderCommand.h"
 #include "ui/UIWidget.h"
 
-#include <string>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -16,16 +16,16 @@ namespace ui {
 
 class Button : public Widget {
 public:
-    static Button* create(Director& director, const std::string& title = "");
+    static Button* create(Director& director, const mstd::string& title = "");
 
     ~Button() override;
 
     bool init() override;
 
-    void setString(const std::string& title);
-    const std::string& getString() const { return _title; }
+    void setString(const mstd::string& title);
+    const mstd::string& getString() const { return _title; }
 
-    bool setTitleFontName(const std::string& fontPath);
+    bool setTitleFontName(const mstd::string& fontPath);
     void setTitleFontSize(float fontSize);
 
     bool setFontAtlas(FontAtlas* fontAtlas);
@@ -44,7 +44,7 @@ private:
     TextureHandle _normalTexture{};
     TextureHandle _pressedTexture{};
     bool _ready = false;
-    std::string _title;
+    mstd::string _title;
     Label* _titleLabel = nullptr;
 };
 

@@ -2,7 +2,7 @@
 
 #include "base/ZCRenderDevice.h"
 
-#include <algorithm>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -36,7 +36,7 @@ void Renderer::addDrawSprite(const Mat4& world, const Size& contentSize, Texture
 }
 
 void Renderer::addDrawQuads(const Mat4& world, TextureHandle texture,
-                            const std::vector<QuadVertex>& vertices, float opacity,
+                            const mstd::vector<QuadVertex>& vertices, float opacity,
                             RenderSortKey sortKey) {
     if (!texture.isValid() || vertices.empty()) {
         return;
@@ -50,11 +50,11 @@ void Renderer::addDrawQuads(const Mat4& world, TextureHandle texture,
     cmd.quads.texture = texture;
     cmd.quads.vertices = vertices;
     cmd.quads.opacity = opacity;
-    _commands.push_back(std::move(cmd));
+    _commands.push_back(mstd::move(cmd));
 }
 
 void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebufferHeight) {
-    std::stable_sort(_commands.begin(), _commands.end(),
+    mstd::stable_sort(_commands.begin(), _commands.end(),
                      [](const RenderCommand& a, const RenderCommand& b) {
                          if (a.sortKey != b.sortKey) {
                              return a.sortKey < b.sortKey;
@@ -67,8 +67,8 @@ void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebuffer
     // each source quad's vertices into world space and emitting them with an
     // identity world matrix. Labels sharing one FontAtlas page collapse into
     // one draw call this way.
-    auto transformVerts = [](const Mat4& world, const std::vector<QuadVertex>& src,
-                             std::vector<QuadVertex>& dst) {
+    auto transformVerts = [](const Mat4& world, const mstd::vector<QuadVertex>& src,
+                             mstd::vector<QuadVertex>& dst) {
         dst.reserve(dst.size() + src.size());
         const float m0 = world.m[0];
         const float m1 = world.m[1];
@@ -86,7 +86,7 @@ void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebuffer
         }
     };
 
-    std::vector<RenderCommand> merged;
+    mstd::vector<RenderCommand> merged;
     merged.reserve(_commands.size());
     for (auto& command : _commands) {
         if (command.type == RenderCommandType::DrawQuads && !merged.empty() &&
@@ -106,10 +106,10 @@ void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebuffer
             out.quads.texture = command.quads.texture;
             out.quads.opacity = command.quads.opacity;
             transformVerts(command.quads.world, command.quads.vertices, out.quads.vertices);
-            merged.push_back(std::move(out));
+            merged.push_back(mstd::move(out));
             continue;
         }
-        merged.push_back(std::move(command));
+        merged.push_back(mstd::move(command));
     }
 
     device.beginFrame(_projection, framebufferWidth, framebufferHeight);

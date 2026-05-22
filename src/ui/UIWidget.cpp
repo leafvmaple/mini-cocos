@@ -6,8 +6,7 @@
 #include "base/ZCEventListener.h"
 
 #include <cmath>
-#include <utility>
-#include <vector>
+#include "base/ZCStd.h"
 
 namespace zocos::ui {
 
@@ -51,7 +50,7 @@ bool applyInverseNodeTransform(const Node* node, Vec2& point) {
 Vec2 worldToLocal(const Node* node, Vec2 point, bool& ok) {
     ok = true;
 
-    std::vector<const Node*> chain;
+    mstd::vector<const Node*> chain;
     for (const Node* current = node; current != nullptr; current = current->getParent()) {
         chain.push_back(current);
     }
@@ -87,7 +86,7 @@ void Widget::onExit() {
     Node::onExit();
 }
 
-void Widget::addEventListener(EventCallback callback) { _eventCallback = std::move(callback); }
+void Widget::addEventListener(EventCallback callback) { _eventCallback = mstd::move(callback); }
 
 bool Widget::hitTest(float worldX, float worldY) const {
     return containsWorldPoint(worldX, worldY);

@@ -1,13 +1,12 @@
 #include "base/ZCEventListener.h"
 
-#include <new>
-#include <utility>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
 EventListenerKeyboard* EventListenerKeyboard::create(Callback onPressed, Callback onReleased) {
-    auto* listener = new (std::nothrow) EventListenerKeyboard();
-    if (listener && listener->init(std::move(onPressed), std::move(onReleased))) {
+    auto* listener = new (mstd::nothrow) EventListenerKeyboard();
+    if (listener && listener->init(mstd::move(onPressed), mstd::move(onReleased))) {
         listener->autorelease();
         return listener;
     }
@@ -16,8 +15,8 @@ EventListenerKeyboard* EventListenerKeyboard::create(Callback onPressed, Callbac
 }
 
 bool EventListenerKeyboard::init(Callback onPressed, Callback onReleased) {
-    onKeyPressed = std::move(onPressed);
-    onKeyReleased = std::move(onReleased);
+    onKeyPressed = mstd::move(onPressed);
+    onKeyReleased = mstd::move(onReleased);
     return true;
 }
 

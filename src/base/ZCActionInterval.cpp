@@ -3,14 +3,13 @@
 #include "2d/ZCNode.h"
 #include "2d/ZCSprite.h"
 
-#include <algorithm>
-#include <new>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
 namespace {
 
-float clamp01(float value) { return std::clamp(value, 0.f, 1.f); }
+float clamp01(float value) { return mstd::clamp(value, 0.f, 1.f); }
 
 } // namespace
 
@@ -44,7 +43,7 @@ MoveTo::MoveTo(float duration, const Vec2& endPosition)
     : ActionInterval(duration), _endPosition(endPosition) {}
 
 MoveTo* MoveTo::create(float duration, const Vec2& endPosition) {
-    auto* action = new (std::nothrow) MoveTo(duration, endPosition);
+    auto* action = new (mstd::nothrow) MoveTo(duration, endPosition);
     if (action) {
         action->autorelease();
         return action;
@@ -67,7 +66,7 @@ MoveBy::MoveBy(float duration, const Vec2& deltaPosition)
     : ActionInterval(duration), _deltaPosition(deltaPosition) {}
 
 MoveBy* MoveBy::create(float duration, const Vec2& deltaPosition) {
-    auto* action = new (std::nothrow) MoveBy(duration, deltaPosition);
+    auto* action = new (mstd::nothrow) MoveBy(duration, deltaPosition);
     if (action) {
         action->autorelease();
         return action;
@@ -90,7 +89,7 @@ RotateTo::RotateTo(float duration, float endRotation)
     : ActionInterval(duration), _endRotation(endRotation) {}
 
 RotateTo* RotateTo::create(float duration, float endRotation) {
-    auto* action = new (std::nothrow) RotateTo(duration, endRotation);
+    auto* action = new (mstd::nothrow) RotateTo(duration, endRotation);
     if (action) {
         action->autorelease();
         return action;
@@ -111,7 +110,7 @@ RotateBy::RotateBy(float duration, float deltaRotation)
     : ActionInterval(duration), _deltaRotation(deltaRotation) {}
 
 RotateBy* RotateBy::create(float duration, float deltaRotation) {
-    auto* action = new (std::nothrow) RotateBy(duration, deltaRotation);
+    auto* action = new (mstd::nothrow) RotateBy(duration, deltaRotation);
     if (action) {
         action->autorelease();
         return action;
@@ -131,7 +130,7 @@ ScaleTo::ScaleTo(float duration, const Vec2& endScale)
     : ActionInterval(duration), _endScale(endScale) {}
 
 ScaleTo* ScaleTo::create(float duration, const Vec2& endScale) {
-    auto* action = new (std::nothrow) ScaleTo(duration, endScale);
+    auto* action = new (mstd::nothrow) ScaleTo(duration, endScale);
     if (action) {
         action->autorelease();
         return action;
@@ -154,7 +153,7 @@ ScaleBy::ScaleBy(float duration, const Vec2& deltaScale)
     : ActionInterval(duration), _deltaScale(deltaScale) {}
 
 ScaleBy* ScaleBy::create(float duration, const Vec2& deltaScale) {
-    auto* action = new (std::nothrow) ScaleBy(duration, deltaScale);
+    auto* action = new (mstd::nothrow) ScaleBy(duration, deltaScale);
     if (action) {
         action->autorelease();
         return action;
@@ -176,7 +175,7 @@ FadeTo::FadeTo(float duration, float endOpacity)
     : ActionInterval(duration), _endOpacity(clamp01(endOpacity)) {}
 
 FadeTo* FadeTo::create(float duration, float endOpacity) {
-    auto* action = new (std::nothrow) FadeTo(duration, endOpacity);
+    auto* action = new (mstd::nothrow) FadeTo(duration, endOpacity);
     if (action) {
         action->autorelease();
         return action;
@@ -196,7 +195,7 @@ void FadeTo::update(float t) { _target->setOpacity(_startOpacity + _deltaOpacity
 DelayTime::DelayTime(float duration) : ActionInterval(duration) {}
 
 DelayTime* DelayTime::create(float duration) {
-    auto* action = new (std::nothrow) DelayTime(duration);
+    auto* action = new (mstd::nothrow) DelayTime(duration);
     if (action) {
         action->autorelease();
         return action;
@@ -219,7 +218,7 @@ Animate* Animate::create(Animation* animation) {
         return nullptr;
     }
 
-    auto* animate = new (std::nothrow) Animate(animation);
+    auto* animate = new (mstd::nothrow) Animate(animation);
     if (animate) {
         animate->autorelease();
         return animate;
@@ -237,7 +236,7 @@ Animate::~Animate() {
 
 void Animate::startWithTarget(Node* target) {
     ActionInterval::startWithTarget(target);
-    _lastFrameIndex = static_cast<std::size_t>(-1);
+    _lastFrameIndex = static_cast<mstd::size_t>(-1);
     update(0.f);
 }
 
@@ -249,7 +248,7 @@ void Animate::update(float t) {
     }
 
     const float clamped = clamp01(t);
-    std::size_t index = static_cast<std::size_t>(clamped * static_cast<float>(frames.size()));
+    mstd::size_t index = static_cast<mstd::size_t>(clamped * static_cast<float>(frames.size()));
     if (index >= frames.size()) {
         index = frames.size() - 1;
     }

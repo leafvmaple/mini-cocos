@@ -4,8 +4,7 @@
 #include "math/ZCMath.h"
 
 #include <cstdint>
-#include <string>
-#include <unordered_map>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -22,7 +21,7 @@ public:
     void removeUnusedTextures(Director& director);
     void removeAllTextures(Director& director);
 
-    std::size_t getCachedTextureCount() const { return _entriesByKey.size(); }
+    mstd::size_t getCachedTextureCount() const { return _entriesByKey.size(); }
 
 private:
     struct Entry {
@@ -31,15 +30,15 @@ private:
         int refCount = 0;
     };
 
-    bool uploadFromPixels(Director& director, const std::string& key, int width, int height,
+    bool uploadFromPixels(Director& director, const mstd::string& key, int width, int height,
                           const unsigned char* pixels, int rowPitchBytes,
                           TextureDataOrigin origin, TextureHandle& outTexture,
                           Size& outPixelSize);
 
     Entry* findEntryByTexture(TextureHandle texture);
 
-    std::unordered_map<std::string, Entry> _entriesByKey;
-    std::unordered_map<std::uint32_t, std::string> _keyByTexture;
+    mstd::unordered_map<mstd::string, Entry> _entriesByKey;
+    mstd::unordered_map<std::uint32_t, mstd::string> _keyByTexture;
 };
 
 } // namespace zocos

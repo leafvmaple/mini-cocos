@@ -4,8 +4,7 @@
 #include "2d/ZCNode.h"
 
 #include <cstdint>
-#include <string>
-#include <vector>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -29,21 +28,21 @@ struct LetterInfo {
 
 class Label : public Node {
 public:
-    static Label* createWithTTF(Director& director, const std::string& text = "",
-                                const std::string& fontPath = "", float fontSize = 24.f);
+    static Label* createWithTTF(Director& director, const mstd::string& text = "",
+                                const mstd::string& fontPath = "", float fontSize = 24.f);
 
     ~Label() override;
 
     bool init() override;
 
-    void setString(const std::string& text);
-    const std::string& getString() const { return _text; }
+    void setString(const mstd::string& text);
+    const mstd::string& getString() const { return _text; }
 
     bool setFontAtlas(FontAtlas* fontAtlas);
     FontAtlas* getFontAtlas() const { return _fontAtlas; }
 
-    bool setTTF(const std::string& fontPath);
-    const std::string& getFontPath() const { return _fontPath; }
+    bool setTTF(const mstd::string& fontPath);
+    const mstd::string& getFontPath() const { return _fontPath; }
 
     void setFontSize(float fontSize);
     float getFontSize() const { return _fontSize; }
@@ -65,22 +64,22 @@ private:
     void computeHorizontalKernings();
     void multilineTextWrap();
     void alignText();
-    void recordLetterInfo(std::size_t letterIndex, char32_t utf32Char, float positionX,
+    void recordLetterInfo(mstd::size_t letterIndex, char32_t utf32Char, float positionX,
                           float positionY, int atlasIndex, int lineIndex, bool valid = false);
     void updateQuads();
     void resetLayoutState();
 
     Director& _director;
-    std::string _text;
+    mstd::string _text;
     std::u32string _utf32Text;
-    std::string _fontPath;
+    mstd::string _fontPath;
     float _fontSize = 24.f;
     float _maxLineWidth = 0.f;
     FontAtlas* _fontAtlas = nullptr;
 
-    std::vector<LetterInfo> _lettersInfo;
-    std::vector<float> _horizontalKernings;
-    std::vector<std::vector<QuadVertex>> _quadsPerPage;
+    mstd::vector<LetterInfo> _lettersInfo;
+    mstd::vector<float> _horizontalKernings;
+    mstd::vector<mstd::vector<QuadVertex>> _quadsPerPage;
 
     float _contentWidth = 0.f;
     float _contentHeight = 0.f;

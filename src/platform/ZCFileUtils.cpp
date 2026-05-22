@@ -6,7 +6,7 @@
 
 #include "platform/win32/ZCFileUtilsWin32.h"
 
-#include <algorithm>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -20,30 +20,30 @@ FileUtils& FileUtils::getInstance() {
     return instance;
 }
 
-bool FileUtils::getDataFromFile(const std::string& filename,
-                                std::vector<unsigned char>& outData) const {
+bool FileUtils::getDataFromFile(const mstd::string& filename,
+                                mstd::vector<unsigned char>& outData) const {
     return readBinaryFile(filename, outData);
 }
 
-std::string FileUtils::getStringFromFile(const std::string& filename) const {
-    std::vector<unsigned char> bytes;
+mstd::string FileUtils::getStringFromFile(const mstd::string& filename) const {
+    mstd::vector<unsigned char> bytes;
     if (!getDataFromFile(filename, bytes)) {
         return {};
     }
-    return std::string(bytes.begin(), bytes.end());
+    return mstd::string(bytes.begin(), bytes.end());
 }
 
-bool FileUtils::writeStringToFile(const std::string& dataStr, const std::string& fullPath) const {
+bool FileUtils::writeStringToFile(const mstd::string& dataStr, const mstd::string& fullPath) const {
     if (fullPath.empty()) {
         return false;
     }
 
-    const std::string normalizedPath = normalizePathImpl(fullPath);
+    const mstd::string normalizedPath = normalizePathImpl(fullPath);
     if (normalizedPath.empty()) {
         return false;
     }
 
-    const std::string dirPath = parentPathImpl(normalizedPath);
+    const mstd::string dirPath = parentPathImpl(normalizedPath);
     if (!dirPath.empty() && !isDirectoryExistImpl(dirPath) && !createDirectoryImpl(dirPath)) {
         return false;
     }
@@ -52,14 +52,14 @@ bool FileUtils::writeStringToFile(const std::string& dataStr, const std::string&
     return writeBinaryFileImpl(normalizedPath, bytes, dataStr.size());
 }
 
-bool FileUtils::readBinaryFile(const std::string& path,
-                               std::vector<unsigned char>& outData) const {
+bool FileUtils::readBinaryFile(const mstd::string& path,
+                               mstd::vector<unsigned char>& outData) const {
     outData.clear();
     if (path.empty()) {
         return false;
     }
 
-    const std::string fullPath = fullPathForFilename(path);
+    const mstd::string fullPath = fullPathForFilename(path);
     if (fullPath.empty()) {
         return false;
     }
@@ -67,27 +67,27 @@ bool FileUtils::readBinaryFile(const std::string& path,
     return readBinaryFileImpl(fullPath, outData);
 }
 
-std::string FileUtils::fullPathForFilename(const std::string& filename) const {
+mstd::string FileUtils::fullPathForFilename(const mstd::string& filename) const {
     if (filename.empty()) {
         return {};
     }
 
     if (isAbsolutePath(filename)) {
-        return isFileExistImpl(filename) ? normalizePathImpl(filename) : std::string{};
+        return isFileExistImpl(filename) ? normalizePathImpl(filename) : mstd::string{};
     }
 
     if (isFileExistImpl(filename)) {
         return normalizePathImpl(filename);
     }
 
-    for (const std::string& searchPath : _searchPaths) {
-        const std::string rootPath = _defaultResourceRootPath.empty()
+    for (const mstd::string& searchPath : _searchPaths) {
+        const mstd::string rootPath = _defaultResourceRootPath.empty()
                                          ? searchPath
                                          : joinPathImpl(_defaultResourceRootPath, searchPath);
-        for (const std::string& resolutionOrder : _searchResolutionsOrder) {
-            const std::string resolvedBasePath =
+        for (const mstd::string& resolutionOrder : _searchResolutionsOrder) {
+            const mstd::string resolvedBasePath =
                 resolutionOrder.empty() ? rootPath : joinPathImpl(rootPath, resolutionOrder);
-            const std::string candidatePath =
+            const mstd::string candidatePath =
                 resolvedBasePath.empty() ? filename : joinPathImpl(resolvedBasePath, filename);
             if (isFileExistImpl(candidatePath)) {
                 return normalizePathImpl(candidatePath);
@@ -98,97 +98,97 @@ std::string FileUtils::fullPathForFilename(const std::string& filename) const {
     return {};
 }
 
-std::string FileUtils::parentPath(const std::string& path) const {
+mstd::string FileUtils::parentPath(const mstd::string& path) const {
     if (path.empty()) {
         return {};
     }
     return parentPathImpl(normalizePathImpl(path));
 }
 
-bool FileUtils::isAbsolutePath(const std::string& path) const {
+bool FileUtils::isAbsolutePath(const mstd::string& path) const {
     if (path.empty()) {
         return false;
     }
     return isAbsolutePathImpl(path);
 }
 
-bool FileUtils::isFileExist(const std::string& path) const {
+bool FileUtils::isFileExist(const mstd::string& path) const {
     if (path.empty()) {
         return false;
     }
     return !fullPathForFilename(path).empty();
 }
 
-bool FileUtils::isDirectoryExist(const std::string& path) const {
+bool FileUtils::isDirectoryExist(const mstd::string& path) const {
     if (path.empty()) {
         return false;
     }
 
-    const std::string normalizedPath = normalizePathImpl(path);
+    const mstd::string normalizedPath = normalizePathImpl(path);
     if (normalizedPath.empty()) {
         return false;
     }
     return isDirectoryExistImpl(normalizedPath);
 }
 
-std::uintmax_t FileUtils::getFileSize(const std::string& path) const {
+std::uintmax_t FileUtils::getFileSize(const mstd::string& path) const {
     if (path.empty()) {
         return 0;
     }
 
-    const std::string fullPath = fullPathForFilename(path);
+    const mstd::string fullPath = fullPathForFilename(path);
     if (fullPath.empty()) {
         return 0;
     }
     return getFileSizeImpl(fullPath);
 }
 
-std::string FileUtils::getWritablePath() const {
+mstd::string FileUtils::getWritablePath() const {
     return getWritablePathImpl();
 }
 
-bool FileUtils::createDirectory(const std::string& dirPath) const {
+bool FileUtils::createDirectory(const mstd::string& dirPath) const {
     if (dirPath.empty()) {
         return false;
     }
     return createDirectoryImpl(normalizePathImpl(dirPath));
 }
 
-bool FileUtils::removeDirectory(const std::string& dirPath) const {
+bool FileUtils::removeDirectory(const mstd::string& dirPath) const {
     if (dirPath.empty()) {
         return false;
     }
     return removeDirectoryImpl(normalizePathImpl(dirPath));
 }
 
-bool FileUtils::removeFile(const std::string& path) const {
+bool FileUtils::removeFile(const mstd::string& path) const {
     if (path.empty()) {
         return false;
     }
 
-    const std::string fullPath = fullPathForFilename(path);
+    const mstd::string fullPath = fullPathForFilename(path);
     if (fullPath.empty()) {
         return false;
     }
     return removeFileImpl(fullPath);
 }
 
-bool FileUtils::renameFile(const std::string& oldPath, const std::string& newPath) const {
+bool FileUtils::renameFile(const mstd::string& oldPath, const mstd::string& newPath) const {
     if (oldPath.empty() || newPath.empty()) {
         return false;
     }
 
-    const std::string oldFullPath = fullPathForFilename(oldPath);
+    const mstd::string oldFullPath = fullPathForFilename(oldPath);
     if (oldFullPath.empty()) {
         return false;
     }
 
-    const std::string newFullPath = normalizePathImpl(newPath);
+    const mstd::string newFullPath = normalizePathImpl(newPath);
     if (newFullPath.empty()) {
         return false;
     }
 
-    const std::string parentDir = parentPathImpl(newFullPath);
+    const mstd::string parentDir = parentPathImpl(newFullPath);
     if (!parentDir.empty() && !isDirectoryExistImpl(parentDir) && !createDirectoryImpl(parentDir)) {
         return false;
     }
@@ -196,9 +196,9 @@ bool FileUtils::renameFile(const std::string& oldPath, const std::string& newPat
     return renameFileImpl(oldFullPath, newFullPath);
 }
 
-void FileUtils::setSearchPaths(const std::vector<std::string>& searchPaths) {
+void FileUtils::setSearchPaths(const mstd::vector<mstd::string>& searchPaths) {
     _searchPaths.clear();
-    for (const std::string& path : searchPaths) {
+    for (const mstd::string& path : searchPaths) {
         addSearchPath(path);
     }
 
@@ -207,17 +207,17 @@ void FileUtils::setSearchPaths(const std::vector<std::string>& searchPaths) {
     }
 }
 
-void FileUtils::addSearchPath(const std::string& path, bool front) {
+void FileUtils::addSearchPath(const mstd::string& path, bool front) {
     if (path.empty()) {
         return;
     }
 
-    const std::string normalizedPath = normalizePathImpl(path);
+    const mstd::string normalizedPath = normalizePathImpl(path);
     if (normalizedPath.empty()) {
         return;
     }
 
-    if (std::find(_searchPaths.begin(), _searchPaths.end(), normalizedPath) != _searchPaths.end()) {
+    if (mstd::find(_searchPaths.begin(), _searchPaths.end(), normalizedPath) != _searchPaths.end()) {
         return;
     }
 
@@ -228,14 +228,14 @@ void FileUtils::addSearchPath(const std::string& path, bool front) {
     }
 }
 
-const std::vector<std::string>& FileUtils::getSearchPaths() const {
+const mstd::vector<mstd::string>& FileUtils::getSearchPaths() const {
     return _searchPaths;
 }
 
 void FileUtils::setSearchResolutionsOrder(
-    const std::vector<std::string>& searchResolutionsOrder) {
+    const mstd::vector<mstd::string>& searchResolutionsOrder) {
     _searchResolutionsOrder.clear();
-    for (const std::string& order : searchResolutionsOrder) {
+    for (const mstd::string& order : searchResolutionsOrder) {
         addSearchResolutionsOrder(order);
     }
 
@@ -244,10 +244,10 @@ void FileUtils::setSearchResolutionsOrder(
     }
 }
 
-void FileUtils::addSearchResolutionsOrder(const std::string& order, bool front) {
-    const std::string normalizedOrder = normalizePathImpl(order);
+void FileUtils::addSearchResolutionsOrder(const mstd::string& order, bool front) {
+    const mstd::string normalizedOrder = normalizePathImpl(order);
     if (order.empty() || normalizedOrder.empty()) {
-        if (order.empty() && std::find(_searchResolutionsOrder.begin(), _searchResolutionsOrder.end(), "")
+        if (order.empty() && mstd::find(_searchResolutionsOrder.begin(), _searchResolutionsOrder.end(), "")
                                        == _searchResolutionsOrder.end()) {
             if (front) {
                 _searchResolutionsOrder.insert(_searchResolutionsOrder.begin(), "");
@@ -258,7 +258,7 @@ void FileUtils::addSearchResolutionsOrder(const std::string& order, bool front) 
         return;
     }
 
-    if (std::find(_searchResolutionsOrder.begin(), _searchResolutionsOrder.end(), normalizedOrder)
+    if (mstd::find(_searchResolutionsOrder.begin(), _searchResolutionsOrder.end(), normalizedOrder)
         != _searchResolutionsOrder.end()) {
         return;
     }
@@ -270,11 +270,11 @@ void FileUtils::addSearchResolutionsOrder(const std::string& order, bool front) 
     }
 }
 
-const std::vector<std::string>& FileUtils::getSearchResolutionsOrder() const {
+const mstd::vector<mstd::string>& FileUtils::getSearchResolutionsOrder() const {
     return _searchResolutionsOrder;
 }
 
-void FileUtils::setDefaultResourceRootPath(const std::string& path) {
+void FileUtils::setDefaultResourceRootPath(const mstd::string& path) {
     if (path.empty()) {
         _defaultResourceRootPath.clear();
         return;
@@ -283,7 +283,7 @@ void FileUtils::setDefaultResourceRootPath(const std::string& path) {
     _defaultResourceRootPath = normalizePathImpl(path);
 }
 
-const std::string& FileUtils::getDefaultResourceRootPath() const {
+const mstd::string& FileUtils::getDefaultResourceRootPath() const {
     return _defaultResourceRootPath;
 }
 

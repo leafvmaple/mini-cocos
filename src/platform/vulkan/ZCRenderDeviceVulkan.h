@@ -2,11 +2,9 @@
 
 #include "base/ZCRenderDevice.h"
 
-#include <array>
+#include "base/ZCStd.h"
 #include <cstddef>
 #include <cstdint>
-#include <unordered_map>
-#include <vector>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -55,8 +53,8 @@ private:
 
     struct SwapchainSupport {
         VkSurfaceCapabilitiesKHR capabilities{};
-        std::vector<VkSurfaceFormatKHR> formats;
-        std::vector<VkPresentModeKHR> presentModes;
+        mstd::vector<VkSurfaceFormatKHR> formats;
+        mstd::vector<VkPresentModeKHR> presentModes;
     };
 
     bool initVulkan();
@@ -73,7 +71,7 @@ private:
     bool createCommandBuffers();
     bool createSyncObjects();
     bool recreateSwapchain();
-    bool ensureVertexBuffer(std::size_t requiredSizeBytes);
+    bool ensureVertexBuffer(mstd::size_t requiredSizeBytes);
 
     void cleanupSwapchain();
     void cleanup();
@@ -81,7 +79,7 @@ private:
     void destroyGraphicsPipeline();
     void drawSprite(const DrawSpriteCommand& command);
     void drawQuads(const DrawQuadsCommand& command);
-    uint32_t appendQuadVertices(const QuadVertex* vertices, std::size_t vertexCount, float opacity);
+    uint32_t appendQuadVertices(const QuadVertex* vertices, mstd::size_t vertexCount, float opacity);
     void flushDrawCommands();
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
 
@@ -90,8 +88,8 @@ private:
     bool supportsSwapchain(VkPhysicalDevice device) const;
     bool supportsDeviceExtensions(VkPhysicalDevice device) const;
     SwapchainSupport querySwapchainSupport(VkPhysicalDevice device) const;
-    VkSurfaceFormatKHR chooseSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& formats) const;
-    VkPresentModeKHR choosePresentMode(const std::vector<VkPresentModeKHR>& presentModes) const;
+    VkSurfaceFormatKHR chooseSurfaceFormat(const mstd::vector<VkSurfaceFormatKHR>& formats) const;
+    VkPresentModeKHR choosePresentMode(const mstd::vector<VkPresentModeKHR>& presentModes) const;
     VkExtent2D chooseExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
 
     GLFWwindow* _window = nullptr;
@@ -111,31 +109,31 @@ private:
     VkSwapchainKHR _swapchain = VK_NULL_HANDLE;
     VkFormat _swapchainFormat = VK_FORMAT_UNDEFINED;
     VkExtent2D _swapchainExtent{};
-    std::vector<VkImage> _swapchainImages;
-    std::vector<VkImageView> _swapchainImageViews;
+    mstd::vector<VkImage> _swapchainImages;
+    mstd::vector<VkImageView> _swapchainImageViews;
     VkRenderPass _renderPass = VK_NULL_HANDLE;
     VkDescriptorSetLayout _textureDescriptorSetLayout = VK_NULL_HANDLE;
     VkDescriptorPool _textureDescriptorPool = VK_NULL_HANDLE;
     VkSampler _textureSampler = VK_NULL_HANDLE;
     VkPipelineLayout _pipelineLayout = VK_NULL_HANDLE;
     VkPipeline _graphicsPipeline = VK_NULL_HANDLE;
-    std::vector<VkFramebuffer> _framebuffers;
+    mstd::vector<VkFramebuffer> _framebuffers;
 
     VkCommandPool _commandPool = VK_NULL_HANDLE;
     VkBuffer _vertexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory _vertexBufferMemory = VK_NULL_HANDLE;
     VkDeviceSize _vertexBufferSize = 0;
     static constexpr uint32_t kMaxFramesInFlight = 2;
-    std::array<VkCommandBuffer, kMaxFramesInFlight> _commandBuffers{};
-    std::array<VkSemaphore, kMaxFramesInFlight> _imageAvailableSemaphores{};
-    std::array<VkSemaphore, kMaxFramesInFlight> _renderFinishedSemaphores{};
-    std::array<VkFence, kMaxFramesInFlight> _inFlightFences{};
+    mstd::array<VkCommandBuffer, kMaxFramesInFlight> _commandBuffers{};
+    mstd::array<VkSemaphore, kMaxFramesInFlight> _imageAvailableSemaphores{};
+    mstd::array<VkSemaphore, kMaxFramesInFlight> _renderFinishedSemaphores{};
+    mstd::array<VkFence, kMaxFramesInFlight> _inFlightFences{};
     uint32_t _currentFrame = 0;
     uint32_t _currentImageIndex = 0;
-    std::vector<VulkanVertex> _pendingVertices;
-    std::vector<PendingDraw> _pendingDraws;
+    mstd::vector<VulkanVertex> _pendingVertices;
+    mstd::vector<PendingDraw> _pendingDraws;
 
-    std::unordered_map<std::uint32_t, TextureResource> _textures;
+    mstd::unordered_map<std::uint32_t, TextureResource> _textures;
     std::uint32_t _nextTextureHandle = 1;
 };
 

@@ -3,8 +3,7 @@
 #include "2d/ZCNode.h"
 #include "base/ZCAction.h"
 
-#include <algorithm>
-#include <utility>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -18,7 +17,7 @@ void ActionManager::addAction(Action* action, Node* target) {
     entry.action->retain();
     entry.action->startWithTarget(entry.target);
 
-    addEntry(std::move(entry));
+    addEntry(mstd::move(entry));
 }
 
 void ActionManager::removeAction(Action* action) {
@@ -95,8 +94,8 @@ void ActionManager::update(float dt) {
     mergePendingEntries();
 }
 
-std::size_t ActionManager::getRunningActionCount() const {
-    std::size_t count = 0;
+mstd::size_t ActionManager::getRunningActionCount() const {
+    mstd::size_t count = 0;
     for (const auto& entry : _entries) {
         if (!entry.removed && entry.target && entry.action) {
             ++count;
@@ -112,10 +111,10 @@ std::size_t ActionManager::getRunningActionCount() const {
 
 void ActionManager::addEntry(Entry entry) {
     if (_updating) {
-        _pendingEntries.push_back(std::move(entry));
+        _pendingEntries.push_back(mstd::move(entry));
         return;
     }
-    _entries.push_back(std::move(entry));
+    _entries.push_back(mstd::move(entry));
 }
 
 void ActionManager::mergePendingEntries() {
@@ -125,7 +124,7 @@ void ActionManager::mergePendingEntries() {
 
     for (auto& pending : _pendingEntries) {
         if (!pending.removed && pending.target && pending.action) {
-            _entries.push_back(std::move(pending));
+            _entries.push_back(mstd::move(pending));
         } else {
             releaseEntry(pending);
         }

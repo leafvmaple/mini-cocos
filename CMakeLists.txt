@@ -18,6 +18,27 @@ if(NOT ZOCOS_RENDER_API_UPPER STREQUAL "VULKAN" AND
   message(FATAL_ERROR "ZOCOS_RENDER_API must be VULKAN or OPENGL")
 endif()
 
+# --- zstl (freestanding STL replacement) ------------------------------------
+# Tracked as a git submodule under third_party/zstl. Fallback to a sibling
+# checkout (../zstl) for local dev where both repos sit in the same workspace.
+set(ZSTL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstl"
+    CACHE PATH "Path to the zstl submodule / checkout")
+if(NOT EXISTS "${ZSTL_DIR}/CMakeLists.txt")
+  set(_zstl_sibling "${CMAKE_CURRENT_SOURCE_DIR}/../zstl")
+  if(EXISTS "${_zstl_sibling}/CMakeLists.txt")
+    message(STATUS "zstl: using sibling checkout at ${_zstl_sibling}")
+    set(ZSTL_DIR "${_zstl_sibling}")
+  else()
+    message(FATAL_ERROR
+      "zstl not found at ${ZSTL_DIR} or ${_zstl_sibling}. "
+      "Run: git submodule update --init --recursive")
+  endif()
+endif()
+add_subdirectory("${ZSTL_DIR}" "${CMAKE_BINARY_DIR}/zstl")
+
+option(ZOCOS_USE_SYS_STL
+       "Use the freestanding sys:: STL from zstl instead of host std::" OFF)
+
 include(FetchContent)
 FetchContent_Declare(
   glfw
@@ -140,7 +161,17 @@ target_include_directories(zocos PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
 )
 
-target_link_libraries(zocos PRIVATE glfw lua_static)
+target_link_libraries(zocos PRIVATE glfw lua_static zstl)
+
+# Pre-compiled header: the STL switcher. Pulls in either sys/* or std::* once
+# per translation unit, so source files just refer to `mstd::vector` etc.
+target_precompile_headers(zocos PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/base/ZCStd.h"
+)
+
+if(ZOCOS_USE_SYS_STL)
+  target_compile_definitions(zocos PRIVATE ZOCOS_USE_SYS_STL)
+endif()
 
 if(ZOCOS_RENDER_API_UPPER STREQUAL "OPENGL")
   target_link_libraries(zocos PRIVATE OpenGL::GL)

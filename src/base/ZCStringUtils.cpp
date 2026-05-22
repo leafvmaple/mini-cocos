@@ -2,7 +2,7 @@
 
 namespace zocos {
 
-bool StringUtils::UTF8ToUTF32(const std::string& utf8, std::u32string& outUtf32) {
+bool StringUtils::UTF8ToUTF32(const mstd::string& utf8, std::u32string& outUtf32) {
     outUtf32.clear();
     outUtf32.reserve(utf8.size());
 
@@ -12,7 +12,7 @@ bool StringUtils::UTF8ToUTF32(const std::string& utf8, std::u32string& outUtf32)
         ok = false;
     };
 
-    std::size_t i = 0;
+    mstd::size_t i = 0;
     while (i < utf8.size()) {
         const unsigned char c0 = static_cast<unsigned char>(utf8[i]);
         if (c0 < 0x80U) {

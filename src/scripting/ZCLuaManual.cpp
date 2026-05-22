@@ -1,4 +1,4 @@
-﻿#include "scripting/ZCLuaManual.h"
+#include "scripting/ZCLuaManual.h"
 
 #include "base/ZCAction.h"
 #include "base/ZCActionInterval.h"
@@ -18,9 +18,7 @@ extern "C" {
 
 #include <cstdio>
 #include <cstring>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -123,8 +121,8 @@ void node_to_luaval(lua_State* tolua_S, Node* node) {
     object_to_luaval(tolua_S, nodeMetatableForObject(node), node);
 }
 
-using LuaNodeScheduleRefs = std::unordered_map<Node*, std::unordered_map<std::string, int>>;
-using LuaWidgetEventRefs = std::unordered_map<ui::Widget*, int>;
+using LuaNodeScheduleRefs = mstd::unordered_map<Node*, mstd::unordered_map<mstd::string, int>>;
+using LuaWidgetEventRefs = mstd::unordered_map<ui::Widget*, int>;
 
 LuaNodeScheduleRefs& getLuaNodeScheduleRefs() {
     static LuaNodeScheduleRefs refs;
@@ -136,7 +134,7 @@ LuaWidgetEventRefs& getLuaWidgetEventRefs() {
     return refs;
 }
 
-int findLuaScheduleRef(Node* node, const std::string& key) {
+int findLuaScheduleRef(Node* node, const mstd::string& key) {
     auto& refs = getLuaNodeScheduleRefs();
     const auto nodeIt = refs.find(node);
     if (nodeIt == refs.end()) {
@@ -151,7 +149,7 @@ int findLuaScheduleRef(Node* node, const std::string& key) {
     return keyIt->second;
 }
 
-void setLuaScheduleRef(lua_State* tolua_S, Node* node, const std::string& key, int ref) {
+void setLuaScheduleRef(lua_State* tolua_S, Node* node, const mstd::string& key, int ref) {
     auto& refs = getLuaNodeScheduleRefs();
     auto& perNodeRefs = refs[node];
 
@@ -163,7 +161,7 @@ void setLuaScheduleRef(lua_State* tolua_S, Node* node, const std::string& key, i
     perNodeRefs[key] = ref;
 }
 
-void clearLuaScheduleRef(lua_State* tolua_S, Node* node, const std::string& key,
+void clearLuaScheduleRef(lua_State* tolua_S, Node* node, const mstd::string& key,
                          int expectedRef = LUA_NOREF) {
     auto& refs = getLuaNodeScheduleRefs();
     const auto nodeIt = refs.find(node);
@@ -262,14 +260,14 @@ int reportWrongArgCount(lua_State* tolua_S, const char* funcName, int argc, int 
 }
 
 template <typename T>
-std::vector<T*> luaval_to_object_array(lua_State* tolua_S, int index, const char* metatableName,
+mstd::vector<T*> luaval_to_object_array(lua_State* tolua_S, int index, const char* metatableName,
                                        const char* expectedMessage) {
     const int absIndex = lua_absindex(tolua_S, index);
     luaL_checktype(tolua_S, absIndex, LUA_TTABLE);
 
     const lua_Integer length = luaL_len(tolua_S, absIndex);
-    std::vector<T*> objects;
-    objects.reserve(static_cast<std::size_t>(length));
+    mstd::vector<T*> objects;
+    objects.reserve(static_cast<mstd::size_t>(length));
 
     for (lua_Integer i = 1; i <= length; ++i) {
         lua_geti(tolua_S, absIndex, i);
@@ -304,13 +302,13 @@ Rect luaval_to_rect(lua_State* tolua_S, int index, const char* expectedMessage) 
     return Rect{x, y, width, height};
 }
 
-std::vector<Rect> luaval_to_rect_array(lua_State* tolua_S, int index, const char* expectedMessage) {
+mstd::vector<Rect> luaval_to_rect_array(lua_State* tolua_S, int index, const char* expectedMessage) {
     const int absIndex = lua_absindex(tolua_S, index);
     luaL_checktype(tolua_S, absIndex, LUA_TTABLE);
 
     const lua_Integer length = luaL_len(tolua_S, absIndex);
-    std::vector<Rect> rects;
-    rects.reserve(static_cast<std::size_t>(length));
+    mstd::vector<Rect> rects;
+    rects.reserve(static_cast<mstd::size_t>(length));
 
     for (lua_Integer i = 1; i <= length; ++i) {
         lua_geti(tolua_S, absIndex, i);
@@ -594,7 +592,7 @@ int lua_zocos_Animation_create(lua_State* tolua_S) {
     const int base = classArgBase(tolua_S);
     const int argc = classArgCount(tolua_S);
     if (argc == 1 || argc == 2) {
-        std::vector<Rect> frames =
+        mstd::vector<Rect> frames =
             luaval_to_rect_array(tolua_S, base, "Animation frame must be {x, y, width, height}");
         const float delayPerFrame = static_cast<float>(luaL_optnumber(tolua_S, base + 1, 0.1));
         object_to_luaval(tolua_S, kAnimationMeta, Animation::create(frames, delayPerFrame));
@@ -783,7 +781,7 @@ int lua_zocos_Node_schedule(lua_State* tolua_S) {
 
         lua_pushvalue(tolua_S, 3);
         const int callbackRef = luaL_ref(tolua_S, LUA_REGISTRYINDEX);
-        const std::string keyString(key);
+        const mstd::string keyString(key);
         setLuaScheduleRef(tolua_S, cobj, keyString, callbackRef);
 
         cobj->schedule(
@@ -823,7 +821,7 @@ int lua_zocos_Node_scheduleOnce(lua_State* tolua_S) {
 
         lua_pushvalue(tolua_S, 3);
         const int callbackRef = luaL_ref(tolua_S, LUA_REGISTRYINDEX);
-        const std::string keyString(key);
+        const mstd::string keyString(key);
         setLuaScheduleRef(tolua_S, cobj, keyString, callbackRef);
 
         cobj->scheduleOnce(
@@ -857,7 +855,7 @@ int lua_zocos_Node_unschedule(lua_State* tolua_S) {
     const int argc = lua_gettop(tolua_S) - 1;
     if (argc == 1) {
         const char* key = luaL_checkstring(tolua_S, 2);
-        const std::string keyString = key ? key : "";
+        const mstd::string keyString = key ? key : "";
         cobj->unschedule(keyString);
         clearLuaScheduleRef(tolua_S, cobj, keyString);
         return 0;

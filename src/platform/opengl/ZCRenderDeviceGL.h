@@ -5,7 +5,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <unordered_map>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -37,7 +37,7 @@ private:
     void drawSprite(const DrawSpriteCommand& command);
     void drawQuads(const DrawQuadsCommand& command);
     void drawVertices(GLuint textureId, const Mat4& world, const QuadVertex* vertices,
-                      std::size_t vertexCount);
+                      mstd::size_t vertexCount);
     GLuint getTextureId(TextureHandle texture) const;
 
     Mat4 _projection = Mat4::identity();
@@ -48,7 +48,7 @@ private:
     GLuint _spriteVao = 0;
     GLuint _spriteVbo = 0;
 
-    std::unordered_map<std::uint32_t, GLTextureRecord> _textures;
+    mstd::unordered_map<std::uint32_t, GLTextureRecord> _textures;
     std::uint32_t _nextTextureHandle = 1;
 };
 

@@ -7,7 +7,7 @@
 #include "base/ZCTextureCache.h"
 
 #include <cassert>
-#include <memory>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -24,21 +24,21 @@ Director& Director::getInstance() {
 
 TextureCache& Director::getTextureCache() {
     if (!_textureCache) {
-        _textureCache = std::make_unique<TextureCache>();
+        _textureCache = mstd::make_unique<TextureCache>();
     }
     return *_textureCache;
 }
 
 FontCache& Director::getFontCache() {
     if (!_fontCache) {
-        _fontCache = std::make_unique<FontCache>();
+        _fontCache = mstd::make_unique<FontCache>();
     }
     return *_fontCache;
 }
 
 FontAtlasCache& Director::getFontAtlasCache() {
     if (!_fontAtlasCache) {
-        _fontAtlasCache = std::make_unique<FontAtlasCache>(*this);
+        _fontAtlasCache = mstd::make_unique<FontAtlasCache>(*this);
     }
     return *_fontAtlasCache;
 }
@@ -54,9 +54,9 @@ bool Director::init(int width, int height, const char* title) {
     }
 
     _renderDevice = createDefaultRenderDevice(*_view);
-    _textureCache = std::make_unique<TextureCache>();
-    _fontCache = std::make_unique<FontCache>();
-    _fontAtlasCache = std::make_unique<FontAtlasCache>(*this);
+    _textureCache = mstd::make_unique<TextureCache>();
+    _fontCache = mstd::make_unique<FontCache>();
+    _fontAtlasCache = mstd::make_unique<FontAtlasCache>(*this);
 
     _fbWidth = _view->getFramebufferWidth();
     _fbHeight = _view->getFramebufferHeight();

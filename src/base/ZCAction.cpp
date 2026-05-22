@@ -1,16 +1,14 @@
 #include "base/ZCAction.h"
 #include "2d/ZCNode.h"
 
-#include <algorithm>
-#include <new>
-#include <utility>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
 namespace {
 
-std::vector<Action*> retainActions(const std::vector<Action*>& actions) {
-    std::vector<Action*> retained;
+mstd::vector<Action*> retainActions(const mstd::vector<Action*>& actions) {
+    mstd::vector<Action*> retained;
     retained.reserve(actions.size());
     for (auto* action : actions) {
         if (!action) {
@@ -22,7 +20,7 @@ std::vector<Action*> retainActions(const std::vector<Action*>& actions) {
     return retained;
 }
 
-void releaseActions(std::vector<Action*>& actions) {
+void releaseActions(mstd::vector<Action*>& actions) {
     for (auto* action : actions) {
         if (action) {
             action->release();
@@ -40,12 +38,12 @@ void Action::startWithTarget(Node* target) {
 
 void Action::stop() { _target = nullptr; }
 
-FiniteTimeAction::FiniteTimeAction(float duration) { _duration = std::max(0.f, duration); }
+FiniteTimeAction::FiniteTimeAction(float duration) { _duration = mstd::max(0.f, duration); }
 
-CallFunc::CallFunc(Callback callback) : _callback(std::move(callback)) {}
+CallFunc::CallFunc(Callback callback) : _callback(mstd::move(callback)) {}
 
 CallFunc* CallFunc::create(Callback callback) {
-    auto* action = new (std::nothrow) CallFunc(std::move(callback));
+    auto* action = new (mstd::nothrow) CallFunc(mstd::move(callback));
     if (action) {
         action->autorelease();
         return action;
@@ -72,10 +70,10 @@ void CallFunc::step(float dt) {
 
 bool CallFunc::isDone() const { return _done; }
 
-Sequence::Sequence(const std::vector<Action*>& actions) : _actions(retainActions(actions)) {}
+Sequence::Sequence(const mstd::vector<Action*>& actions) : _actions(retainActions(actions)) {}
 
-Sequence* Sequence::create(const std::vector<Action*>& actions) {
-    auto* action = new (std::nothrow) Sequence(actions);
+Sequence* Sequence::create(const mstd::vector<Action*>& actions) {
+    auto* action = new (mstd::nothrow) Sequence(actions);
     if (action) {
         action->autorelease();
         return action;
@@ -112,7 +110,7 @@ void Sequence::step(float dt) {
         current->step(dt);
     }
 
-    std::size_t guard = _actions.size() + 1;
+    mstd::size_t guard = _actions.size() + 1;
     while (_currentIndex < _actions.size()) {
         auto* active = _actions[_currentIndex];
         if (active && !active->isDone()) {
@@ -142,10 +140,10 @@ void Sequence::step(float dt) {
 
 bool Sequence::isDone() const { return _actions.empty() || _currentIndex >= _actions.size(); }
 
-Spawn::Spawn(const std::vector<Action*>& actions) : _actions(retainActions(actions)) {}
+Spawn::Spawn(const mstd::vector<Action*>& actions) : _actions(retainActions(actions)) {}
 
-Spawn* Spawn::create(const std::vector<Action*>& actions) {
-    auto* action = new (std::nothrow) Spawn(actions);
+Spawn* Spawn::create(const mstd::vector<Action*>& actions) {
+    auto* action = new (mstd::nothrow) Spawn(actions);
     if (action) {
         action->autorelease();
         return action;
@@ -194,14 +192,14 @@ bool Spawn::isDone() const {
     return true;
 }
 
-Repeat::Repeat(Action* action, int times) : _innerAction(action), _times(std::max(0, times)) {
+Repeat::Repeat(Action* action, int times) : _innerAction(action), _times(mstd::max(0, times)) {
     if (_innerAction) {
         _innerAction->retain();
     }
 }
 
 Repeat* Repeat::create(Action* action, int times) {
-    auto* repeat = new (std::nothrow) Repeat(action, times);
+    auto* repeat = new (mstd::nothrow) Repeat(action, times);
     if (repeat) {
         repeat->autorelease();
         return repeat;
@@ -238,7 +236,7 @@ void Repeat::step(float dt) {
     }
 
     _innerAction->step(dt);
-    std::size_t guard = static_cast<std::size_t>(_times - _total) + 1;
+    mstd::size_t guard = static_cast<mstd::size_t>(_times - _total) + 1;
     while (_innerAction->isDone() && _total < _times) {
         _innerAction->stop();
         ++_total;
@@ -262,7 +260,7 @@ RepeatForever::RepeatForever(Action* action) : _innerAction(action) {
 }
 
 RepeatForever* RepeatForever::create(Action* action) {
-    auto* repeat = new (std::nothrow) RepeatForever(action);
+    auto* repeat = new (mstd::nothrow) RepeatForever(action);
     if (repeat) {
         repeat->autorelease();
         return repeat;
@@ -298,7 +296,7 @@ void RepeatForever::step(float dt) {
     }
 
     _innerAction->step(dt);
-    std::size_t guard = 8;
+    mstd::size_t guard = 8;
     while (_innerAction->isDone() && guard-- > 0) {
         _innerAction->stop();
         _innerAction->startWithTarget(_target);

@@ -2,9 +2,7 @@
 
 #include "base/ZCRef.h"
 #include "math/ZCMath.h"
-#include <functional>
-#include <string>
-#include <vector>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -13,7 +11,7 @@ class Action;
 
 class Node : public Ref {
 public:
-    using ScheduleCallback = std::function<void(float)>;
+    using ScheduleCallback = mstd::function<void(float)>;
     static constexpr int RepeatForever = -1;
 
     static Node* create();
@@ -65,11 +63,11 @@ public:
     virtual void onEnter();
     virtual void onExit();
 
-    void schedule(const std::string& key, ScheduleCallback callback, float interval = 0.f,
+    void schedule(const mstd::string& key, ScheduleCallback callback, float interval = 0.f,
                   int repeat = RepeatForever, float delay = 0.f, int priority = 0);
-    void scheduleOnce(const std::string& key, ScheduleCallback callback, float delay = 0.f,
+    void scheduleOnce(const mstd::string& key, ScheduleCallback callback, float delay = 0.f,
                       int priority = 0);
-    void unschedule(const std::string& key);
+    void unschedule(const mstd::string& key);
     void unscheduleAllCallbacks();
 
     Action* runAction(Action* action);
@@ -79,7 +77,7 @@ public:
     void addChild(Node* child);
     void removeChild(Node* child);
     void removeAllChildren();
-    const std::vector<Node*>& getChildren() const { return _children; }
+    const mstd::vector<Node*>& getChildren() const { return _children; }
     void sortAllChildren();
 
     Node* getParent() const { return _parent; }
@@ -100,7 +98,7 @@ protected:
     }
 
     Node* _parent = nullptr;
-    std::vector<Node*> _children;
+    mstd::vector<Node*> _children;
 
     bool _running = false;
     bool _paused = false;
@@ -113,7 +111,7 @@ protected:
     bool _visible = true;
     float _opacity = 1.f;
     int _tag = -1;
-    std::size_t _orderOfArrival = 0;
+    mstd::size_t _orderOfArrival = 0;
     bool _reorderChildDirty = false;
 };
 

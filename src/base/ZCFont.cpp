@@ -3,13 +3,12 @@
 
 #include <stb_truetype.h>
 
-#include <array>
-#include <utility>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
-const std::vector<std::string>& Font::getDefaultFontCandidates() {
-    static const std::vector<std::string> kDefaultCandidates = {
+const mstd::vector<mstd::string>& Font::getDefaultFontCandidates() {
+    static const mstd::vector<mstd::string> kDefaultCandidates = {
         "fonts/NotoSansSC-Regular.otf",
         "fonts/NotoSans-Regular.ttf",
         "fonts/NotoSerif-Regular.ttf",
@@ -17,18 +16,18 @@ const std::vector<std::string>& Font::getDefaultFontCandidates() {
     return kDefaultCandidates;
 }
 
-std::string Font::resolveFontPath(const std::string& preferredPath) {
+mstd::string Font::resolveFontPath(const mstd::string& preferredPath) {
     auto& fileUtils = FileUtils::getInstance();
 
     if (!preferredPath.empty()) {
-        const std::string fullPath = fileUtils.fullPathForFilename(preferredPath);
+        const mstd::string fullPath = fileUtils.fullPathForFilename(preferredPath);
         if (!fullPath.empty()) {
             return fullPath;
         }
     }
 
-    for (const std::string& candidate : getDefaultFontCandidates()) {
-        const std::string fullPath = fileUtils.fullPathForFilename(candidate);
+    for (const mstd::string& candidate : getDefaultFontCandidates()) {
+        const mstd::string fullPath = fileUtils.fullPathForFilename(candidate);
         if (!fullPath.empty()) {
             return fullPath;
         }
@@ -37,13 +36,13 @@ std::string Font::resolveFontPath(const std::string& preferredPath) {
     return {};
 }
 
-bool Font::loadFromFile(const std::string& path) {
-    const std::string resolvedPath = resolveFontPath(path);
+bool Font::loadFromFile(const mstd::string& path) {
+    const mstd::string resolvedPath = resolveFontPath(path);
     if (resolvedPath.empty()) {
         return false;
     }
 
-    std::vector<unsigned char> bytes;
+    mstd::vector<unsigned char> bytes;
     if (!FileUtils::getInstance().getDataFromFile(resolvedPath, bytes) || bytes.empty()) {
         return false;
     }
@@ -59,7 +58,7 @@ bool Font::loadFromFile(const std::string& path) {
     }
 
     _path = resolvedPath;
-    _data = std::move(bytes);
+    _data = mstd::move(bytes);
     _fontOffset = offset;
     return true;
 }

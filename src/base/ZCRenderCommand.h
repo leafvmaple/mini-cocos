@@ -3,7 +3,7 @@
 #include "math/ZCMath.h"
 
 #include <cstdint>
-#include <vector>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -44,7 +44,7 @@ struct DrawSpriteCommand {
 struct DrawQuadsCommand {
     Mat4 world = Mat4::identity();
     TextureHandle texture{};
-    std::vector<QuadVertex> vertices;
+    mstd::vector<QuadVertex> vertices;
     float opacity = 1.f;
 };
 

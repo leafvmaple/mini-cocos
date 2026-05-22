@@ -10,14 +10,14 @@ FontAtlasCache::FontAtlasCache(Director& director) : _director(director) {}
 
 FontAtlasCache::~FontAtlasCache() { removeAllFontAtlas(); }
 
-std::string FontAtlasCache::makeKey(const std::string& fontPath, float fontSize) {
+mstd::string FontAtlasCache::makeKey(const mstd::string& fontPath, float fontSize) {
     char buf[32];
     std::snprintf(buf, sizeof(buf), "|%.2f", fontSize);
     return fontPath + buf;
 }
 
-FontAtlas* FontAtlasCache::getFontAtlasTTF(const std::string& fontPath, float fontSize) {
-    const std::string key = makeKey(fontPath, fontSize);
+FontAtlas* FontAtlasCache::getFontAtlasTTF(const mstd::string& fontPath, float fontSize) {
+    const mstd::string key = makeKey(fontPath, fontSize);
     auto it = _atlases.find(key);
     if (it != _atlases.end()) {
         return it->second;

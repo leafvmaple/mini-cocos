@@ -2,7 +2,7 @@
 
 #include <cstdio>
 #include <cstring>
-#include <vector>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -148,7 +148,7 @@ TextureHandle RenderDeviceGL::createTexture(const TextureCreateInfo& createInfo)
     }
 
     const unsigned char* uploadPixels = createInfo.initialData.pixels;
-    std::vector<unsigned char> staging;
+    mstd::vector<unsigned char> staging;
     const bool shouldFlipY = createInfo.initialData.origin == TextureDataOrigin::TopLeft;
     const bool shouldPackRows = srcRowPitch != tightRowPitch;
     if (shouldFlipY || shouldPackRows) {
@@ -238,12 +238,12 @@ void RenderDeviceGL::updateTextureRegion(TextureHandle texture, int x, int y, in
     const bool shouldFlipY = data.origin == TextureDataOrigin::TopLeft;
     const int glY = shouldFlipY ? (rec.height - y - height) : y;
 
-    std::vector<unsigned char> packed(static_cast<std::size_t>(tightRowPitch * height));
+    mstd::vector<unsigned char> packed(static_cast<mstd::size_t>(tightRowPitch * height));
     for (int row = 0; row < height; ++row) {
         const int srcRow = shouldFlipY ? (height - 1 - row) : row;
-        const auto* src = data.pixels + static_cast<std::size_t>(srcRow) * srcRowPitch;
-        auto* dst = packed.data() + static_cast<std::size_t>(row) * tightRowPitch;
-        std::memcpy(dst, src, static_cast<std::size_t>(tightRowPitch));
+        const auto* src = data.pixels + static_cast<mstd::size_t>(srcRow) * srcRowPitch;
+        auto* dst = packed.data() + static_cast<mstd::size_t>(row) * tightRowPitch;
+        std::memcpy(dst, src, static_cast<mstd::size_t>(tightRowPitch));
     }
 
     glBindTexture(GL_TEXTURE_2D, rec.id);
@@ -329,7 +329,7 @@ void RenderDeviceGL::drawQuads(const DrawQuadsCommand& command) {
 }
 
 void RenderDeviceGL::drawVertices(GLuint textureId, const Mat4& world, const QuadVertex* vertices,
-                                  std::size_t vertexCount) {
+                                  mstd::size_t vertexCount) {
     if (!vertices || vertexCount == 0) {
         return;
     }

@@ -5,7 +5,7 @@
 
 namespace zocos {
 
-std::size_t Ref::s_liveCount = 0;
+mstd::size_t Ref::s_liveCount = 0;
 
 Ref::Ref() {
     ++s_liveCount;
@@ -36,7 +36,7 @@ void Ref::autorelease() {
     }
 }
 
-std::size_t Ref::getLiveCount() {
+mstd::size_t Ref::getLiveCount() {
     return s_liveCount;
 }
 

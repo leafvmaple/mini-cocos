@@ -8,7 +8,7 @@
 #include "2d/ZCScene.h"
 #include "base/ZCScheduler.h"
 
-#include <memory>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -65,16 +65,16 @@ private:
     void onViewMouseMoveEvent(float x, float y, float deltaX, float deltaY) override;
     void onViewMouseScrollEvent(float offsetX, float offsetY, float x, float y) override;
 
-    std::unique_ptr<View> _view;
+    mstd::unique_ptr<View> _view;
     Scene* _runningScene = nullptr;
     Scheduler _scheduler;
     ActionManager _actionManager;
     EventDispatcher _eventDispatcher;
     Renderer _renderer;
-    std::unique_ptr<RenderDevice> _renderDevice;
-    std::unique_ptr<TextureCache> _textureCache;
-    std::unique_ptr<FontCache> _fontCache;
-    std::unique_ptr<FontAtlasCache> _fontAtlasCache;
+    mstd::unique_ptr<RenderDevice> _renderDevice;
+    mstd::unique_ptr<TextureCache> _textureCache;
+    mstd::unique_ptr<FontCache> _fontCache;
+    mstd::unique_ptr<FontAtlasCache> _fontAtlasCache;
     Mat4 _projection = Mat4::identity();
     int _fbWidth = 0;
     int _fbHeight = 0;

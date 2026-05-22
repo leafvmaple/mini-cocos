@@ -153,7 +153,7 @@ protected:
 
 private:
     Animation* _animation = nullptr;
-    std::size_t _lastFrameIndex = static_cast<std::size_t>(-1);
+    mstd::size_t _lastFrameIndex = static_cast<mstd::size_t>(-1);
 };
 
 } // namespace zocos

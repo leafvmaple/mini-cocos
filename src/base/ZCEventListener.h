@@ -3,9 +3,7 @@
 #include "base/ZCEvent.h"
 #include "base/ZCRef.h"
 
-#include <functional>
-#include <new>
-#include <utility>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -35,7 +33,7 @@ private:
 
 class EventListenerKeyboard final : public EventListener {
 public:
-    using Callback = std::function<void(EventKeyboard&)>;
+    using Callback = mstd::function<void(EventKeyboard&)>;
 
     static EventListenerKeyboard* create(Callback onPressed = {}, Callback onReleased = {});
 
@@ -54,7 +52,7 @@ private:
 
 class EventListenerMouse final : public EventListener {
 public:
-    using Callback = std::function<void(EventMouse&)>;
+    using Callback = mstd::function<void(EventMouse&)>;
     using ButtonCallback = Callback;
     using MoveCallback = Callback;
     using ScrollCallback = Callback;

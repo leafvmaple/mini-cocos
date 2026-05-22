@@ -8,9 +8,8 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include <stb_truetype.h>
 
-#include <algorithm>
+#include "base/ZCStd.h"
 #include <cmath>
-#include <new>
 
 namespace zocos {
 
@@ -30,8 +29,8 @@ constexpr char32_t kAsciiPrewarmLast = 0x7E;
 
 FontAtlas::FontAtlas(Director& director) : _director(director) {}
 
-FontAtlas* FontAtlas::create(Director& director, const std::string& fontPath, float fontSize) {
-    auto* atlas = new (std::nothrow) FontAtlas(director);
+FontAtlas* FontAtlas::create(Director& director, const mstd::string& fontPath, float fontSize) {
+    auto* atlas = new (mstd::nothrow) FontAtlas(director);
     if (atlas && atlas->init(fontPath, fontSize)) {
         atlas->autorelease();
         return atlas;
@@ -45,13 +44,13 @@ FontAtlas::~FontAtlas() {
     releaseFont();
 }
 
-bool FontAtlas::init(const std::string& fontPath, float fontSize) {
+bool FontAtlas::init(const mstd::string& fontPath, float fontSize) {
     Font* font = nullptr;
     if (!_director.getFontCache().acquireFromFile(fontPath, font)) {
         return false;
     }
 
-    auto fontInfo = std::make_unique<stbtt_fontinfo>();
+    auto fontInfo = mstd::make_unique<stbtt_fontinfo>();
     if (!font->isValid() || !font->getData() ||
         stbtt_InitFont(fontInfo.get(), font->getData(), font->getFontOffset()) == 0) {
         _director.getFontCache().release(font);
@@ -62,9 +61,9 @@ bool FontAtlas::init(const std::string& fontPath, float fontSize) {
     releaseFont();
 
     _font = font;
-    _fontInfo = std::move(fontInfo);
+    _fontInfo = mstd::move(fontInfo);
     _fontPath = _font->getPath();
-    _fontSize = std::max(1.f, fontSize);
+    _fontSize = mstd::max(1.f, fontSize);
     _scale = stbtt_ScaleForPixelHeight(_fontInfo.get(), _fontSize);
 
     int ascent = 0;
@@ -73,7 +72,7 @@ bool FontAtlas::init(const std::string& fontPath, float fontSize) {
     stbtt_GetFontVMetrics(_fontInfo.get(), &ascent, &descent, &lineGap);
     _fontAscender = static_cast<float>(ascent) * _scale;
     _fontDescender = static_cast<float>(descent) * _scale;
-    _lineHeight = std::max(1.f, static_cast<float>(ascent - descent + lineGap) * _scale);
+    _lineHeight = mstd::max(1.f, static_cast<float>(ascent - descent + lineGap) * _scale);
 
     _letterDefinitions.clear();
     _atlasWidth = kAtlasWidth;
@@ -184,16 +183,16 @@ bool FontAtlas::prepareLetterDefinition(char32_t utf32Char, LetterDefinition& ou
         return false;
     }
 
-    AtlasPage& page = _atlasPages[static_cast<std::size_t>(pageIndex)];
-    std::vector<unsigned char> alpha(static_cast<std::size_t>(bitmapW * bitmapH));
+    AtlasPage& page = _atlasPages[static_cast<mstd::size_t>(pageIndex)];
+    mstd::vector<unsigned char> alpha(static_cast<mstd::size_t>(bitmapW * bitmapH));
     stbtt_MakeCodepointBitmap(_fontInfo.get(), alpha.data(), bitmapW, bitmapH, bitmapW, _scale,
                               _scale, static_cast<int>(utf32Char));
 
     for (int y = 0; y < bitmapH; ++y) {
         for (int x = 0; x < bitmapW; ++x) {
-            const std::size_t srcIndex = static_cast<std::size_t>(y * bitmapW + x);
-            const std::size_t dstIndex =
-                static_cast<std::size_t>((atlasY + y) * _atlasWidth + (atlasX + x));
+            const mstd::size_t srcIndex = static_cast<mstd::size_t>(y * bitmapW + x);
+            const mstd::size_t dstIndex =
+                static_cast<mstd::size_t>((atlasY + y) * _atlasWidth + (atlasX + x));
             page.pixels[dstIndex] = alpha[srcIndex];
         }
     }
@@ -214,7 +213,7 @@ bool FontAtlas::allocGlyphRect(int glyphWidth, int glyphHeight, int& outPageInde
     const int paddedHeight = glyphHeight + kAtlasPadding * 2;
     assert(paddedWidth <= _atlasWidth && paddedHeight <= _atlasHeight);
 
-    for (std::size_t i = 0; i < _atlasPages.size(); ++i) {
+    for (mstd::size_t i = 0; i < _atlasPages.size(); ++i) {
         AtlasPage& page = _atlasPages[i];
         int cursorX = page.packCursorX;
         int cursorY = page.packCursorY;
@@ -232,7 +231,7 @@ bool FontAtlas::allocGlyphRect(int glyphWidth, int glyphHeight, int& outPageInde
         outPixelY = cursorY + kAtlasPadding;
         page.packCursorX = cursorX + paddedWidth;
         page.packCursorY = cursorY;
-        page.packRowHeight = std::max(rowHeight, paddedHeight);
+        page.packRowHeight = mstd::max(rowHeight, paddedHeight);
         return true;
     }
 
@@ -242,7 +241,7 @@ bool FontAtlas::allocGlyphRect(int glyphWidth, int glyphHeight, int& outPageInde
     if (newPage < 0) {
         return false;
     }
-    AtlasPage& page = _atlasPages[static_cast<std::size_t>(newPage)];
+    AtlasPage& page = _atlasPages[static_cast<mstd::size_t>(newPage)];
     outPageIndex = newPage;
     outPixelX = kAtlasPadding;
     outPixelY = kAtlasPadding;
@@ -254,20 +253,20 @@ bool FontAtlas::allocGlyphRect(int glyphWidth, int glyphHeight, int& outPageInde
 
 int FontAtlas::addNewPage() {
     AtlasPage page;
-    page.pixels.assign(static_cast<std::size_t>(_atlasWidth * _atlasHeight), 0);
+    page.pixels.assign(static_cast<mstd::size_t>(_atlasWidth * _atlasHeight), 0);
     page.dirty = true;
     page.dirtyMinX = 0;
     page.dirtyMinY = 0;
     page.dirtyMaxX = _atlasWidth;
     page.dirtyMaxY = _atlasHeight;
-    _atlasPages.push_back(std::move(page));
+    _atlasPages.push_back(mstd::move(page));
     _atlasTextures.emplace_back();
     return static_cast<int>(_atlasPages.size()) - 1;
 }
 
 bool FontAtlas::commitDirtyPages() {
     bool anyUploaded = false;
-    for (std::size_t i = 0; i < _atlasPages.size(); ++i) {
+    for (mstd::size_t i = 0; i < _atlasPages.size(); ++i) {
         AtlasPage& page = _atlasPages[i];
         if (!page.dirty && page.texture.isValid()) {
             continue;
@@ -333,7 +332,7 @@ bool FontAtlas::updatePageRegion(AtlasPage& page) {
 
     TextureUploadData data;
     data.pixels = page.pixels.data() +
-                  static_cast<std::size_t>(page.dirtyMinY * _atlasWidth + page.dirtyMinX);
+                  static_cast<mstd::size_t>(page.dirtyMinY * _atlasWidth + page.dirtyMinX);
     data.rowPitchBytes = _atlasWidth;
     data.origin = TextureDataOrigin::TopLeft;
     device->updateTextureRegion(page.texture, page.dirtyMinX, page.dirtyMinY, rectW, rectH, data);
@@ -352,10 +351,10 @@ void FontAtlas::markPageDirtyRect(AtlasPage& page, int x, int y, int width, int 
         page.dirty = true;
         return;
     }
-    page.dirtyMinX = std::min(page.dirtyMinX, x);
-    page.dirtyMinY = std::min(page.dirtyMinY, y);
-    page.dirtyMaxX = std::max(page.dirtyMaxX, x1);
-    page.dirtyMaxY = std::max(page.dirtyMaxY, y1);
+    page.dirtyMinX = mstd::min(page.dirtyMinX, x);
+    page.dirtyMinY = mstd::min(page.dirtyMinY, y);
+    page.dirtyMaxX = mstd::max(page.dirtyMaxX, x1);
+    page.dirtyMaxY = mstd::max(page.dirtyMaxY, y1);
 }
 
 void FontAtlas::releasePages() {

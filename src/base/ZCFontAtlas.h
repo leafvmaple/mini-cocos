@@ -4,10 +4,7 @@
 #include "base/ZCRenderCommand.h"
 
 #include <cstdint>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include "base/ZCStd.h"
 
 struct stbtt_fontinfo;
 
@@ -35,16 +32,16 @@ struct LetterDefinition {
 
 class FontAtlas : public Ref {
 public:
-    static FontAtlas* create(Director& director, const std::string& fontPath,
+    static FontAtlas* create(Director& director, const mstd::string& fontPath,
                              float fontSize = 24.f);
 
     ~FontAtlas() override;
 
-    bool init(const std::string& fontPath, float fontSize);
+    bool init(const mstd::string& fontPath, float fontSize);
 
     bool isValid() const { return _font != nullptr && !_atlasPages.empty(); }
 
-    const std::string& getFontPath() const { return _fontPath; }
+    const mstd::string& getFontPath() const { return _fontPath; }
     float getFontSize() const { return _fontSize; }
     Font* getFont() const { return _font; }
     std::uint32_t getAtlasVersion() const { return _atlasVersion; }
@@ -64,7 +61,7 @@ public:
     // Kerning expressed in pixels (already scaled).
     float getHorizontalKerningForChars(char32_t first, char32_t second) const;
 
-    const std::vector<TextureHandle>& getTextures() const { return _atlasTextures; }
+    const mstd::vector<TextureHandle>& getTextures() const { return _atlasTextures; }
     int getAtlasPageCount() const { return static_cast<int>(_atlasPages.size()); }
     int getAtlasWidth() const { return _atlasWidth; }
     int getAtlasHeight() const { return _atlasHeight; }
@@ -74,7 +71,7 @@ protected:
 
 private:
     struct AtlasPage {
-        std::vector<unsigned char> pixels; // RGBA8, top-left origin.
+        mstd::vector<unsigned char> pixels; // RGBA8, top-left origin.
         TextureHandle texture{};
         int packCursorX = 0;
         int packCursorY = 0;
@@ -101,18 +98,18 @@ private:
 
     Director& _director;
     Font* _font = nullptr;
-    std::unique_ptr<stbtt_fontinfo> _fontInfo;
-    std::string _fontPath;
+    mstd::unique_ptr<stbtt_fontinfo> _fontInfo;
+    mstd::string _fontPath;
     float _fontSize = 24.f;
     float _scale = 1.f;
     float _fontAscender = 0.f;
     float _fontDescender = 0.f;
     float _lineHeight = 1.f;
 
-    std::unordered_map<char32_t, LetterDefinition> _letterDefinitions;
+    mstd::unordered_map<char32_t, LetterDefinition> _letterDefinitions;
 
-    std::vector<AtlasPage> _atlasPages;
-    std::vector<TextureHandle> _atlasTextures; // mirrors _atlasPages[i].texture
+    mstd::vector<AtlasPage> _atlasPages;
+    mstd::vector<TextureHandle> _atlasTextures; // mirrors _atlasPages[i].texture
     int _atlasWidth = 1024;
     int _atlasHeight = 1024;
     std::uint32_t _atlasVersion = 0;

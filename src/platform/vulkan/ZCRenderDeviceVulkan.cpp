@@ -1,13 +1,9 @@
 #include "platform/vulkan/ZCRenderDeviceVulkan.h"
 
-#include <algorithm>
-#include <array>
+#include "base/ZCStd.h"
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
-#include <set>
-#include <string>
-#include <vector>
 
 #include "platform/vulkan/ZCVulkanMinimalSpv.inl"
 
@@ -15,13 +11,13 @@ namespace zocos {
 
 namespace {
 
-constexpr std::array<const char*, 1> kRequiredDeviceExtensions = {
+constexpr mstd::array<const char*, 1> kRequiredDeviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 };
 
 constexpr VkDeviceSize kInitialVertexBufferSize = 64 * 1024;
 
-float clamp01(float value) { return std::max(0.0f, std::min(1.0f, value)); }
+float clamp01(float value) { return mstd::max(0.0f, mstd::min(1.0f, value)); }
 
 } // namespace
 
@@ -215,7 +211,7 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
     }
 
     const unsigned char* uploadPixels = createInfo.initialData.pixels;
-    std::vector<unsigned char> packedPixels;
+    mstd::vector<unsigned char> packedPixels;
     const bool shouldFlipY = createInfo.initialData.origin == TextureDataOrigin::TopLeft;
     const bool shouldPackRows = srcRowPitch != tightRowPitch;
     if (shouldFlipY || shouldPackRows) {
@@ -650,9 +646,9 @@ void RenderDeviceVulkan::updateTextureRegion(TextureHandle texture, int x, int y
     auto* dst = static_cast<unsigned char*>(mapped);
     for (int row = 0; row < height; ++row) {
         const int srcRow = shouldFlipY ? (height - 1 - row) : row;
-        std::memcpy(dst + static_cast<std::size_t>(row) * tightRowPitch,
-                    data.pixels + static_cast<std::size_t>(srcRow) * srcRowPitch,
-                    static_cast<std::size_t>(tightRowPitch));
+        std::memcpy(dst + static_cast<mstd::size_t>(row) * tightRowPitch,
+                    data.pixels + static_cast<mstd::size_t>(srcRow) * srcRowPitch,
+                    static_cast<mstd::size_t>(tightRowPitch));
     }
     vkUnmapMemory(_device, stagingMemory);
 
@@ -771,7 +767,7 @@ void RenderDeviceVulkan::drawQuads(const DrawQuadsCommand& command) {
     _pendingDraws.push_back(draw);
 }
 
-uint32_t RenderDeviceVulkan::appendQuadVertices(const QuadVertex* vertices, std::size_t vertexCount,
+uint32_t RenderDeviceVulkan::appendQuadVertices(const QuadVertex* vertices, mstd::size_t vertexCount,
                                                 float opacity) {
     if (!vertices || vertexCount == 0) {
         return 0;
@@ -781,7 +777,7 @@ uint32_t RenderDeviceVulkan::appendQuadVertices(const QuadVertex* vertices, std:
     const float intensity = clamp01(opacity);
 
     _pendingVertices.reserve(_pendingVertices.size() + vertexCount);
-    for (std::size_t i = 0; i < vertexCount; ++i) {
+    for (mstd::size_t i = 0; i < vertexCount; ++i) {
         VulkanVertex vertex{};
         vertex.position[0] = vertices[i].position.x;
         vertex.position[1] = vertices[i].position.y;
@@ -810,7 +806,7 @@ void RenderDeviceVulkan::flushDrawCommands() {
         return;
     }
 
-    const std::size_t vertexBytes = _pendingVertices.size() * sizeof(VulkanVertex);
+    const mstd::size_t vertexBytes = _pendingVertices.size() * sizeof(VulkanVertex);
     if (!ensureVertexBuffer(vertexBytes)) {
         _pendingVertices.clear();
         _pendingDraws.clear();
@@ -868,7 +864,7 @@ void RenderDeviceVulkan::flushDrawCommands() {
     _pendingDraws.clear();
 }
 
-bool RenderDeviceVulkan::ensureVertexBuffer(std::size_t requiredSizeBytes) {
+bool RenderDeviceVulkan::ensureVertexBuffer(mstd::size_t requiredSizeBytes) {
     if (requiredSizeBytes == 0) {
         return true;
     }
@@ -878,9 +874,9 @@ bool RenderDeviceVulkan::ensureVertexBuffer(std::size_t requiredSizeBytes) {
         return true;
     }
 
-    VkDeviceSize newSize = std::max(requiredSize, kInitialVertexBufferSize);
+    VkDeviceSize newSize = mstd::max(requiredSize, kInitialVertexBufferSize);
     if (_vertexBufferSize > 0) {
-        newSize = std::max(newSize, _vertexBufferSize * 2);
+        newSize = mstd::max(newSize, _vertexBufferSize * 2);
     }
 
     if (_vertexBuffer != VK_NULL_HANDLE) {
@@ -1050,7 +1046,7 @@ bool RenderDeviceVulkan::pickPhysicalDevice() {
         return false;
     }
 
-    std::vector<VkPhysicalDevice> devices(deviceCount);
+    mstd::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(_instance, &deviceCount, devices.data());
 
     for (VkPhysicalDevice device : devices) {
@@ -1069,8 +1065,8 @@ bool RenderDeviceVulkan::pickPhysicalDevice() {
 }
 
 bool RenderDeviceVulkan::createLogicalDevice() {
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::array<uint32_t, 2> queueFamilies = {_graphicsQueueFamily, _presentQueueFamily};
+    mstd::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    mstd::array<uint32_t, 2> queueFamilies = {_graphicsQueueFamily, _presentQueueFamily};
 
     const float queuePriority = 1.0f;
     for (uint32_t queueFamily : queueFamilies) {
@@ -1362,7 +1358,7 @@ bool RenderDeviceVulkan::createGraphicsPipeline() {
     bindingDescription.stride = sizeof(VulkanVertex);
     bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-    std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+    mstd::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
     attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
@@ -1428,7 +1424,7 @@ bool RenderDeviceVulkan::createGraphicsPipeline() {
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = &colorBlendAttachment;
 
-    constexpr std::array<VkDynamicState, 2> dynamicStates = {
+    constexpr mstd::array<VkDynamicState, 2> dynamicStates = {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR,
     };
@@ -1679,7 +1675,7 @@ void RenderDeviceVulkan::cleanup() {
     }
 
     if (_device != VK_NULL_HANDLE) {
-        std::vector<std::uint32_t> textureIds;
+        mstd::vector<std::uint32_t> textureIds;
         textureIds.reserve(_textures.size());
         for (const auto& pair : _textures) {
             textureIds.push_back(pair.first);
@@ -1745,7 +1741,7 @@ bool RenderDeviceVulkan::isDeviceSuitable(VkPhysicalDevice device, uint32_t& out
         return false;
     }
 
-    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    mstd::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
     outGraphicsQueueFamily = UINT32_MAX;
@@ -1788,11 +1784,11 @@ bool RenderDeviceVulkan::supportsDeviceExtensions(VkPhysicalDevice device) const
     uint32_t extensionCount = 0;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
 
-    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    mstd::vector<VkExtensionProperties> availableExtensions(extensionCount);
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount,
                                          availableExtensions.data());
 
-    std::set<std::string> requiredExtensions(kRequiredDeviceExtensions.begin(),
+    mstd::set<mstd::string> requiredExtensions(kRequiredDeviceExtensions.begin(),
                                              kRequiredDeviceExtensions.end());
 
     for (const auto& extension : availableExtensions) {
@@ -1828,7 +1824,7 @@ RenderDeviceVulkan::querySwapchainSupport(VkPhysicalDevice device) const {
 }
 
 VkSurfaceFormatKHR
-RenderDeviceVulkan::chooseSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& formats) const {
+RenderDeviceVulkan::chooseSurfaceFormat(const mstd::vector<VkSurfaceFormatKHR>& formats) const {
     for (const VkSurfaceFormatKHR& format : formats) {
         if (format.format == VK_FORMAT_B8G8R8A8_UNORM &&
             format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -1840,7 +1836,7 @@ RenderDeviceVulkan::chooseSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& f
 }
 
 VkPresentModeKHR
-RenderDeviceVulkan::choosePresentMode(const std::vector<VkPresentModeKHR>& presentModes) const {
+RenderDeviceVulkan::choosePresentMode(const mstd::vector<VkPresentModeKHR>& presentModes) const {
     for (VkPresentModeKHR mode : presentModes) {
         if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
             return mode;
@@ -1860,13 +1856,13 @@ VkExtent2D RenderDeviceVulkan::chooseExtent(const VkSurfaceCapabilitiesKHR& capa
     glfwGetFramebufferSize(_window, &width, &height);
 
     VkExtent2D extent{};
-    extent.width = static_cast<uint32_t>(std::max(width, 1));
-    extent.height = static_cast<uint32_t>(std::max(height, 1));
+    extent.width = static_cast<uint32_t>(mstd::max(width, 1));
+    extent.height = static_cast<uint32_t>(mstd::max(height, 1));
 
-    extent.width = std::max(capabilities.minImageExtent.width,
-                            std::min(capabilities.maxImageExtent.width, extent.width));
-    extent.height = std::max(capabilities.minImageExtent.height,
-                             std::min(capabilities.maxImageExtent.height, extent.height));
+    extent.width = mstd::max(capabilities.minImageExtent.width,
+                            mstd::min(capabilities.maxImageExtent.width, extent.width));
+    extent.height = mstd::max(capabilities.minImageExtent.height,
+                             mstd::min(capabilities.maxImageExtent.height, extent.height));
 
     return extent;
 }

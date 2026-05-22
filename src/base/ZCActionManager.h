@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstddef>
-#include <vector>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -18,7 +18,7 @@ public:
 
     void update(float dt);
 
-    std::size_t getRunningActionCount() const;
+    mstd::size_t getRunningActionCount() const;
 
 private:
     struct Entry {
@@ -33,8 +33,8 @@ private:
     void releaseEntry(Entry& entry);
 
     bool _updating = false;
-    std::vector<Entry> _entries;
-    std::vector<Entry> _pendingEntries;
+    mstd::vector<Entry> _entries;
+    mstd::vector<Entry> _pendingEntries;
 };
 
 } // namespace zocos

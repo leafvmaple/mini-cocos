@@ -6,7 +6,7 @@
 #include "base/ZCRenderDevice.h"
 #include "base/ZCRenderer.h"
 
-#include <new>
+#include "base/ZCStd.h"
 
 namespace zocos::ui {
 
@@ -45,8 +45,8 @@ bool createSolidTexture(Director& director, unsigned char r, unsigned char g, un
 
 Button::Button(Director& director) : _director(director) {}
 
-Button* Button::create(Director& director, const std::string& title) {
-    auto* button = new (std::nothrow) Button(director);
+Button* Button::create(Director& director, const mstd::string& title) {
+    auto* button = new (mstd::nothrow) Button(director);
     if (button && button->init()) {
         button->setString(title);
         button->autorelease();
@@ -85,7 +85,7 @@ bool Button::init() {
     return true;
 }
 
-void Button::setString(const std::string& title) {
+void Button::setString(const mstd::string& title) {
     _title = title;
     if (_titleLabel) {
         _titleLabel->setString(_title);
@@ -93,7 +93,7 @@ void Button::setString(const std::string& title) {
     }
 }
 
-bool Button::setTitleFontName(const std::string& fontPath) {
+bool Button::setTitleFontName(const mstd::string& fontPath) {
     if (!_titleLabel) {
         return false;
     }

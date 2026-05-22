@@ -2,8 +2,7 @@
 
 #include "base/ZCRef.h"
 
-#include <functional>
-#include <vector>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -45,7 +44,7 @@ protected:
 
 class CallFunc : public Action {
 public:
-    using Callback = std::function<void()>;
+    using Callback = mstd::function<void()>;
 
     static CallFunc* create(Callback callback);
 
@@ -63,7 +62,7 @@ private:
 
 class Sequence : public Action {
 public:
-    static Sequence* create(const std::vector<Action*>& actions);
+    static Sequence* create(const mstd::vector<Action*>& actions);
 
     ~Sequence() override;
 
@@ -73,16 +72,16 @@ public:
     bool isDone() const override;
 
 protected:
-    explicit Sequence(const std::vector<Action*>& actions);
+    explicit Sequence(const mstd::vector<Action*>& actions);
 
 private:
-    std::vector<Action*> _actions;
-    std::size_t _currentIndex = 0;
+    mstd::vector<Action*> _actions;
+    mstd::size_t _currentIndex = 0;
 };
 
 class Spawn : public Action {
 public:
-    static Spawn* create(const std::vector<Action*>& actions);
+    static Spawn* create(const mstd::vector<Action*>& actions);
 
     ~Spawn() override;
 
@@ -92,10 +91,10 @@ public:
     bool isDone() const override;
 
 protected:
-    explicit Spawn(const std::vector<Action*>& actions);
+    explicit Spawn(const mstd::vector<Action*>& actions);
 
 private:
-    std::vector<Action*> _actions;
+    mstd::vector<Action*> _actions;
 };
 
 class Repeat : public Action {

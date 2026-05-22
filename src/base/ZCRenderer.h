@@ -2,7 +2,7 @@
 
 #include "base/ZCRenderCommand.h"
 
-#include <vector>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -17,14 +17,14 @@ public:
                        const Rect& uvRect = Rect{0.f, 0.f, 1.f, 1.f}, float opacity = 1.f,
                        RenderSortKey sortKey = 0);
     void addDrawQuads(const Mat4& world, TextureHandle texture,
-                      const std::vector<QuadVertex>& vertices, float opacity = 1.f,
+                      const mstd::vector<QuadVertex>& vertices, float opacity = 1.f,
                       RenderSortKey sortKey = 0);
     void flush(RenderDevice& device, int framebufferWidth, int framebufferHeight);
     void endFrame();
 
 private:
     Mat4 _projection = Mat4::identity();
-    std::vector<RenderCommand> _commands;
+    mstd::vector<RenderCommand> _commands;
     std::uint32_t _submissionCounter = 0;
 };
 
