@@ -2,7 +2,7 @@
 
 // Named ZCMath.h so "Math.h" does not shadow system <math.h> on case-insensitive filesystems.
 
-#include <cmath>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
@@ -51,8 +51,8 @@ struct Mat4 {
 
     static Mat4 rotateZ(float degrees) {
         const float rad = degrees * 3.14159265f / 180.f;
-        const float c = std::cos(rad);
-        const float s = std::sin(rad);
+        const float c = mstd::cos(rad);
+        const float s = mstd::sin(rad);
         Mat4 r = identity();
         r.m[0] = c;
         r.m[1] = s;

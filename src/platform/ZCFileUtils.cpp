@@ -131,7 +131,7 @@ bool FileUtils::isDirectoryExist(const mstd::string& path) const {
     return isDirectoryExistImpl(normalizedPath);
 }
 
-std::uintmax_t FileUtils::getFileSize(const mstd::string& path) const {
+mstd::uintmax_t FileUtils::getFileSize(const mstd::string& path) const {
     if (path.empty()) {
         return 0;
     }

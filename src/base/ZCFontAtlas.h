@@ -3,7 +3,6 @@
 #include "base/ZCRef.h"
 #include "base/ZCRenderCommand.h"
 
-#include <cstdint>
 #include "base/ZCStd.h"
 
 struct stbtt_fontinfo;
@@ -44,7 +43,7 @@ public:
     const mstd::string& getFontPath() const { return _fontPath; }
     float getFontSize() const { return _fontSize; }
     Font* getFont() const { return _font; }
-    std::uint32_t getAtlasVersion() const { return _atlasVersion; }
+    mstd::uint32_t getAtlasVersion() const { return _atlasVersion; }
 
     // Font metrics in pixels (already scaled).
     float getScale() const { return _scale; }
@@ -54,7 +53,7 @@ public:
 
     // Lazily rasterise every codepoint in `utf32Text` into the atlas pages.
     // Newly added glyphs cause affected pages to be re-uploaded before return.
-    bool prepareLetterDefinitions(const std::u32string& utf32Text);
+    bool prepareLetterDefinitions(const mstd::u32string& utf32Text);
 
     bool findLetterDefinitionForChar(char32_t utf32Char, LetterDefinition& outDef);
 
@@ -112,7 +111,7 @@ private:
     mstd::vector<TextureHandle> _atlasTextures; // mirrors _atlasPages[i].texture
     int _atlasWidth = 1024;
     int _atlasHeight = 1024;
-    std::uint32_t _atlasVersion = 0;
+    mstd::uint32_t _atlasVersion = 0;
 };
 
 } // namespace zocos

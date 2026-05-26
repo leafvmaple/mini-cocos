@@ -2,29 +2,28 @@
 
 #include "math/ZCMath.h"
 
-#include <cstdint>
 #include "base/ZCStd.h"
 
 namespace zocos {
 
-using RenderSortKey = std::uint64_t;
+using RenderSortKey = mstd::uint64_t;
 
 struct TextureHandle {
-    std::uint32_t value = 0;
+    mstd::uint32_t value = 0;
 
     bool isValid() const { return value != 0; }
 };
 
-enum class RenderCommandType : std::uint8_t {
+enum class RenderCommandType : mstd::uint8_t {
     DrawSprite = 0,
     DrawQuads = 1,
 };
 
 struct Color4B {
-    std::uint8_t r = 255;
-    std::uint8_t g = 255;
-    std::uint8_t b = 255;
-    std::uint8_t a = 255;
+    mstd::uint8_t r = 255;
+    mstd::uint8_t g = 255;
+    mstd::uint8_t b = 255;
+    mstd::uint8_t a = 255;
 };
 
 struct QuadVertex {
@@ -51,13 +50,13 @@ struct DrawQuadsCommand {
 struct RenderCommand {
     RenderCommandType type = RenderCommandType::DrawSprite;
     RenderSortKey sortKey = 0;
-    std::uint32_t submissionIndex = 0;
+    mstd::uint32_t submissionIndex = 0;
     DrawSpriteCommand sprite{};
     DrawQuadsCommand quads{};
 };
 
-inline RenderSortKey makeRenderSortKey(std::uint16_t pass, std::uint16_t layer,
-                                       std::uint32_t material) {
+inline RenderSortKey makeRenderSortKey(mstd::uint16_t pass, mstd::uint16_t layer,
+                                       mstd::uint32_t material) {
     return (static_cast<RenderSortKey>(pass) << 48) | (static_cast<RenderSortKey>(layer) << 32) |
            static_cast<RenderSortKey>(material);
 }

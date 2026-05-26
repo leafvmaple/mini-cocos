@@ -3,7 +3,6 @@
 #include "base/ZCRenderDevice.h"
 #include "math/ZCMath.h"
 
-#include <cstdint>
 #include "base/ZCStd.h"
 
 namespace zocos {
@@ -38,7 +37,7 @@ private:
     Entry* findEntryByTexture(TextureHandle texture);
 
     mstd::unordered_map<mstd::string, Entry> _entriesByKey;
-    mstd::unordered_map<std::uint32_t, mstd::string> _keyByTexture;
+    mstd::unordered_map<mstd::uint32_t, mstd::string> _keyByTexture;
 };
 
 } // namespace zocos

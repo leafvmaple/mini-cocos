@@ -3,7 +3,6 @@
 #include "platform/vulkan/ZCRenderDeviceVulkan.h"
 #include "platform/vulkan/ZCVulkanViewImpl.h"
 
-#include <cstdio>
 #include "base/ZCStd.h"
 
 namespace zocos {
@@ -13,7 +12,7 @@ mstd::unique_ptr<View> createDefaultView() { return mstd::make_unique<VulkanView
 mstd::unique_ptr<RenderDevice> createDefaultRenderDevice(View& view) {
     auto* vkView = dynamic_cast<VulkanViewImpl*>(&view);
     if (!vkView) {
-        std::fprintf(stderr, "Vulkan backend requires VulkanViewImpl.\n");
+        mstd::fprintf(stderr, "Vulkan backend requires VulkanViewImpl.\n");
         return {};
     }
 

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
 #include "base/ZCStd.h"
 
 namespace zocos {
@@ -23,7 +21,7 @@ public:
     bool isAbsolutePath(const mstd::string& path) const;
     bool isFileExist(const mstd::string& path) const;
     bool isDirectoryExist(const mstd::string& path) const;
-    std::uintmax_t getFileSize(const mstd::string& path) const;
+    mstd::uintmax_t getFileSize(const mstd::string& path) const;
 
     mstd::string getWritablePath() const;
     bool createDirectory(const mstd::string& dirPath) const;
@@ -53,7 +51,7 @@ protected:
     virtual bool isAbsolutePathImpl(const mstd::string& path) const = 0;
     virtual bool isFileExistImpl(const mstd::string& path) const = 0;
     virtual bool isDirectoryExistImpl(const mstd::string& path) const = 0;
-    virtual std::uintmax_t getFileSizeImpl(const mstd::string& path) const = 0;
+    virtual mstd::uintmax_t getFileSizeImpl(const mstd::string& path) const = 0;
     virtual mstd::string getWritablePathImpl() const = 0;
     virtual bool createDirectoryImpl(const mstd::string& dirPath) const = 0;
     virtual bool removeDirectoryImpl(const mstd::string& dirPath) const = 0;

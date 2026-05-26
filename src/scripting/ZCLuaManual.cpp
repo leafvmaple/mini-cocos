@@ -4,6 +4,7 @@
 #include "base/ZCActionInterval.h"
 #include "base/ZCDirector.h"
 #include "base/ZCFontAtlas.h"
+#include "base/ZCStd.h"
 #include "2d/ZCLabel.h"
 #include "2d/ZCNode.h"
 #include "2d/ZCScene.h"
@@ -15,9 +16,6 @@ extern "C" {
 #include <lauxlib.h>
 #include <lua.h>
 }
-
-#include <cstdio>
-#include <cstring>
 #include "base/ZCStd.h"
 
 namespace zocos {
@@ -52,7 +50,7 @@ bool isCompatibleMetatable(lua_State* tolua_S, int index, const char* expectedMe
         return true;
     }
 
-    if (std::strcmp(expectedMetatable, kNodeMeta) == 0) {
+    if (mstd::strcmp(expectedMetatable, kNodeMeta) == 0) {
         return hasMetatable(tolua_S, index, kSceneMeta) ||
                hasMetatable(tolua_S, index, kSpriteMeta) ||
                hasMetatable(tolua_S, index, kLabelMeta) ||
@@ -60,7 +58,7 @@ bool isCompatibleMetatable(lua_State* tolua_S, int index, const char* expectedMe
                hasMetatable(tolua_S, index, kButtonMeta);
     }
 
-    if (std::strcmp(expectedMetatable, kWidgetMeta) == 0) {
+    if (mstd::strcmp(expectedMetatable, kWidgetMeta) == 0) {
         return hasMetatable(tolua_S, index, kButtonMeta);
     }
 
@@ -796,7 +794,7 @@ int lua_zocos_Node_schedule(lua_State* tolua_S) {
                 lua_pushnumber(tolua_S, static_cast<lua_Number>(dt));
                 if (lua_pcall(tolua_S, 1, 0, 0) != LUA_OK) {
                     const char* message = lua_tostring(tolua_S, -1);
-                    std::fprintf(stderr, "Lua schedule callback error (%s): %s\n",
+                    mstd::fprintf(stderr, "Lua schedule callback error (%s): %s\n",
                                  keyString.c_str(), message ? message : "(unknown)");
                     lua_pop(tolua_S, 1);
                 }
@@ -836,7 +834,7 @@ int lua_zocos_Node_scheduleOnce(lua_State* tolua_S) {
                 lua_pushnumber(tolua_S, static_cast<lua_Number>(dt));
                 if (lua_pcall(tolua_S, 1, 0, 0) != LUA_OK) {
                     const char* message = lua_tostring(tolua_S, -1);
-                    std::fprintf(stderr, "Lua scheduleOnce callback error (%s): %s\n",
+                    mstd::fprintf(stderr, "Lua scheduleOnce callback error (%s): %s\n",
                                  keyString.c_str(), message ? message : "(unknown)");
                     lua_pop(tolua_S, 1);
                 }
@@ -1039,7 +1037,7 @@ int lua_zocos_Widget_addEventListener(lua_State* tolua_S) {
             node_to_luaval(tolua_S, static_cast<Node*>(&sender));
             if (lua_pcall(tolua_S, 1, 0, 0) != LUA_OK) {
                 const char* message = lua_tostring(tolua_S, -1);
-                std::fprintf(stderr, "Lua widget event callback error: %s\n",
+                mstd::fprintf(stderr, "Lua widget event callback error: %s\n",
                              message ? message : "(unknown)");
                 lua_pop(tolua_S, 1);
             }

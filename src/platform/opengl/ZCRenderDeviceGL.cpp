@@ -1,7 +1,5 @@
 #include "platform/opengl/ZCRenderDeviceGL.h"
 
-#include <cstdio>
-#include <cstring>
 #include "base/ZCStd.h"
 
 namespace zocos {
@@ -42,7 +40,7 @@ GLuint compileShader(GLenum type, const char* src) {
     if (!ok) {
         char buf[512];
         glGetShaderInfoLog(shader, sizeof(buf), nullptr, buf);
-        std::fprintf(stderr, "Shader compile error: %s\n", buf);
+        mstd::fprintf(stderr, "Shader compile error: %s\n", buf);
         glDeleteShader(shader);
         return 0;
     }
@@ -60,7 +58,7 @@ GLuint linkProgram(GLuint vs, GLuint fs) {
     if (!ok) {
         char buf[512];
         glGetProgramInfoLog(program, sizeof(buf), nullptr, buf);
-        std::fprintf(stderr, "Program link error: %s\n", buf);
+        mstd::fprintf(stderr, "Program link error: %s\n", buf);
         glDeleteProgram(program);
         return 0;
     }
@@ -162,7 +160,7 @@ TextureHandle RenderDeviceGL::createTexture(const TextureCreateInfo& createInfo)
             const auto* src =
                 createInfo.initialData.pixels + static_cast<size_t>(srcY) * srcRowPitch;
             auto* dst = staging.data() + static_cast<size_t>(dstY) * tightRowPitch;
-            std::memcpy(dst, src, static_cast<size_t>(tightRowPitch));
+            mstd::memcpy(dst, src, static_cast<mstd::size_t>(tightRowPitch));
         }
         uploadPixels = staging.data();
     }
@@ -243,7 +241,7 @@ void RenderDeviceGL::updateTextureRegion(TextureHandle texture, int x, int y, in
         const int srcRow = shouldFlipY ? (height - 1 - row) : row;
         const auto* src = data.pixels + static_cast<mstd::size_t>(srcRow) * srcRowPitch;
         auto* dst = packed.data() + static_cast<mstd::size_t>(row) * tightRowPitch;
-        std::memcpy(dst, src, static_cast<mstd::size_t>(tightRowPitch));
+        mstd::memcpy(dst, src, static_cast<mstd::size_t>(tightRowPitch));
     }
 
     glBindTexture(GL_TEXTURE_2D, rec.id);
@@ -306,7 +304,7 @@ void RenderDeviceGL::drawSprite(const DrawSpriteCommand& command) {
 
     const float clampedOpacity =
         command.opacity < 0.f ? 0.f : (command.opacity > 1.f ? 1.f : command.opacity);
-    const Color4B col{255, 255, 255, static_cast<std::uint8_t>(clampedOpacity * 255.f + 0.5f)};
+    const Color4B col{255, 255, 255, static_cast<mstd::uint8_t>(clampedOpacity * 255.f + 0.5f)};
     const QuadVertex verts[] = {
         {{0.f, 0.f}, {u0, v0}, col}, {{w, 0.f}, {u1, v0}, col}, {{w, h}, {u1, v1}, col},
         {{0.f, 0.f}, {u0, v0}, col}, {{w, h}, {u1, v1}, col},   {{0.f, h}, {u0, v1}, col},

@@ -3,8 +3,6 @@
 #include "base/ZCEvent.h"
 #include "base/ZCEventListener.h"
 
-#include <cstddef>
-#include <cstdint>
 #include "base/ZCStd.h"
 
 namespace zocos {
@@ -13,7 +11,7 @@ class Node;
 
 class EventDispatcher {
 public:
-    using ListenerHandle = std::uint64_t;
+    using ListenerHandle = mstd::uint64_t;
 
     ListenerHandle addEventListenerWithNodePriority(EventListener* listener, Node* node);
     ListenerHandle addEventListenerWithFixedPriority(EventListener* listener, int fixedPriority);

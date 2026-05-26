@@ -2,30 +2,27 @@
 
 #include "platform/ZCFileUtils.h"
 
-#include <cstddef>
-#include <cstdint>
-
 namespace zocos {
 
 class FileUtilsWin32 final : public FileUtils {
 protected:
-    bool readBinaryFileImpl(const std::string& path,
-                            std::vector<unsigned char>& outData) const override;
-    bool writeBinaryFileImpl(const std::string& path, const unsigned char* data,
-                             std::size_t size) const override;
-    std::string parentPathImpl(const std::string& path) const override;
-    bool isAbsolutePathImpl(const std::string& path) const override;
-    bool isFileExistImpl(const std::string& path) const override;
-    bool isDirectoryExistImpl(const std::string& path) const override;
-    std::uintmax_t getFileSizeImpl(const std::string& path) const override;
-    std::string getWritablePathImpl() const override;
-    bool createDirectoryImpl(const std::string& dirPath) const override;
-    bool removeDirectoryImpl(const std::string& dirPath) const override;
-    bool removeFileImpl(const std::string& path) const override;
-    bool renameFileImpl(const std::string& oldPath, const std::string& newPath) const override;
-    std::string normalizePathImpl(const std::string& path) const override;
-    std::string joinPathImpl(const std::string& directory,
-                             const std::string& filename) const override;
+    bool readBinaryFileImpl(const mstd::string& path,
+                            mstd::vector<unsigned char>& outData) const override;
+    bool writeBinaryFileImpl(const mstd::string& path, const unsigned char* data,
+                             mstd::size_t size) const override;
+    mstd::string parentPathImpl(const mstd::string& path) const override;
+    bool isAbsolutePathImpl(const mstd::string& path) const override;
+    bool isFileExistImpl(const mstd::string& path) const override;
+    bool isDirectoryExistImpl(const mstd::string& path) const override;
+    mstd::uintmax_t getFileSizeImpl(const mstd::string& path) const override;
+    mstd::string getWritablePathImpl() const override;
+    bool createDirectoryImpl(const mstd::string& dirPath) const override;
+    bool removeDirectoryImpl(const mstd::string& dirPath) const override;
+    bool removeFileImpl(const mstd::string& path) const override;
+    bool renameFileImpl(const mstd::string& oldPath, const mstd::string& newPath) const override;
+    mstd::string normalizePathImpl(const mstd::string& path) const override;
+    mstd::string joinPathImpl(const mstd::string& directory,
+                             const mstd::string& filename) const override;
 };
 
 } // namespace zocos

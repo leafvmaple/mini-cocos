@@ -5,7 +5,6 @@
 #include "base/ZCEventDispatcher.h"
 #include "base/ZCEventListener.h"
 
-#include <cmath>
 #include "base/ZCStd.h"
 
 namespace zocos::ui {
@@ -29,14 +28,14 @@ bool applyInverseNodeTransform(const Node* node, Vec2& point) {
     point.y -= position.y;
 
     const float rad = -rotationDegrees * kPi / 180.f;
-    const float c = std::cos(rad);
-    const float s = std::sin(rad);
+    const float c = mstd::cos(rad);
+    const float s = mstd::sin(rad);
     const float rx = point.x * c - point.y * s;
     const float ry = point.x * s + point.y * c;
     point.x = rx;
     point.y = ry;
 
-    if (std::fabs(scale.x) <= 1e-6f || std::fabs(scale.y) <= 1e-6f) {
+    if (mstd::fabs(scale.x) <= 1e-6f || mstd::fabs(scale.y) <= 1e-6f) {
         return false;
     }
     point.x /= scale.x;

@@ -25,7 +25,7 @@ public:
 private:
     Mat4 _projection = Mat4::identity();
     mstd::vector<RenderCommand> _commands;
-    std::uint32_t _submissionCounter = 0;
+    mstd::uint32_t _submissionCounter = 0;
 };
 
 } // namespace zocos

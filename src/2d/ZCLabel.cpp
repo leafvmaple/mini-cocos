@@ -7,7 +7,6 @@
 #include "base/ZCStringUtils.h"
 
 #include "base/ZCStd.h"
-#include <cmath>
 
 namespace zocos {
 
@@ -74,7 +73,7 @@ bool Label::setFontAtlas(FontAtlas* fontAtlas) {
 
 bool Label::setTTF(const mstd::string& fontPath) {
     if (_fontAtlas && _fontPath == fontPath &&
-        std::fabs(_fontSize - _fontAtlas->getFontSize()) <= 1e-4f) {
+        mstd::fabs(_fontSize - _fontAtlas->getFontSize()) <= 1e-4f) {
         return true;
     }
 
@@ -87,7 +86,7 @@ bool Label::setTTF(const mstd::string& fontPath) {
 
 void Label::setFontSize(float fontSize) {
     const float clampedSize = mstd::max(1.f, fontSize);
-    if (std::fabs(_fontSize - clampedSize) <= 1e-4f) {
+    if (mstd::fabs(_fontSize - clampedSize) <= 1e-4f) {
         return;
     }
     _fontSize = clampedSize;
@@ -100,7 +99,7 @@ void Label::setFontSize(float fontSize) {
 
 void Label::setMaxLineWidth(float maxLineWidth) {
     const float clamped = mstd::max(0.f, maxLineWidth);
-    if (std::fabs(_maxLineWidth - clamped) <= 1e-4f) {
+    if (mstd::fabs(_maxLineWidth - clamped) <= 1e-4f) {
         return;
     }
     _maxLineWidth = clamped;
@@ -213,7 +212,7 @@ void Label::multilineTextWrap() {
     }
 
     maxLineWidth = mstd::max(maxLineWidth, penX);
-    _contentWidth = mstd::max(1.f, std::ceil(maxLineWidth));
+    _contentWidth = mstd::max(1.f, mstd::ceil(maxLineWidth));
     _contentHeight = mstd::max(lineHeight, static_cast<float>(lineIndex + 1) * lineHeight);
 }
 
@@ -295,7 +294,7 @@ void Label::draw(Renderer& renderer, const Mat4& world) {
     const float opacity = getOpacity();
     if (opacity != _bakedOpacity) {
         const float clamped = mstd::max(0.f, mstd::min(1.f, opacity));
-        const std::uint8_t alphaByte = static_cast<std::uint8_t>(clamped * 255.f + 0.5f);
+        const mstd::uint8_t alphaByte = static_cast<mstd::uint8_t>(clamped * 255.f + 0.5f);
         for (auto& quads : _quadsPerPage) {
             for (auto& v : quads) {
                 v.color.a = alphaByte;

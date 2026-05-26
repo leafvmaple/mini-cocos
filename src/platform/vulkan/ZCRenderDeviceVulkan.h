@@ -3,8 +3,6 @@
 #include "base/ZCRenderDevice.h"
 
 #include "base/ZCStd.h"
-#include <cstddef>
-#include <cstdint>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -35,7 +33,7 @@ private:
     };
 
     struct PendingDraw {
-        std::uint32_t textureHandle = 0;
+        mstd::uint32_t textureHandle = 0;
         uint32_t firstVertex = 0;
         uint32_t vertexCount = 0;
         Mat4 mvp = Mat4::identity();
@@ -133,8 +131,8 @@ private:
     mstd::vector<VulkanVertex> _pendingVertices;
     mstd::vector<PendingDraw> _pendingDraws;
 
-    mstd::unordered_map<std::uint32_t, TextureResource> _textures;
-    std::uint32_t _nextTextureHandle = 1;
+    mstd::unordered_map<mstd::uint32_t, TextureResource> _textures;
+    mstd::uint32_t _nextTextureHandle = 1;
 };
 
 } // namespace zocos

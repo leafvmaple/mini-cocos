@@ -3,7 +3,6 @@
 #include "base/ZCRenderCommand.h"
 #include "2d/ZCNode.h"
 
-#include <cstdint>
 #include "base/ZCStd.h"
 
 namespace zocos {
@@ -71,7 +70,7 @@ private:
 
     Director& _director;
     mstd::string _text;
-    std::u32string _utf32Text;
+    mstd::u32string _utf32Text;
     mstd::string _fontPath;
     float _fontSize = 24.f;
     float _maxLineWidth = 0.f;
@@ -83,7 +82,7 @@ private:
 
     float _contentWidth = 0.f;
     float _contentHeight = 0.f;
-    std::uint32_t _atlasVersion = 0;
+    mstd::uint32_t _atlasVersion = 0;
     float _bakedOpacity = -1.f;
     bool _ready = false;
     bool _contentDirty = true;

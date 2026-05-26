@@ -3,8 +3,6 @@
 
 #include "base/ZCFontAtlas.h"
 
-#include <cstdio>
-
 namespace zocos {
 
 FontAtlasCache::FontAtlasCache(Director& director) : _director(director) {}
@@ -13,7 +11,7 @@ FontAtlasCache::~FontAtlasCache() { removeAllFontAtlas(); }
 
 mstd::string FontAtlasCache::makeKey(const mstd::string& fontPath, float fontSize) {
     char buf[32];
-    std::snprintf(buf, sizeof(buf), "|%.2f", fontSize);
+    mstd::snprintf(buf, sizeof(buf), "|%.2f", fontSize);
     return fontPath + buf;
 }
 

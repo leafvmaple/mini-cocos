@@ -1,17 +1,16 @@
 #pragma once
 
 #include "base/ZCRenderCommand.h"
-
-#include <cstdint>
+#include "base/ZCStd.h"
 
 namespace zocos {
 
-enum class TextureFormat : std::uint8_t {
+enum class TextureFormat : mstd::uint8_t {
     RGBA8Unorm = 0,
     A8Unorm = 1,
 };
 
-enum class TextureDataOrigin : std::uint8_t {
+enum class TextureDataOrigin : mstd::uint8_t {
     BottomLeft = 0,
     TopLeft = 1,
 };

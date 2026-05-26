@@ -1,9 +1,6 @@
 #include "platform/vulkan/ZCRenderDeviceVulkan.h"
 
 #include "base/ZCStd.h"
-#include <cstddef>
-#include <cstdio>
-#include <cstring>
 
 #include "platform/vulkan/ZCVulkanMinimalSpv.inl"
 
@@ -44,7 +41,7 @@ void RenderDeviceVulkan::beginFrame(const Mat4& projection, int framebufferWidth
 
     VkFence frameFence = _inFlightFences[_currentFrame];
     if (vkWaitForFences(_device, 1, &frameFence, VK_TRUE, UINT64_MAX) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkWaitForFences failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkWaitForFences failed.\n");
         return;
     }
 
@@ -56,12 +53,12 @@ void RenderDeviceVulkan::beginFrame(const Mat4& projection, int framebufferWidth
         return;
     }
     if (acquireResult != VK_SUCCESS && acquireResult != VK_SUBOPTIMAL_KHR) {
-        std::fprintf(stderr, "[Vulkan] vkAcquireNextImageKHR failed (%d).\n", acquireResult);
+        mstd::fprintf(stderr, "[Vulkan] vkAcquireNextImageKHR failed (%d).\n", acquireResult);
         return;
     }
 
     if (_currentImageIndex >= _framebuffers.size()) {
-        std::fprintf(stderr, "[Vulkan] Swapchain image index out of range.\n");
+        mstd::fprintf(stderr, "[Vulkan] Swapchain image index out of range.\n");
         recreateSwapchain();
         return;
     }
@@ -75,7 +72,7 @@ void RenderDeviceVulkan::beginFrame(const Mat4& projection, int framebufferWidth
     beginInfo.pInheritanceInfo = nullptr;
 
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkBeginCommandBuffer failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkBeginCommandBuffer failed.\n");
         return;
     }
 
@@ -123,14 +120,14 @@ void RenderDeviceVulkan::endFrame() {
     vkCmdEndRenderPass(commandBuffer);
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkEndCommandBuffer failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkEndCommandBuffer failed.\n");
         _frameActive = false;
         return;
     }
 
     VkFence frameFence = _inFlightFences[_currentFrame];
     if (vkResetFences(_device, 1, &frameFence) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkResetFences failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkResetFences failed.\n");
         _frameActive = false;
         return;
     }
@@ -148,7 +145,7 @@ void RenderDeviceVulkan::endFrame() {
     submitInfo.pSignalSemaphores = &_renderFinishedSemaphores[_currentFrame];
 
     if (vkQueueSubmit(_graphicsQueue, 1, &submitInfo, frameFence) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkQueueSubmit failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkQueueSubmit failed.\n");
         _frameActive = false;
         return;
     }
@@ -166,7 +163,7 @@ void RenderDeviceVulkan::endFrame() {
     if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) {
         recreateSwapchain();
     } else if (presentResult != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkQueuePresentKHR failed (%d).\n", presentResult);
+        mstd::fprintf(stderr, "[Vulkan] vkQueuePresentKHR failed (%d).\n", presentResult);
     }
 
     _currentFrame = (_currentFrame + 1) % kMaxFramesInFlight;
@@ -215,7 +212,7 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
     const bool shouldFlipY = createInfo.initialData.origin == TextureDataOrigin::TopLeft;
     const bool shouldPackRows = srcRowPitch != tightRowPitch;
     if (shouldFlipY || shouldPackRows) {
-        packedPixels.resize(static_cast<size_t>(tightRowPitch * createInfo.height));
+        packedPixels.resize(static_cast<mstd::size_t>(tightRowPitch * createInfo.height));
         for (int dstY = 0; dstY < createInfo.height; ++dstY) {
             int srcY = dstY;
             if (shouldFlipY) {
@@ -223,9 +220,9 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
             }
 
             const auto* src =
-                createInfo.initialData.pixels + static_cast<size_t>(srcY) * srcRowPitch;
-            auto* dst = packedPixels.data() + static_cast<size_t>(dstY) * tightRowPitch;
-            std::memcpy(dst, src, static_cast<size_t>(tightRowPitch));
+                createInfo.initialData.pixels + static_cast<mstd::size_t>(srcY) * srcRowPitch;
+            auto* dst = packedPixels.data() + static_cast<mstd::size_t>(dstY) * tightRowPitch;
+            mstd::memcpy(dst, src, static_cast<mstd::size_t>(tightRowPitch));
         }
         uploadPixels = packedPixels.data();
     }
@@ -273,7 +270,7 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
     stagingBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     if (vkCreateBuffer(_device, &stagingBufferInfo, nullptr, &stagingBuffer) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] Failed to create texture staging buffer.\n");
+        mstd::fprintf(stderr, "[Vulkan] Failed to create texture staging buffer.\n");
         return {};
     }
 
@@ -287,30 +284,30 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
         findMemoryType(stagingRequirements.memoryTypeBits,
                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     if (stagingAllocInfo.memoryTypeIndex == UINT32_MAX) {
-        std::fprintf(stderr, "[Vulkan] Missing host-visible memory type for texture upload.\n");
+        mstd::fprintf(stderr, "[Vulkan] Missing host-visible memory type for texture upload.\n");
         cleanupStaging();
         return {};
     }
 
     if (vkAllocateMemory(_device, &stagingAllocInfo, nullptr, &stagingBufferMemory) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] Failed to allocate texture staging memory.\n");
+        mstd::fprintf(stderr, "[Vulkan] Failed to allocate texture staging memory.\n");
         cleanupStaging();
         return {};
     }
 
     if (vkBindBufferMemory(_device, stagingBuffer, stagingBufferMemory, 0) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] Failed to bind texture staging memory.\n");
+        mstd::fprintf(stderr, "[Vulkan] Failed to bind texture staging memory.\n");
         cleanupStaging();
         return {};
     }
 
     void* mapped = nullptr;
     if (vkMapMemory(_device, stagingBufferMemory, 0, imageSize, 0, &mapped) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] Failed to map texture staging memory.\n");
+        mstd::fprintf(stderr, "[Vulkan] Failed to map texture staging memory.\n");
         cleanupStaging();
         return {};
     }
-    std::memcpy(mapped, uploadPixels, static_cast<size_t>(imageSize));
+    mstd::memcpy(mapped, uploadPixels, static_cast<mstd::size_t>(imageSize));
     vkUnmapMemory(_device, stagingBufferMemory);
 
     VkImageCreateInfo imageInfo{};
@@ -329,7 +326,7 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     if (vkCreateImage(_device, &imageInfo, nullptr, &texture.image) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] Failed to create texture image.\n");
+        mstd::fprintf(stderr, "[Vulkan] Failed to create texture image.\n");
         cleanupStaging();
         cleanupTexture();
         return {};
@@ -349,21 +346,21 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
                                                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     }
     if (imageAllocInfo.memoryTypeIndex == UINT32_MAX) {
-        std::fprintf(stderr, "[Vulkan] Missing memory type for texture image.\n");
+        mstd::fprintf(stderr, "[Vulkan] Missing memory type for texture image.\n");
         cleanupStaging();
         cleanupTexture();
         return {};
     }
 
     if (vkAllocateMemory(_device, &imageAllocInfo, nullptr, &texture.memory) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] Failed to allocate texture image memory.\n");
+        mstd::fprintf(stderr, "[Vulkan] Failed to allocate texture image memory.\n");
         cleanupStaging();
         cleanupTexture();
         return {};
     }
 
     if (vkBindImageMemory(_device, texture.image, texture.memory, 0) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] Failed to bind texture image memory.\n");
+        mstd::fprintf(stderr, "[Vulkan] Failed to bind texture image memory.\n");
         cleanupStaging();
         cleanupTexture();
         return {};
@@ -389,7 +386,7 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
     imageViewInfo.subresourceRange.layerCount = 1;
 
     if (vkCreateImageView(_device, &imageViewInfo, nullptr, &texture.imageView) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] Failed to create texture image view.\n");
+        mstd::fprintf(stderr, "[Vulkan] Failed to create texture image view.\n");
         cleanupStaging();
         cleanupTexture();
         return {};
@@ -403,7 +400,7 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
 
     if (vkAllocateDescriptorSets(_device, &descriptorAllocInfo, &texture.descriptorSet) !=
         VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] Failed to allocate texture descriptor set.\n");
+        mstd::fprintf(stderr, "[Vulkan] Failed to allocate texture descriptor set.\n");
         cleanupStaging();
         cleanupTexture();
         return {};
@@ -417,7 +414,7 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
 
     VkCommandBuffer cmd = VK_NULL_HANDLE;
     if (vkAllocateCommandBuffers(_device, &cmdAllocInfo, &cmd) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] Failed to allocate command buffer for texture upload.\n");
+        mstd::fprintf(stderr, "[Vulkan] Failed to allocate command buffer for texture upload.\n");
         cleanupStaging();
         cleanupTexture();
         return {};
@@ -428,7 +425,7 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     if (vkBeginCommandBuffer(cmd, &beginInfo) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] Failed to begin texture upload command buffer.\n");
+        mstd::fprintf(stderr, "[Vulkan] Failed to begin texture upload command buffer.\n");
         vkFreeCommandBuffers(_device, _commandPool, 1, &cmd);
         cleanupStaging();
         cleanupTexture();
@@ -487,7 +484,7 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
                          0, 0, nullptr, 0, nullptr, 1, &toShaderReadBarrier);
 
     if (vkEndCommandBuffer(cmd) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] Failed to end texture upload command buffer.\n");
+        mstd::fprintf(stderr, "[Vulkan] Failed to end texture upload command buffer.\n");
         vkFreeCommandBuffers(_device, _commandPool, 1, &cmd);
         cleanupStaging();
         cleanupTexture();
@@ -500,7 +497,7 @@ TextureHandle RenderDeviceVulkan::createTexture(const TextureCreateInfo& createI
     submitInfo.pCommandBuffers = &cmd;
 
     if (vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] Failed to submit texture upload.\n");
+        mstd::fprintf(stderr, "[Vulkan] Failed to submit texture upload.\n");
         vkFreeCommandBuffers(_device, _commandPool, 1, &cmd);
         cleanupStaging();
         cleanupTexture();
@@ -646,7 +643,7 @@ void RenderDeviceVulkan::updateTextureRegion(TextureHandle texture, int x, int y
     auto* dst = static_cast<unsigned char*>(mapped);
     for (int row = 0; row < height; ++row) {
         const int srcRow = shouldFlipY ? (height - 1 - row) : row;
-        std::memcpy(dst + static_cast<mstd::size_t>(row) * tightRowPitch,
+        mstd::memcpy(dst + static_cast<mstd::size_t>(row) * tightRowPitch,
                     data.pixels + static_cast<mstd::size_t>(srcRow) * srcRowPitch,
                     static_cast<mstd::size_t>(tightRowPitch));
     }
@@ -815,12 +812,12 @@ void RenderDeviceVulkan::flushDrawCommands() {
 
     void* mapped = nullptr;
     if (vkMapMemory(_device, _vertexBufferMemory, 0, vertexBytes, 0, &mapped) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkMapMemory for vertex buffer failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkMapMemory for vertex buffer failed.\n");
         _pendingVertices.clear();
         _pendingDraws.clear();
         return;
     }
-    std::memcpy(mapped, _pendingVertices.data(), vertexBytes);
+    mstd::memcpy(mapped, _pendingVertices.data(), vertexBytes);
     vkUnmapMemory(_device, _vertexBufferMemory);
 
     VkCommandBuffer commandBuffer = _commandBuffers[_currentFrame];
@@ -896,7 +893,7 @@ bool RenderDeviceVulkan::ensureVertexBuffer(mstd::size_t requiredSizeBytes) {
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     if (vkCreateBuffer(_device, &bufferInfo, nullptr, &_vertexBuffer) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkCreateBuffer (vertex) failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkCreateBuffer (vertex) failed.\n");
         return false;
     }
 
@@ -910,21 +907,21 @@ bool RenderDeviceVulkan::ensureVertexBuffer(mstd::size_t requiredSizeBytes) {
         findMemoryType(requirements.memoryTypeBits,
                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     if (allocInfo.memoryTypeIndex == UINT32_MAX) {
-        std::fprintf(stderr, "[Vulkan] No suitable host-visible memory type for vertex buffer.\n");
+        mstd::fprintf(stderr, "[Vulkan] No suitable host-visible memory type for vertex buffer.\n");
         vkDestroyBuffer(_device, _vertexBuffer, nullptr);
         _vertexBuffer = VK_NULL_HANDLE;
         return false;
     }
 
     if (vkAllocateMemory(_device, &allocInfo, nullptr, &_vertexBufferMemory) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkAllocateMemory for vertex buffer failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkAllocateMemory for vertex buffer failed.\n");
         vkDestroyBuffer(_device, _vertexBuffer, nullptr);
         _vertexBuffer = VK_NULL_HANDLE;
         return false;
     }
 
     if (vkBindBufferMemory(_device, _vertexBuffer, _vertexBufferMemory, 0) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkBindBufferMemory for vertex buffer failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkBindBufferMemory for vertex buffer failed.\n");
         vkFreeMemory(_device, _vertexBufferMemory, nullptr);
         _vertexBufferMemory = VK_NULL_HANDLE;
         vkDestroyBuffer(_device, _vertexBuffer, nullptr);
@@ -955,7 +952,7 @@ uint32_t RenderDeviceVulkan::findMemoryType(uint32_t typeFilter,
 
 bool RenderDeviceVulkan::initVulkan() {
     if (!_window) {
-        std::fprintf(stderr, "[Vulkan] GLFW window is null.\n");
+        mstd::fprintf(stderr, "[Vulkan] GLFW window is null.\n");
         return false;
     }
 
@@ -1003,7 +1000,7 @@ bool RenderDeviceVulkan::createInstance() {
     uint32_t extensionCount = 0;
     const char** extensions = glfwGetRequiredInstanceExtensions(&extensionCount);
     if (!extensions || extensionCount == 0) {
-        std::fprintf(stderr, "[Vulkan] glfwGetRequiredInstanceExtensions failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] glfwGetRequiredInstanceExtensions failed.\n");
         return false;
     }
 
@@ -1022,7 +1019,7 @@ bool RenderDeviceVulkan::createInstance() {
     instanceInfo.ppEnabledExtensionNames = extensions;
 
     if (vkCreateInstance(&instanceInfo, nullptr, &_instance) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkCreateInstance failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkCreateInstance failed.\n");
         return false;
     }
 
@@ -1031,7 +1028,7 @@ bool RenderDeviceVulkan::createInstance() {
 
 bool RenderDeviceVulkan::createSurface() {
     if (glfwCreateWindowSurface(_instance, _window, nullptr, &_surface) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] glfwCreateWindowSurface failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] glfwCreateWindowSurface failed.\n");
         return false;
     }
 
@@ -1042,7 +1039,7 @@ bool RenderDeviceVulkan::pickPhysicalDevice() {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(_instance, &deviceCount, nullptr);
     if (deviceCount == 0) {
-        std::fprintf(stderr, "[Vulkan] No Vulkan physical device found.\n");
+        mstd::fprintf(stderr, "[Vulkan] No Vulkan physical device found.\n");
         return false;
     }
 
@@ -1060,7 +1057,7 @@ bool RenderDeviceVulkan::pickPhysicalDevice() {
         }
     }
 
-    std::fprintf(stderr, "[Vulkan] No suitable Vulkan physical device found.\n");
+    mstd::fprintf(stderr, "[Vulkan] No suitable Vulkan physical device found.\n");
     return false;
 }
 
@@ -1100,7 +1097,7 @@ bool RenderDeviceVulkan::createLogicalDevice() {
     deviceInfo.ppEnabledExtensionNames = kRequiredDeviceExtensions.data();
 
     if (vkCreateDevice(_physicalDevice, &deviceInfo, nullptr, &_device) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkCreateDevice failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkCreateDevice failed.\n");
         return false;
     }
 
@@ -1112,7 +1109,7 @@ bool RenderDeviceVulkan::createLogicalDevice() {
 bool RenderDeviceVulkan::createSwapchain() {
     const SwapchainSupport support = querySwapchainSupport(_physicalDevice);
     if (support.formats.empty() || support.presentModes.empty()) {
-        std::fprintf(stderr, "[Vulkan] Swapchain support is incomplete.\n");
+        mstd::fprintf(stderr, "[Vulkan] Swapchain support is incomplete.\n");
         return false;
     }
 
@@ -1153,7 +1150,7 @@ bool RenderDeviceVulkan::createSwapchain() {
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
     if (vkCreateSwapchainKHR(_device, &createInfo, nullptr, &_swapchain) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkCreateSwapchainKHR failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkCreateSwapchainKHR failed.\n");
         return false;
     }
 
@@ -1183,7 +1180,7 @@ bool RenderDeviceVulkan::createSwapchain() {
 
         if (vkCreateImageView(_device, &viewInfo, nullptr, &_swapchainImageViews[i]) !=
             VK_SUCCESS) {
-            std::fprintf(stderr, "[Vulkan] vkCreateImageView failed.\n");
+            mstd::fprintf(stderr, "[Vulkan] vkCreateImageView failed.\n");
             return false;
         }
     }
@@ -1229,7 +1226,7 @@ bool RenderDeviceVulkan::createRenderPass() {
     renderPassInfo.pDependencies = &dependency;
 
     if (vkCreateRenderPass(_device, &renderPassInfo, nullptr, &_renderPass) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkCreateRenderPass failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkCreateRenderPass failed.\n");
         return false;
     }
 
@@ -1256,7 +1253,7 @@ bool RenderDeviceVulkan::createDescriptorResources() {
 
     if (vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_textureDescriptorSetLayout) !=
         VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkCreateDescriptorSetLayout failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkCreateDescriptorSetLayout failed.\n");
         return false;
     }
 
@@ -1273,7 +1270,7 @@ bool RenderDeviceVulkan::createDescriptorResources() {
 
     if (vkCreateDescriptorPool(_device, &poolInfo, nullptr, &_textureDescriptorPool) !=
         VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkCreateDescriptorPool failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkCreateDescriptorPool failed.\n");
         vkDestroyDescriptorSetLayout(_device, _textureDescriptorSetLayout, nullptr);
         _textureDescriptorSetLayout = VK_NULL_HANDLE;
         return false;
@@ -1298,7 +1295,7 @@ bool RenderDeviceVulkan::createDescriptorResources() {
     samplerInfo.maxLod = 0.0f;
 
     if (vkCreateSampler(_device, &samplerInfo, nullptr, &_textureSampler) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkCreateSampler failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkCreateSampler failed.\n");
         vkDestroyDescriptorPool(_device, _textureDescriptorPool, nullptr);
         _textureDescriptorPool = VK_NULL_HANDLE;
         vkDestroyDescriptorSetLayout(_device, _textureDescriptorSetLayout, nullptr);
@@ -1313,7 +1310,7 @@ bool RenderDeviceVulkan::createGraphicsPipeline() {
     destroyGraphicsPipeline();
 
     if (_textureDescriptorSetLayout == VK_NULL_HANDLE) {
-        std::fprintf(stderr, "[Vulkan] Texture descriptor set layout is not initialized.\n");
+        mstd::fprintf(stderr, "[Vulkan] Texture descriptor set layout is not initialized.\n");
         return false;
     }
 
@@ -1325,7 +1322,7 @@ bool RenderDeviceVulkan::createGraphicsPipeline() {
     vertShaderInfo.codeSize = sizeof(kVulkanMinimalVertSpv);
     vertShaderInfo.pCode = kVulkanMinimalVertSpv;
     if (vkCreateShaderModule(_device, &vertShaderInfo, nullptr, &vertShaderModule) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkCreateShaderModule(vertex) failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkCreateShaderModule(vertex) failed.\n");
         return false;
     }
 
@@ -1334,7 +1331,7 @@ bool RenderDeviceVulkan::createGraphicsPipeline() {
     fragShaderInfo.codeSize = sizeof(kVulkanMinimalFragSpv);
     fragShaderInfo.pCode = kVulkanMinimalFragSpv;
     if (vkCreateShaderModule(_device, &fragShaderInfo, nullptr, &fragShaderModule) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkCreateShaderModule(fragment) failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkCreateShaderModule(fragment) failed.\n");
         vkDestroyShaderModule(_device, vertShaderModule, nullptr);
         return false;
     }
@@ -1448,7 +1445,7 @@ bool RenderDeviceVulkan::createGraphicsPipeline() {
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
     if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
         VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkCreatePipelineLayout failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkCreatePipelineLayout failed.\n");
         vkDestroyShaderModule(_device, fragShaderModule, nullptr);
         vkDestroyShaderModule(_device, vertShaderModule, nullptr);
         return false;
@@ -1477,7 +1474,7 @@ bool RenderDeviceVulkan::createGraphicsPipeline() {
     vkDestroyShaderModule(_device, vertShaderModule, nullptr);
 
     if (createPipelineResult != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkCreateGraphicsPipelines failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkCreateGraphicsPipelines failed.\n");
         destroyGraphicsPipeline();
         return false;
     }
@@ -1527,7 +1524,7 @@ bool RenderDeviceVulkan::createFramebuffers() {
 
         if (vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_framebuffers[i]) !=
             VK_SUCCESS) {
-            std::fprintf(stderr, "[Vulkan] vkCreateFramebuffer failed.\n");
+            mstd::fprintf(stderr, "[Vulkan] vkCreateFramebuffer failed.\n");
             return false;
         }
     }
@@ -1542,7 +1539,7 @@ bool RenderDeviceVulkan::createCommandPool() {
     poolInfo.queueFamilyIndex = _graphicsQueueFamily;
 
     if (vkCreateCommandPool(_device, &poolInfo, nullptr, &_commandPool) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkCreateCommandPool failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkCreateCommandPool failed.\n");
         return false;
     }
 
@@ -1557,7 +1554,7 @@ bool RenderDeviceVulkan::createCommandBuffers() {
     allocInfo.commandBufferCount = kMaxFramesInFlight;
 
     if (vkAllocateCommandBuffers(_device, &allocInfo, _commandBuffers.data()) != VK_SUCCESS) {
-        std::fprintf(stderr, "[Vulkan] vkAllocateCommandBuffers failed.\n");
+        mstd::fprintf(stderr, "[Vulkan] vkAllocateCommandBuffers failed.\n");
         return false;
     }
 
@@ -1575,16 +1572,16 @@ bool RenderDeviceVulkan::createSyncObjects() {
     for (uint32_t i = 0; i < kMaxFramesInFlight; ++i) {
         if (vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &_imageAvailableSemaphores[i]) !=
             VK_SUCCESS) {
-            std::fprintf(stderr, "[Vulkan] vkCreateSemaphore(imageAvailable) failed.\n");
+            mstd::fprintf(stderr, "[Vulkan] vkCreateSemaphore(imageAvailable) failed.\n");
             return false;
         }
         if (vkCreateSemaphore(_device, &semaphoreInfo, nullptr, &_renderFinishedSemaphores[i]) !=
             VK_SUCCESS) {
-            std::fprintf(stderr, "[Vulkan] vkCreateSemaphore(renderFinished) failed.\n");
+            mstd::fprintf(stderr, "[Vulkan] vkCreateSemaphore(renderFinished) failed.\n");
             return false;
         }
         if (vkCreateFence(_device, &fenceInfo, nullptr, &_inFlightFences[i]) != VK_SUCCESS) {
-            std::fprintf(stderr, "[Vulkan] vkCreateFence failed.\n");
+            mstd::fprintf(stderr, "[Vulkan] vkCreateFence failed.\n");
             return false;
         }
     }
@@ -1675,12 +1672,12 @@ void RenderDeviceVulkan::cleanup() {
     }
 
     if (_device != VK_NULL_HANDLE) {
-        mstd::vector<std::uint32_t> textureIds;
+        mstd::vector<mstd::uint32_t> textureIds;
         textureIds.reserve(_textures.size());
         for (const auto& pair : _textures) {
             textureIds.push_back(pair.first);
         }
-        for (std::uint32_t id : textureIds) {
+        for (mstd::uint32_t id : textureIds) {
             TextureHandle handle{};
             handle.value = id;
             destroyTexture(handle);

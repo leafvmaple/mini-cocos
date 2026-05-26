@@ -7,7 +7,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#include <cstdio>
 #include "base/ZCStd.h"
 
 namespace zocos {
@@ -32,19 +31,19 @@ bool TextureCache::acquireFromFile(Director& director, const char* path, Texture
     int channels = 0;
     mstd::vector<unsigned char> encodedBytes;
     if (!FileUtils::getInstance().getDataFromFile(path, encodedBytes) || encodedBytes.empty()) {
-        std::fprintf(stderr, "readBinaryFile failed: %s\n", path);
+        mstd::fprintf(stderr, "readBinaryFile failed: %s\n", path);
         return false;
     }
 
     if (encodedBytes.size() > static_cast<mstd::size_t>(mstd::numeric_limits<int>::max())) {
-        std::fprintf(stderr, "Image file is too large: %s\n", path);
+        mstd::fprintf(stderr, "Image file is too large: %s\n", path);
         return false;
     }
 
     unsigned char* data = stbi_load_from_memory(
         encodedBytes.data(), static_cast<int>(encodedBytes.size()), &width, &height, &channels, 4);
     if (!data) {
-        std::fprintf(stderr, "stbi_load_from_memory failed: %s\n", path);
+        mstd::fprintf(stderr, "stbi_load_from_memory failed: %s\n", path);
         return false;
     }
 
@@ -155,7 +154,7 @@ bool TextureCache::uploadFromPixels(Director& director, const mstd::string& key,
                                     Size& outPixelSize) {
     auto* device = director.getRenderDevice();
     if (!device) {
-        std::fprintf(stderr, "Render device is not ready.\n");
+        mstd::fprintf(stderr, "Render device is not ready.\n");
         return false;
     }
 
@@ -169,7 +168,7 @@ bool TextureCache::uploadFromPixels(Director& director, const mstd::string& key,
 
     const TextureHandle texture = device->createTexture(createInfo);
     if (!texture.isValid()) {
-        std::fprintf(stderr, "Failed to create GPU texture for key: %s\n", key.c_str());
+        mstd::fprintf(stderr, "Failed to create GPU texture for key: %s\n", key.c_str());
         return false;
     }
 

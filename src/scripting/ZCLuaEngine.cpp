@@ -9,7 +9,6 @@ extern "C" {
 #include <lualib.h>
 }
 
-#include <cstdio>
 #include "base/ZCStd.h"
 
 namespace zocos {
@@ -104,7 +103,7 @@ bool LuaEngine::executeScriptFile(const char* scriptPath, int argc, char** argv)
 
     mstd::vector<unsigned char> chunkBytes;
     if (!FileUtils::getInstance().getDataFromFile(scriptPath, chunkBytes)) {
-        std::fprintf(stderr, "Lua read error: %s\n", scriptPath);
+        mstd::fprintf(stderr, "Lua read error: %s\n", scriptPath);
         return false;
     }
 
@@ -112,14 +111,14 @@ bool LuaEngine::executeScriptFile(const char* scriptPath, int argc, char** argv)
                          chunkBytes.size(), scriptPath, nullptr)
         != LUA_OK) {
         const char* message = lua_tostring(_state, -1);
-        std::fprintf(stderr, "Lua load error: %s\n", message ? message : "(unknown)");
+        mstd::fprintf(stderr, "Lua load error: %s\n", message ? message : "(unknown)");
         lua_pop(_state, 1);
         return false;
     }
 
     if (lua_pcall(_state, 0, 0, 0) != LUA_OK) {
         const char* message = lua_tostring(_state, -1);
-        std::fprintf(stderr, "Lua runtime error: %s\n", message ? message : "(unknown)");
+        mstd::fprintf(stderr, "Lua runtime error: %s\n", message ? message : "(unknown)");
         lua_pop(_state, 1);
         return false;
     }

@@ -3,8 +3,6 @@
 #include "base/ZCRenderDevice.h"
 #include "platform/opengl/ZCOpenGLLoader.h"
 
-#include <cstddef>
-#include <cstdint>
 #include "base/ZCStd.h"
 
 namespace zocos {
@@ -48,8 +46,8 @@ private:
     GLuint _spriteVao = 0;
     GLuint _spriteVbo = 0;
 
-    mstd::unordered_map<std::uint32_t, GLTextureRecord> _textures;
-    std::uint32_t _nextTextureHandle = 1;
+    mstd::unordered_map<mstd::uint32_t, GLTextureRecord> _textures;
+    mstd::uint32_t _nextTextureHandle = 1;
 };
 
 } // namespace zocos

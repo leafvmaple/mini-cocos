@@ -14,8 +14,11 @@
 
 #include <sys/algorithm.hpp>
 #include <sys/array.hpp>
+#include <sys/cmath.hpp>
 #include <sys/cstddef.hpp>
 #include <sys/cstdint.hpp>
+#include <sys/cstdio.hpp>
+#include <sys/cstring.hpp>
 #include <sys/functional.hpp>
 #include <sys/iterator.hpp>
 #include <sys/limits.hpp>
@@ -34,8 +37,11 @@ namespace mstd = sys;
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <functional>
 #include <iterator>
 #include <limits>

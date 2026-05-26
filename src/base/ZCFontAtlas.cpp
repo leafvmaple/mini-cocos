@@ -84,7 +84,7 @@ bool FontAtlas::init(const mstd::string& fontPath, float fontSize) {
     }
 
     // Pre-warm ASCII so the first Label draw does not pay the rasterise cost.
-    std::u32string ascii;
+    mstd::u32string ascii;
     ascii.reserve(kAsciiPrewarmLast - kAsciiPrewarmFirst + 1);
     for (char32_t cp = kAsciiPrewarmFirst; cp <= kAsciiPrewarmLast; ++cp) {
         ascii.push_back(cp);
@@ -98,7 +98,7 @@ bool FontAtlas::init(const mstd::string& fontPath, float fontSize) {
     return true;
 }
 
-bool FontAtlas::prepareLetterDefinitions(const std::u32string& utf32Text) {
+bool FontAtlas::prepareLetterDefinitions(const mstd::u32string& utf32Text) {
     for (char32_t cp : utf32Text) {
         if (_letterDefinitions.find(cp) != _letterDefinitions.end()) {
             continue;
