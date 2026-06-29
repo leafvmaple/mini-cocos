@@ -101,16 +101,7 @@ void RenderDeviceGL::beginFrame(const Mat4& projection, int framebufferWidth,
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void RenderDeviceGL::submit(const RenderCommand& command) {
-    switch (command.type) {
-    case RenderCommandType::DrawSprite:
-        drawSprite(command.sprite);
-        break;
-    case RenderCommandType::DrawQuads:
-        drawQuads(command.quads);
-        break;
-    }
-}
+void RenderDeviceGL::submit(const RenderCommand& command) { drawQuads(command); }
 
 void RenderDeviceGL::endFrame() { glBindVertexArray(0); }
 
@@ -289,31 +280,7 @@ void RenderDeviceGL::ensureSpriteGeometry() {
     glGenBuffers(1, &_spriteVbo);
 }
 
-void RenderDeviceGL::drawSprite(const DrawSpriteCommand& command) {
-    const GLuint texId = getTextureId(command.texture);
-    if (!texId) {
-        return;
-    }
-
-    const float w = command.contentSize.width;
-    const float h = command.contentSize.height;
-    const float u0 = command.uvRect.x;
-    const float v0 = command.uvRect.y;
-    const float u1 = command.uvRect.x + command.uvRect.width;
-    const float v1 = command.uvRect.y + command.uvRect.height;
-
-    const float clampedOpacity =
-        command.opacity < 0.f ? 0.f : (command.opacity > 1.f ? 1.f : command.opacity);
-    const Color4B col{255, 255, 255, static_cast<mstd::uint8_t>(clampedOpacity * 255.f + 0.5f)};
-    const QuadVertex verts[] = {
-        {{0.f, 0.f}, {u0, v0}, col}, {{w, 0.f}, {u1, v0}, col}, {{w, h}, {u1, v1}, col},
-        {{0.f, 0.f}, {u0, v0}, col}, {{w, h}, {u1, v1}, col},   {{0.f, h}, {u0, v1}, col},
-    };
-
-    drawVertices(texId, command.world, verts, 6);
-}
-
-void RenderDeviceGL::drawQuads(const DrawQuadsCommand& command) {
+void RenderDeviceGL::drawQuads(const RenderCommand& command) {
     if (command.vertices.empty()) {
         return;
     }

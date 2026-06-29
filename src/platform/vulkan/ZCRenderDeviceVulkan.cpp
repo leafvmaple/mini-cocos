@@ -100,14 +100,7 @@ void RenderDeviceVulkan::submit(const RenderCommand& command) {
         return;
     }
 
-    switch (command.type) {
-    case RenderCommandType::DrawSprite:
-        drawSprite(command.sprite);
-        break;
-    case RenderCommandType::DrawQuads:
-        drawQuads(command.quads);
-        break;
-    }
+    drawQuads(command);
 }
 
 void RenderDeviceVulkan::endFrame() {
@@ -725,32 +718,7 @@ void RenderDeviceVulkan::updateTextureRegion(TextureHandle texture, int x, int y
     cleanupStaging();
 }
 
-void RenderDeviceVulkan::drawSprite(const DrawSpriteCommand& command) {
-    if (_textures.find(command.texture.value) == _textures.end()) {
-        return;
-    }
-
-    const float w = command.contentSize.width;
-    const float h = command.contentSize.height;
-    const float u0 = command.uvRect.x;
-    const float v0 = command.uvRect.y;
-    const float u1 = command.uvRect.x + command.uvRect.width;
-    const float v1 = command.uvRect.y + command.uvRect.height;
-
-    const QuadVertex verts[] = {
-        {{0.f, 0.f}, {u0, v0}}, {{w, 0.f}, {u1, v0}}, {{w, h}, {u1, v1}},
-        {{0.f, 0.f}, {u0, v0}}, {{w, h}, {u1, v1}},   {{0.f, h}, {u0, v1}},
-    };
-
-    PendingDraw draw{};
-    draw.textureHandle = command.texture.value;
-    draw.firstVertex = appendQuadVertices(verts, 6, command.opacity);
-    draw.vertexCount = 6;
-    draw.mvp = _projection * command.world;
-    _pendingDraws.push_back(draw);
-}
-
-void RenderDeviceVulkan::drawQuads(const DrawQuadsCommand& command) {
+void RenderDeviceVulkan::drawQuads(const RenderCommand& command) {
     if (_textures.find(command.texture.value) == _textures.end() || command.vertices.empty()) {
         return;
     }

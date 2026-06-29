@@ -32,8 +32,7 @@ private:
 
     bool ensureSpritePipeline();
     void ensureSpriteGeometry();
-    void drawSprite(const DrawSpriteCommand& command);
-    void drawQuads(const DrawQuadsCommand& command);
+    void drawQuads(const RenderCommand& command);
     void drawVertices(GLuint textureId, const Mat4& world, const QuadVertex* vertices,
                       mstd::size_t vertexCount);
     GLuint getTextureId(TextureHandle texture) const;

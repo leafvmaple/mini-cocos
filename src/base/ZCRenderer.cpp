@@ -42,15 +42,14 @@ void Renderer::addDrawSprite(const Mat4& world, const Size& contentSize, Texture
     };
 
     RenderCommand cmd;
-    cmd.type = RenderCommandType::DrawQuads;
     cmd.sortKey = sortKey;
     cmd.submissionIndex = _submissionCounter++;
-    cmd.quads.world = world;
-    cmd.quads.texture = texture;
-    cmd.quads.opacity = 1.f;
-    cmd.quads.vertices.reserve(6);
+    cmd.world = world;
+    cmd.texture = texture;
+    cmd.opacity = 1.f;
+    cmd.vertices.reserve(6);
     for (const QuadVertex& v : verts) {
-        cmd.quads.vertices.push_back(v);
+        cmd.vertices.push_back(v);
     }
     _commands.push_back(mstd::move(cmd));
 }
@@ -63,13 +62,12 @@ void Renderer::addDrawQuads(const Mat4& world, TextureHandle texture,
     }
 
     RenderCommand cmd;
-    cmd.type = RenderCommandType::DrawQuads;
     cmd.sortKey = sortKey;
     cmd.submissionIndex = _submissionCounter++;
-    cmd.quads.world = world;
-    cmd.quads.texture = texture;
-    cmd.quads.vertices = vertices;
-    cmd.quads.opacity = opacity;
+    cmd.world = world;
+    cmd.texture = texture;
+    cmd.vertices = vertices;
+    cmd.opacity = opacity;
     _commands.push_back(mstd::move(cmd));
 }
 
@@ -82,11 +80,11 @@ void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebuffer
                          return a.submissionIndex < b.submissionIndex;
                      });
 
-    // Cross-node batching: consecutive DrawQuads commands with the same
-    // texture and opacity can be merged into a single draw by pre-transforming
-    // each source quad's vertices into world space and emitting them with an
-    // identity world matrix. Labels sharing one FontAtlas page collapse into
-    // one draw call this way.
+    // Cross-node batching: consecutive commands with the same texture and
+    // opacity merge into a single draw by pre-transforming each source quad's
+    // vertices into world space and emitting them with an identity world
+    // matrix. Sprites and Labels sharing a texture collapse into one draw this
+    // way.
     auto transformVerts = [](const Mat4& world, const mstd::vector<QuadVertex>& src,
                              mstd::vector<QuadVertex>& dst) {
         dst.reserve(dst.size() + src.size());
@@ -109,27 +107,20 @@ void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebuffer
     mstd::vector<RenderCommand> merged;
     merged.reserve(_commands.size());
     for (auto& command : _commands) {
-        if (command.type == RenderCommandType::DrawQuads && !merged.empty() &&
-            merged.back().type == RenderCommandType::DrawQuads &&
-            merged.back().quads.texture.value == command.quads.texture.value &&
-            merged.back().quads.opacity == command.quads.opacity) {
-            transformVerts(command.quads.world, command.quads.vertices,
-                           merged.back().quads.vertices);
+        if (!merged.empty() && merged.back().texture.value == command.texture.value &&
+            merged.back().opacity == command.opacity) {
+            transformVerts(command.world, command.vertices, merged.back().vertices);
             continue;
         }
-        if (command.type == RenderCommandType::DrawQuads) {
-            RenderCommand out;
-            out.type = RenderCommandType::DrawQuads;
-            out.sortKey = command.sortKey;
-            out.submissionIndex = command.submissionIndex;
-            out.quads.world = Mat4::identity();
-            out.quads.texture = command.quads.texture;
-            out.quads.opacity = command.quads.opacity;
-            transformVerts(command.quads.world, command.quads.vertices, out.quads.vertices);
-            merged.push_back(mstd::move(out));
-            continue;
-        }
-        merged.push_back(mstd::move(command));
+
+        RenderCommand out;
+        out.sortKey = command.sortKey;
+        out.submissionIndex = command.submissionIndex;
+        out.world = Mat4::identity();
+        out.texture = command.texture;
+        out.opacity = command.opacity;
+        transformVerts(command.world, command.vertices, out.vertices);
+        merged.push_back(mstd::move(out));
     }
 
     device.beginFrame(_projection, framebufferWidth, framebufferHeight);
