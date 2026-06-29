@@ -20,21 +20,42 @@ public:
 
     virtual bool init() { return true; }
 
-    void setPosition(const Vec2& p) { _position = p; }
-    void setPosition(float x, float y) { _position = {x, y}; }
+    void setPosition(const Vec2& p) {
+        _position = p;
+        _transformDirty = true;
+    }
+    void setPosition(float x, float y) {
+        _position = {x, y};
+        _transformDirty = true;
+    }
     const Vec2& getPosition() const { return _position; }
 
-    void setScale(float s) { _scale = {s, s}; }
-    void setScale(const Vec2& s) { _scale = s; }
+    void setScale(float s) {
+        _scale = {s, s};
+        _transformDirty = true;
+    }
+    void setScale(const Vec2& s) {
+        _scale = s;
+        _transformDirty = true;
+    }
     const Vec2& getScale() const { return _scale; }
 
-    void setRotation(float degrees) { _rotation = degrees; }
+    void setRotation(float degrees) {
+        _rotation = degrees;
+        _transformDirty = true;
+    }
     float getRotation() const { return _rotation; }
 
-    void setAnchorPoint(const Vec2& a) { _anchorPoint = a; }
+    void setAnchorPoint(const Vec2& a) {
+        _anchorPoint = a;
+        _transformDirty = true;
+    }
     const Vec2& getAnchorPoint() const { return _anchorPoint; }
 
-    void setContentSize(const Size& s) { _contentSize = s; }
+    void setContentSize(const Size& s) {
+        _contentSize = s;
+        _transformDirty = true;
+    }
     const Size& getContentSize() const { return _contentSize; }
 
     void setVisible(bool v) { _visible = v; }
@@ -93,8 +114,13 @@ protected:
 
     virtual void draw(Renderer& /*renderer*/, const Mat4& /*world*/) {}
 
-    Mat4 localMatrix() const {
-        return zcNodeLocalMatrix(_position, _scale, _rotation, _anchorPoint, _contentSize);
+    const Mat4& localMatrix() const {
+        if (_transformDirty) {
+            _localMatrix =
+                zcNodeLocalMatrix(_position, _scale, _rotation, _anchorPoint, _contentSize);
+            _transformDirty = false;
+        }
+        return _localMatrix;
     }
 
     Node* _parent = nullptr;
@@ -113,6 +139,12 @@ protected:
     int _tag = -1;
     mstd::size_t _orderOfArrival = 0;
     bool _reorderChildDirty = false;
+
+    // Lazily rebuilt node-to-parent transform. The setters above mark it dirty;
+    // localMatrix() recomputes only when something actually moved, instead of
+    // every visit() each frame.
+    mutable Mat4 _localMatrix = Mat4::identity();
+    mutable bool _transformDirty = true;
 };
 
 } // namespace zocos
