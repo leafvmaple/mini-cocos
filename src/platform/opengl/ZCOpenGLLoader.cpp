@@ -24,6 +24,8 @@ void (*glDrawArrays)(GLenum, GLint, GLsizei);
 void (*glGenTextures)(GLsizei, GLuint*);
 void (*glBindTexture)(GLenum, GLuint);
 void (*glTexImage2D)(GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, const void*);
+void (*glTexSubImage2D)(GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, const void*);
+void (*glPixelStorei)(GLenum, GLint);
 void (*glTexParameteri)(GLenum, GLenum, GLint);
 void (*glActiveTexture)(GLenum);
 GLuint (*glCreateShader)(GLenum);
@@ -64,6 +66,8 @@ bool loadOpenGL(void* (*getProc)(const char*)) {
     LOAD(glGenTextures);
     LOAD(glBindTexture);
     LOAD(glTexImage2D);
+    LOAD(glTexSubImage2D);
+    LOAD(glPixelStorei);
     LOAD(glTexParameteri);
     LOAD(glActiveTexture);
     LOAD(glCreateShader);

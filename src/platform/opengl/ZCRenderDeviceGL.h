@@ -30,11 +30,18 @@ private:
         GLenum uploadFormat = 0;
     };
 
+    struct GLPendingDraw {
+        GLuint textureId = 0;
+        GLint firstVertex = 0;
+        GLsizei vertexCount = 0;
+        Mat4 mvp = Mat4::identity();
+    };
+
     bool ensureSpritePipeline();
     void ensureSpriteGeometry();
     void drawQuads(const RenderCommand& command);
-    void drawVertices(GLuint textureId, const Mat4& world, const QuadVertex* vertices,
-                      mstd::size_t vertexCount);
+    GLint appendVertices(const QuadVertex* vertices, mstd::size_t vertexCount, float opacity);
+    void flushDrawCommands();
     GLuint getTextureId(TextureHandle texture) const;
 
     Mat4 _projection = Mat4::identity();
@@ -44,6 +51,12 @@ private:
     GLint _spriteLocTex = -1;
     GLuint _spriteVao = 0;
     GLuint _spriteVbo = 0;
+
+    // Like the Vulkan backend: accumulate every batch's vertices into one
+    // buffer for the frame and record per-batch draws, so the whole frame
+    // uploads once instead of re-specifying the VBO per draw.
+    mstd::vector<QuadVertex> _pendingVertices;
+    mstd::vector<GLPendingDraw> _pendingDraws;
 
     mstd::unordered_map<mstd::uint32_t, GLTextureRecord> _textures;
     mstd::uint32_t _nextTextureHandle = 1;

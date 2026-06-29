@@ -41,6 +41,14 @@ using GLbitfield = unsigned int;
 #define GL_TEXTURE_WRAP_S 0x2802
 #define GL_TEXTURE_WRAP_T 0x2803
 #define GL_FLOAT 0x1406
+#define GL_ONE 1
+#define GL_RED 0x1903
+#define GL_R8 0x8229
+#define GL_UNPACK_ALIGNMENT 0x0CF5
+#define GL_TEXTURE_SWIZZLE_R 0x8E42
+#define GL_TEXTURE_SWIZZLE_G 0x8E43
+#define GL_TEXTURE_SWIZZLE_B 0x8E44
+#define GL_TEXTURE_SWIZZLE_A 0x8E45
 
 extern void (*glClearColor)(GLfloat, GLfloat, GLfloat, GLfloat);
 extern void (*glViewport)(GLint, GLint, GLsizei, GLsizei);
@@ -58,6 +66,9 @@ extern void (*glDrawArrays)(GLenum, GLint, GLsizei);
 extern void (*glGenTextures)(GLsizei, GLuint*);
 extern void (*glBindTexture)(GLenum, GLuint);
 extern void (*glTexImage2D)(GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, const void*);
+extern void (*glTexSubImage2D)(GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum,
+                               const void*);
+extern void (*glPixelStorei)(GLenum, GLint);
 extern void (*glTexParameteri)(GLenum, GLenum, GLint);
 extern void (*glActiveTexture)(GLenum);
 extern GLuint (*glCreateShader)(GLenum);

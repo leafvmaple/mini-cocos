@@ -69,7 +69,7 @@ GLuint linkProgram(GLuint vs, GLuint fs) {
 
 RenderDeviceGL::~RenderDeviceGL() {
     for (const auto& it : _textures) {
-        const GLuint texId = it.second;
+        const GLuint texId = it.second.id;
         if (texId) {
             glDeleteTextures(1, &texId);
         }
@@ -99,11 +99,17 @@ void RenderDeviceGL::beginFrame(const Mat4& projection, int framebufferWidth,
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glClearColor(0.12f, 0.12f, 0.15f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    _pendingVertices.clear();
+    _pendingDraws.clear();
 }
 
 void RenderDeviceGL::submit(const RenderCommand& command) { drawQuads(command); }
 
-void RenderDeviceGL::endFrame() { glBindVertexArray(0); }
+void RenderDeviceGL::endFrame() {
+    flushDrawCommands();
+    glBindVertexArray(0);
+}
 
 TextureHandle RenderDeviceGL::createTexture(const TextureCreateInfo& createInfo) {
     if (createInfo.width <= 0 || createInfo.height <= 0 || !createInfo.initialData.pixels) {
@@ -290,23 +296,51 @@ void RenderDeviceGL::drawQuads(const RenderCommand& command) {
         return;
     }
 
-    drawVertices(texId, command.world, command.vertices.data(), command.vertices.size());
+    GLPendingDraw draw;
+    draw.textureId = texId;
+    draw.firstVertex = appendVertices(command.vertices.data(), command.vertices.size(),
+                                      command.opacity);
+    draw.vertexCount = static_cast<GLsizei>(command.vertices.size());
+    draw.mvp = _projection * command.world;
+    _pendingDraws.push_back(draw);
 }
 
-void RenderDeviceGL::drawVertices(GLuint textureId, const Mat4& world, const QuadVertex* vertices,
-                                  mstd::size_t vertexCount) {
-    if (!vertices || vertexCount == 0) {
+GLint RenderDeviceGL::appendVertices(const QuadVertex* vertices, mstd::size_t vertexCount,
+                                     float opacity) {
+    const GLint firstVertex = static_cast<GLint>(_pendingVertices.size());
+    const float intensity = opacity < 0.f ? 0.f : (opacity > 1.f ? 1.f : opacity);
+
+    _pendingVertices.reserve(_pendingVertices.size() + vertexCount);
+    for (mstd::size_t i = 0; i < vertexCount; ++i) {
+        QuadVertex v = vertices[i];
+        // Fold the per-command opacity into per-vertex alpha so the shader can
+        // stay a single `color * texture(...)` (matches the Vulkan backend).
+        v.color.a = static_cast<mstd::uint8_t>(static_cast<float>(v.color.a) * intensity + 0.5f);
+        _pendingVertices.push_back(v);
+    }
+    return firstVertex;
+}
+
+void RenderDeviceGL::flushDrawCommands() {
+    if (_pendingVertices.empty() || _pendingDraws.empty()) {
+        _pendingVertices.clear();
+        _pendingDraws.clear();
         return;
     }
     if (!ensureSpritePipeline()) {
+        _pendingVertices.clear();
+        _pendingDraws.clear();
         return;
     }
     ensureSpriteGeometry();
 
+    // One upload for the whole frame; the per-batch loop only rebinds texture
+    // and MVP and issues a draw from its vertex offset.
     glBindVertexArray(_spriteVao);
     glBindBuffer(GL_ARRAY_BUFFER, _spriteVbo);
-    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertexCount * sizeof(QuadVertex)),
-                 vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER,
+                 static_cast<GLsizeiptr>(_pendingVertices.size() * sizeof(QuadVertex)),
+                 _pendingVertices.data(), GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(QuadVertex), reinterpret_cast<void*>(0));
     glEnableVertexAttribArray(1);
@@ -316,13 +350,21 @@ void RenderDeviceGL::drawVertices(GLuint textureId, const Mat4& world, const Qua
     glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(QuadVertex),
                           reinterpret_cast<void*>(sizeof(Vec2) * 2));
 
-    const Mat4 mvp = _projection * world;
     glUseProgram(_spriteProgram);
-    glUniformMatrix4fv(_spriteLocMvp, 1, GL_FALSE, mvp.data());
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, textureId);
     glUniform1i(_spriteLocTex, 0);
-    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(vertexCount));
+
+    for (const GLPendingDraw& draw : _pendingDraws) {
+        if (draw.vertexCount == 0 || draw.textureId == 0) {
+            continue;
+        }
+        glUniformMatrix4fv(_spriteLocMvp, 1, GL_FALSE, draw.mvp.data());
+        glBindTexture(GL_TEXTURE_2D, draw.textureId);
+        glDrawArrays(GL_TRIANGLES, draw.firstVertex, draw.vertexCount);
+    }
+
+    _pendingVertices.clear();
+    _pendingDraws.clear();
 }
 
 GLuint RenderDeviceGL::getTextureId(TextureHandle texture) const {
