@@ -23,16 +23,36 @@ void Renderer::addDrawSprite(const Mat4& world, const Size& contentSize, Texture
         return;
     }
 
+    const float w = contentSize.width;
+    const float h = contentSize.height;
+    const float u0 = uvRect.x;
+    const float v0 = uvRect.y;
+    const float u1 = uvRect.x + uvRect.width;
+    const float v1 = uvRect.y + uvRect.height;
+
+    // A sprite is just a one-quad batch. Fold opacity into per-vertex alpha and
+    // emit it through the same DrawQuads path as Labels so consecutive
+    // same-texture sprites collapse into a single draw call (see flush()).
+    const float clampedOpacity = mstd::clamp(opacity, 0.f, 1.f);
+    const Color4B color{255, 255, 255,
+                        static_cast<mstd::uint8_t>(clampedOpacity * 255.f + 0.5f)};
+    const QuadVertex verts[] = {
+        {{0.f, 0.f}, {u0, v0}, color}, {{w, 0.f}, {u1, v0}, color}, {{w, h}, {u1, v1}, color},
+        {{0.f, 0.f}, {u0, v0}, color}, {{w, h}, {u1, v1}, color},   {{0.f, h}, {u0, v1}, color},
+    };
+
     RenderCommand cmd;
-    cmd.type = RenderCommandType::DrawSprite;
+    cmd.type = RenderCommandType::DrawQuads;
     cmd.sortKey = sortKey;
     cmd.submissionIndex = _submissionCounter++;
-    cmd.sprite.world = world;
-    cmd.sprite.contentSize = contentSize;
-    cmd.sprite.texture = texture;
-    cmd.sprite.uvRect = uvRect;
-    cmd.sprite.opacity = opacity;
-    _commands.push_back(cmd);
+    cmd.quads.world = world;
+    cmd.quads.texture = texture;
+    cmd.quads.opacity = 1.f;
+    cmd.quads.vertices.reserve(6);
+    for (const QuadVertex& v : verts) {
+        cmd.quads.vertices.push_back(v);
+    }
+    _commands.push_back(mstd::move(cmd));
 }
 
 void Renderer::addDrawQuads(const Mat4& world, TextureHandle texture,
