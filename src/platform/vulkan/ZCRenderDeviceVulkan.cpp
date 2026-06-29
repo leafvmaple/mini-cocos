@@ -810,15 +810,16 @@ void RenderDeviceVulkan::flushDrawCommands() {
         return;
     }
 
+    VkDeviceMemory vertexMemory = _vertexBufferMemories[_currentFrame];
     void* mapped = nullptr;
-    if (vkMapMemory(_device, _vertexBufferMemory, 0, vertexBytes, 0, &mapped) != VK_SUCCESS) {
+    if (vkMapMemory(_device, vertexMemory, 0, vertexBytes, 0, &mapped) != VK_SUCCESS) {
         mstd::fprintf(stderr, "[Vulkan] vkMapMemory for vertex buffer failed.\n");
         _pendingVertices.clear();
         _pendingDraws.clear();
         return;
     }
     mstd::memcpy(mapped, _pendingVertices.data(), vertexBytes);
-    vkUnmapMemory(_device, _vertexBufferMemory);
+    vkUnmapMemory(_device, vertexMemory);
 
     VkCommandBuffer commandBuffer = _commandBuffers[_currentFrame];
 
@@ -834,11 +835,12 @@ void RenderDeviceVulkan::flushDrawCommands() {
     scissor.offset = {0, 0};
     scissor.extent = _swapchainExtent;
 
+    VkBuffer vertexBuffer = _vertexBuffers[_currentFrame];
     VkDeviceSize offsets[] = {0};
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _graphicsPipeline);
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &_vertexBuffer, offsets);
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, offsets);
 
     for (const PendingDraw& draw : _pendingDraws) {
         if (draw.vertexCount == 0) {
@@ -866,25 +868,30 @@ bool RenderDeviceVulkan::ensureVertexBuffer(mstd::size_t requiredSizeBytes) {
         return true;
     }
 
+    // Grow only the buffer owned by the frame currently being recorded.
+    VkBuffer& buffer = _vertexBuffers[_currentFrame];
+    VkDeviceMemory& memory = _vertexBufferMemories[_currentFrame];
+    VkDeviceSize& size = _vertexBufferSizes[_currentFrame];
+
     const VkDeviceSize requiredSize = static_cast<VkDeviceSize>(requiredSizeBytes);
-    if (_vertexBuffer != VK_NULL_HANDLE && _vertexBufferSize >= requiredSize) {
+    if (buffer != VK_NULL_HANDLE && size >= requiredSize) {
         return true;
     }
 
     VkDeviceSize newSize = mstd::max(requiredSize, kInitialVertexBufferSize);
-    if (_vertexBufferSize > 0) {
-        newSize = mstd::max(newSize, _vertexBufferSize * 2);
+    if (size > 0) {
+        newSize = mstd::max(newSize, size * 2);
     }
 
-    if (_vertexBuffer != VK_NULL_HANDLE) {
-        vkDestroyBuffer(_device, _vertexBuffer, nullptr);
-        _vertexBuffer = VK_NULL_HANDLE;
+    if (buffer != VK_NULL_HANDLE) {
+        vkDestroyBuffer(_device, buffer, nullptr);
+        buffer = VK_NULL_HANDLE;
     }
-    if (_vertexBufferMemory != VK_NULL_HANDLE) {
-        vkFreeMemory(_device, _vertexBufferMemory, nullptr);
-        _vertexBufferMemory = VK_NULL_HANDLE;
+    if (memory != VK_NULL_HANDLE) {
+        vkFreeMemory(_device, memory, nullptr);
+        memory = VK_NULL_HANDLE;
     }
-    _vertexBufferSize = 0;
+    size = 0;
 
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -892,13 +899,13 @@ bool RenderDeviceVulkan::ensureVertexBuffer(mstd::size_t requiredSizeBytes) {
     bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    if (vkCreateBuffer(_device, &bufferInfo, nullptr, &_vertexBuffer) != VK_SUCCESS) {
+    if (vkCreateBuffer(_device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
         mstd::fprintf(stderr, "[Vulkan] vkCreateBuffer (vertex) failed.\n");
         return false;
     }
 
     VkMemoryRequirements requirements{};
-    vkGetBufferMemoryRequirements(_device, _vertexBuffer, &requirements);
+    vkGetBufferMemoryRequirements(_device, buffer, &requirements);
 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -908,28 +915,28 @@ bool RenderDeviceVulkan::ensureVertexBuffer(mstd::size_t requiredSizeBytes) {
                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     if (allocInfo.memoryTypeIndex == UINT32_MAX) {
         mstd::fprintf(stderr, "[Vulkan] No suitable host-visible memory type for vertex buffer.\n");
-        vkDestroyBuffer(_device, _vertexBuffer, nullptr);
-        _vertexBuffer = VK_NULL_HANDLE;
+        vkDestroyBuffer(_device, buffer, nullptr);
+        buffer = VK_NULL_HANDLE;
         return false;
     }
 
-    if (vkAllocateMemory(_device, &allocInfo, nullptr, &_vertexBufferMemory) != VK_SUCCESS) {
+    if (vkAllocateMemory(_device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
         mstd::fprintf(stderr, "[Vulkan] vkAllocateMemory for vertex buffer failed.\n");
-        vkDestroyBuffer(_device, _vertexBuffer, nullptr);
-        _vertexBuffer = VK_NULL_HANDLE;
+        vkDestroyBuffer(_device, buffer, nullptr);
+        buffer = VK_NULL_HANDLE;
         return false;
     }
 
-    if (vkBindBufferMemory(_device, _vertexBuffer, _vertexBufferMemory, 0) != VK_SUCCESS) {
+    if (vkBindBufferMemory(_device, buffer, memory, 0) != VK_SUCCESS) {
         mstd::fprintf(stderr, "[Vulkan] vkBindBufferMemory for vertex buffer failed.\n");
-        vkFreeMemory(_device, _vertexBufferMemory, nullptr);
-        _vertexBufferMemory = VK_NULL_HANDLE;
-        vkDestroyBuffer(_device, _vertexBuffer, nullptr);
-        _vertexBuffer = VK_NULL_HANDLE;
+        vkFreeMemory(_device, memory, nullptr);
+        memory = VK_NULL_HANDLE;
+        vkDestroyBuffer(_device, buffer, nullptr);
+        buffer = VK_NULL_HANDLE;
         return false;
     }
 
-    _vertexBufferSize = newSize;
+    size = newSize;
     return true;
 }
 
@@ -1683,15 +1690,17 @@ void RenderDeviceVulkan::cleanup() {
             destroyTexture(handle);
         }
 
-        if (_vertexBuffer != VK_NULL_HANDLE) {
-            vkDestroyBuffer(_device, _vertexBuffer, nullptr);
-            _vertexBuffer = VK_NULL_HANDLE;
+        for (uint32_t i = 0; i < kMaxFramesInFlight; ++i) {
+            if (_vertexBuffers[i] != VK_NULL_HANDLE) {
+                vkDestroyBuffer(_device, _vertexBuffers[i], nullptr);
+                _vertexBuffers[i] = VK_NULL_HANDLE;
+            }
+            if (_vertexBufferMemories[i] != VK_NULL_HANDLE) {
+                vkFreeMemory(_device, _vertexBufferMemories[i], nullptr);
+                _vertexBufferMemories[i] = VK_NULL_HANDLE;
+            }
+            _vertexBufferSizes[i] = 0;
         }
-        if (_vertexBufferMemory != VK_NULL_HANDLE) {
-            vkFreeMemory(_device, _vertexBufferMemory, nullptr);
-            _vertexBufferMemory = VK_NULL_HANDLE;
-        }
-        _vertexBufferSize = 0;
 
         if (_commandPool != VK_NULL_HANDLE) {
             vkDestroyCommandPool(_device, _commandPool, nullptr);

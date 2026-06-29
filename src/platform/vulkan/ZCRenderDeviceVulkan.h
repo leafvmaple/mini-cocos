@@ -118,10 +118,15 @@ private:
     mstd::vector<VkFramebuffer> _framebuffers;
 
     VkCommandPool _commandPool = VK_NULL_HANDLE;
-    VkBuffer _vertexBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory _vertexBufferMemory = VK_NULL_HANDLE;
-    VkDeviceSize _vertexBufferSize = 0;
     static constexpr uint32_t kMaxFramesInFlight = 2;
+    // One vertex buffer per frame in flight. The single-buffer design hazarded
+    // a host write (this frame's vkMapMemory/memcpy) against the device still
+    // reading last frame's vertices, since beginFrame only waits on the fence
+    // for the slot it is about to reuse. Per-slot buffers make that fence wait
+    // also cover the buffer that slot is about to overwrite.
+    mstd::array<VkBuffer, kMaxFramesInFlight> _vertexBuffers{};
+    mstd::array<VkDeviceMemory, kMaxFramesInFlight> _vertexBufferMemories{};
+    mstd::array<VkDeviceSize, kMaxFramesInFlight> _vertexBufferSizes{};
     mstd::array<VkCommandBuffer, kMaxFramesInFlight> _commandBuffers{};
     mstd::array<VkSemaphore, kMaxFramesInFlight> _imageAvailableSemaphores{};
     mstd::array<VkSemaphore, kMaxFramesInFlight> _renderFinishedSemaphores{};
