@@ -29,3 +29,24 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
+
+  # Build the engine and run the tests against the freestanding sys:: STL
+  # (zstl) instead of the host std::. This guards ZOCOS_USE_SYS_STL -- the whole
+  # point of the mstd switcher -- which would otherwise silently rot since it is
+  # OFF by default.
+  sys-stl:
+    name: sys-stl (VULKAN)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure (freestanding sys:: STL)
+        run: cmake -S . -B build-sys -DZOCOS_RENDER_API=VULKAN -DZOCOS_USE_SYS_STL=ON
+
+      - name: Build
+        run: cmake --build build-sys --config Release
+
+      - name: Test
+        run: ctest --test-dir build-sys -C Release --output-on-failure

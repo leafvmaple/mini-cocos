@@ -38,6 +38,17 @@ cmake --build build --config Release   # MSVC: 使用 --config Release
 
 `build/zocos`
 
+### 可选：freestanding STL（zstl）
+
+引擎数据结构/算法不直接写 `std::`，而是通过 `mstd` 别名（见 `src/base/ZCStd.h`）。默认 `mstd = std`（host libstdc++/MSVC STL）；打开 **`-DZOCOS_USE_SYS_STL=ON`** 后切换为 `mstd = sys`，由子模块 `third_party/zstl` 提供的 freestanding 实现支撑——可在没有宿主 C++ 标准库的环境中构建。
+
+```bash
+cmake -B build-sys -DZOCOS_USE_SYS_STL=ON
+cmake --build build-sys --config Release
+```
+
+该配置已纳入 CI（`sys-stl` 任务）：在 zstl 后端下构建引擎并运行同一套单元测试，确保这条路径不会悄悄失效。
+
 ### clangd（Cursor / VS Code）
 
 仓库已包含 **`.clangd`** 与 **`.vscode/settings.json`** 中的 clangd 选项：优先使用仓库根目录的 **`compile_commands.json`**（与真实编译参数一致，含 FetchContent 的 GLFW 头路径）。
