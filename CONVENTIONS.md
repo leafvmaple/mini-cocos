@@ -70,6 +70,11 @@ cocos2d-x 历史 API 以 **`CC`** 为前缀（如 `CCNode`、`CCDirector`）。�
 - OpenGL 常量与加载方式见 `src/platform/ZCOpenGLLoader.*`；新增 GL 枚举时需核对官方十六进制值，避免笔误。
 - `third_party` 下第三方头文件尽量不修改；升级时保留其许可证说明。
 
+## 沟通语言
+
+- AI 助手与用户交流时**一律使用中文**——包括回答、说明、提问与澄清。
+- 代码注释、提交信息（commit message）、文档可保持英文（与现有风格一致），但面向用户的对话用中文。
+
 ---
 
-**给 AI 助手**：生成或重构代码时，默认使用 **`namespace zocos`**、引擎类名 **无 `ZC` 前缀**（如 `Director` / `Node`）、数学类型 **`Vec2` / `Size` / `Mat4`**；文件名保持 `ZC` 前缀（如 `ZCDirector.h`），新文件放入 **`math/` / `base/` / `2d/` / `platform/`** 等对应目录，include 使用 **`src` 为根的相对路径**，并保持 CMake 目标名 **zocos**。
+**给 AI 助手**：生成或重构代码时，默认使用 **`namespace zocos`**、引擎类名 **无 `ZC` 前缀**（如 `Director` / `Node`）、数学类型 **`Vec2` / `Size` / `Mat4`**；文件名保持 `ZC` 前缀（如 `ZCDirector.h`），新文件放入 **`math/` / `base/` / `2d/` / `platform/`** 等对应目录，include 使用 **`src` 为根的相对路径**，并保持 CMake 目标名 **zocos**。**与用户的所有对话默认使用中文**。
