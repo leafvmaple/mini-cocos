@@ -37,3 +37,20 @@ ZC_TEST(ease_curves_monotonic_nondecreasing) {
         }
     }
 }
+
+ZC_TEST(ease_rate_curves_endpoints_and_known_values) {
+    for (float rate : {1.f, 2.f, 3.f}) {
+        ZC_CHECK_NEAR(rateIn(0.f, rate), 0.f, 1e-5);
+        ZC_CHECK_NEAR(rateIn(1.f, rate), 1.f, 1e-5);
+        ZC_CHECK_NEAR(rateOut(0.f, rate), 0.f, 1e-5);
+        ZC_CHECK_NEAR(rateOut(1.f, rate), 1.f, 1e-5);
+        ZC_CHECK_NEAR(rateInOut(0.f, rate), 0.f, 1e-5);
+        ZC_CHECK_NEAR(rateInOut(1.f, rate), 1.f, 1e-5);
+        ZC_CHECK_NEAR(rateInOut(0.5f, rate), 0.5f, 1e-4);
+    }
+    // rate 1 is linear; rate 2 squares.
+    ZC_CHECK_NEAR(rateIn(0.5f, 1.f), 0.5f, 1e-4);
+    ZC_CHECK_NEAR(rateIn(0.5f, 2.f), 0.25f, 1e-4);
+    ZC_CHECK(rateIn(0.5f, 2.f) < 0.5f);  // slow start
+    ZC_CHECK(rateOut(0.5f, 2.f) > 0.5f); // fast start
+}

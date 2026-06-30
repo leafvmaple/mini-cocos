@@ -701,6 +701,32 @@ int lua_zocos_EaseCubicInOut_create(lua_State* s) {
     return lua_zocos_ease_create<EaseCubicInOut>(s, "cc.EaseCubicInOut:create");
 }
 
+// Rate-parameterized eases: create(innerActionInterval, rate).
+template <typename EaseT>
+int lua_zocos_rate_ease_create(lua_State* tolua_S, const char* name) {
+    const int base = classArgBase(tolua_S);
+    const int argc = classArgCount(tolua_S);
+    if (argc == 2) {
+        ActionInterval* inner =
+            luaval_to_object<ActionInterval>(tolua_S, base, kActionMeta, "ActionInterval expected");
+        const float rate = static_cast<float>(luaL_checknumber(tolua_S, base + 1));
+        object_to_luaval(tolua_S, kActionMeta, EaseT::create(inner, rate));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, name, argc, 2);
+}
+
+int lua_zocos_EaseIn_create(lua_State* s) {
+    return lua_zocos_rate_ease_create<EaseIn>(s, "cc.EaseIn:create");
+}
+int lua_zocos_EaseOut_create(lua_State* s) {
+    return lua_zocos_rate_ease_create<EaseOut>(s, "cc.EaseOut:create");
+}
+int lua_zocos_EaseInOut_create(lua_State* s) {
+    return lua_zocos_rate_ease_create<EaseInOut>(s, "cc.EaseInOut:create");
+}
+
 int lua_zocos_Node_setPosition(lua_State* tolua_S) {
     Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
     const int argc = lua_gettop(tolua_S) - 1;
@@ -1375,6 +1401,21 @@ int register_all_zocos_manual(lua_State* tolua_S) {
     tolua_beginmodule(tolua_S, "EaseCubicInOut");
     stashCurrentModuleInRegistry(tolua_S, "EaseCubicInOut");
     tolua_function(tolua_S, "create", lua_zocos_EaseCubicInOut_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "EaseIn");
+    stashCurrentModuleInRegistry(tolua_S, "EaseIn");
+    tolua_function(tolua_S, "create", lua_zocos_EaseIn_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "EaseOut");
+    stashCurrentModuleInRegistry(tolua_S, "EaseOut");
+    tolua_function(tolua_S, "create", lua_zocos_EaseOut_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "EaseInOut");
+    stashCurrentModuleInRegistry(tolua_S, "EaseInOut");
+    tolua_function(tolua_S, "create", lua_zocos_EaseInOut_create);
     tolua_endmodule(tolua_S);
 
     lua_pushstring(tolua_S, "zocos-lua");

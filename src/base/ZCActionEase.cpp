@@ -64,4 +64,27 @@ ZC_DEFINE_EASE(EaseCubicInOut, easing::cubicInOut)
 
 #undef ZC_DEFINE_EASE
 
+EaseRateAction::EaseRateAction(ActionInterval* inner, float rate)
+    : ActionEase(inner), _rate(rate) {}
+
+// As ZC_DEFINE_EASE, but threads a rate through create()/ctor and into the curve.
+#define ZC_DEFINE_RATE_EASE(Name, Curve)                                                           \
+    Name::Name(ActionInterval* inner, float rate) : EaseRateAction(inner, rate) {}                  \
+    Name* Name::create(ActionInterval* inner, float rate) {                                         \
+        auto* action = new (mstd::nothrow) Name(inner, rate);                                       \
+        if (action && inner) {                                                                      \
+            action->autorelease();                                                                  \
+            return action;                                                                          \
+        }                                                                                          \
+        delete action;                                                                              \
+        return nullptr;                                                                             \
+    }                                                                                              \
+    float Name::tween(float t) const { return Curve(t, _rate); }
+
+ZC_DEFINE_RATE_EASE(EaseIn, easing::rateIn)
+ZC_DEFINE_RATE_EASE(EaseOut, easing::rateOut)
+ZC_DEFINE_RATE_EASE(EaseInOut, easing::rateInOut)
+
+#undef ZC_DEFINE_RATE_EASE
+
 } // namespace zocos

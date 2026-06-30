@@ -1,9 +1,9 @@
 #pragma once
 
 // Pure easing curves used by ActionEase. Each maps normalized time t in [0, 1]
-// to an eased value with f(0) = 0 and f(1) = 1. Kept free of std::pow so the
-// freestanding sys:: STL (zstl, which exposes sin/cos but not pow) builds too;
-// that is why the families here are sine- and polynomial-based.
+// to an eased value with f(0) = 0 and f(1) = 1. The sine and polynomial families
+// need only sin/cos; the rate-parameterized family uses mstd::pow, which the
+// freestanding sys:: STL now provides (zstl sys::pow).
 
 #include "base/ZCStd.h"
 
@@ -16,6 +16,18 @@ inline constexpr float kHalfPi = kPi * 0.5f;
 inline float sineIn(float t) { return 1.f - mstd::cos(t * kHalfPi); }
 inline float sineOut(float t) { return mstd::sin(t * kHalfPi); }
 inline float sineInOut(float t) { return -0.5f * (mstd::cos(kPi * t) - 1.f); }
+
+// Rate-parameterized power curves (cocos2d-x EaseIn/EaseOut/EaseInOut). A rate
+// of 1 is linear; larger rates steepen the ease.
+inline float rateIn(float t, float rate) { return mstd::pow(t, rate); }
+inline float rateOut(float t, float rate) { return mstd::pow(t, 1.f / rate); }
+inline float rateInOut(float t, float rate) {
+    t *= 2.f;
+    if (t < 1.f) {
+        return 0.5f * mstd::pow(t, rate);
+    }
+    return 1.f - 0.5f * mstd::pow(2.f - t, rate);
+}
 
 inline float cubicIn(float t) { return t * t * t; }
 inline float cubicOut(float t) {

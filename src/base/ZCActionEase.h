@@ -79,4 +79,40 @@ protected:
     float tween(float t) const override;
 };
 
+// Rate-parameterized power eases (cocos2d-x EaseIn / EaseOut / EaseInOut). The
+// `rate` exponent controls how sharply the curve eases; 1.0 is linear.
+class EaseRateAction : public ActionEase {
+protected:
+    EaseRateAction(ActionInterval* inner, float rate);
+
+    float _rate = 1.f;
+};
+
+class EaseIn : public EaseRateAction {
+public:
+    static EaseIn* create(ActionInterval* inner, float rate);
+
+protected:
+    EaseIn(ActionInterval* inner, float rate);
+    float tween(float t) const override;
+};
+
+class EaseOut : public EaseRateAction {
+public:
+    static EaseOut* create(ActionInterval* inner, float rate);
+
+protected:
+    EaseOut(ActionInterval* inner, float rate);
+    float tween(float t) const override;
+};
+
+class EaseInOut : public EaseRateAction {
+public:
+    static EaseInOut* create(ActionInterval* inner, float rate);
+
+protected:
+    EaseInOut(ActionInterval* inner, float rate);
+    float tween(float t) const override;
+};
+
 } // namespace zocos
