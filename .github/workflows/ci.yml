@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  # Build the engine against each render backend and run the headless unit
+  # tests. The matrix is what would have caught the OpenGL backend bit-rotting
+  # while Vulkan was the default: both backends must keep compiling.
+  build-test:
+    name: ${{ matrix.backend }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [OPENGL, VULKAN]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure
+        run: cmake -S . -B build -DZOCOS_RENDER_API=${{ matrix.backend }}
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure

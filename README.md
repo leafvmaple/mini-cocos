@@ -95,6 +95,18 @@ Get-ChildItem -Path src -Recurse -Include *.cpp,*.h | ForEach-Object { clang-for
 
 默认会执行 `scripts/main.lua`，CMake 在构建后会自动把 `scripts/` 目录复制到可执行文件同级目录。
 
+## Tests
+
+仓库带有一组**无窗口/无 GPU 依赖**的单元测试（`tests/`），覆盖数学（`Mat4`/正交投影/节点局部矩阵）、UTF-8 解码、`Ref` 引用计数与 autorelease 池，以及 `Renderer` 的排序/合批逻辑（用 fake device 验证同纹理合并、精灵合批）。测试目标 `zocos_tests` 只编译自包含的引擎源文件，不拉入 GL/Vulkan/窗口代码。
+
+```bash
+cmake -B build
+cmake --build build --config Debug --target zocos_tests
+ctest --test-dir build -C Debug --output-on-failure
+```
+
+测试默认开启，可用 `-DZOCOS_BUILD_TESTS=OFF` 关闭。CI（GitHub Actions，`.github/workflows/ci.yml`）会在 **OpenGL 与 Vulkan 两个后端**下分别构建并运行测试。
+
 ## Project layout（对齐 cocos2d-x 模块划分）
 
 | Path | Role |

@@ -209,3 +209,45 @@ endif()
 if(MSVC)
   target_compile_options(zocos PRIVATE /utf-8)
 endif()
+
+# --- tests -------------------------------------------------------------------
+# Headless unit tests over the engine's GPU-independent pieces (math, string
+# utils, the Ref / autorelease memory model, and the renderer's sort + batch
+# logic via a fake device). Only the self-contained sources are compiled in, so
+# the test target pulls in no window, GL, or Vulkan code. Honors the same STL
+# switch as the engine so `ctest` validates both std:: and the freestanding sys::
+# backend.
+option(ZOCOS_BUILD_TESTS "Build the zocos unit tests" ON)
+if(ZOCOS_BUILD_TESTS)
+  enable_testing()
+  add_executable(zocos_tests
+    tests/test_main.cpp
+    tests/test_math.cpp
+    tests/test_stringutils.cpp
+    tests/test_ref.cpp
+    tests/test_renderer.cpp
+    src/base/ZCRef.cpp
+    src/base/ZCAutoreleasePool.cpp
+    src/base/ZCStringUtils.cpp
+    src/base/ZCRenderer.cpp
+  )
+  target_include_directories(zocos_tests PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
+  )
+  target_link_libraries(zocos_tests PRIVATE zstl)
+  target_precompile_headers(zocos_tests PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/base/ZCStd.h"
+  )
+  if(ZOCOS_USE_SYS_STL)
+    target_compile_definitions(zocos_tests PRIVATE ZOCOS_USE_SYS_STL)
+  endif()
+  if(WIN32)
+    target_compile_definitions(zocos_tests PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+  endif()
+  if(MSVC)
+    target_compile_options(zocos_tests PRIVATE /utf-8)
+  endif()
+  add_test(NAME zocos_tests COMMAND zocos_tests)
+endif()
