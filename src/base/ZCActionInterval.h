@@ -1,5 +1,5 @@
 #pragma once
-
+
 
 #include "base/ZCStd.h"
 #include "base/ZCAction.h"
@@ -15,9 +15,13 @@ public:
     void step(float dt) override;
     bool isDone() const override;
 
+    // Maps normalized time t in [0, 1] onto the action's effect. Public (as in
+    // cocos2d-x) so wrappers like ActionEase can drive an inner interval through
+    // a remapped t.
+    virtual void update(float t) = 0;
+
 protected:
     explicit ActionInterval(float duration);
-    virtual void update(float t) = 0;
 
 private:
     float _elapsed = 0.f;

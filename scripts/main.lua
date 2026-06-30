@@ -27,11 +27,12 @@ local centerY = director:getFramebufferHeight() * 0.5
 local orbitRadius = math.min(centerX, centerY) * 0.5
 sprite:setPosition(centerX + orbitRadius, centerY)
 
+-- Ease each leg so the sprite slows into and out of every waypoint.
 sprite:runAction(cc.RepeatForever:create(cc.Sequence:create({
-    cc.MoveTo:create(0.8, centerX, centerY + orbitRadius),
-    cc.MoveTo:create(0.8, centerX - orbitRadius, centerY),
-    cc.MoveTo:create(0.8, centerX, centerY - orbitRadius),
-    cc.MoveTo:create(0.8, centerX + orbitRadius, centerY),
+    cc.EaseSineInOut:create(cc.MoveTo:create(0.8, centerX, centerY + orbitRadius)),
+    cc.EaseSineInOut:create(cc.MoveTo:create(0.8, centerX - orbitRadius, centerY)),
+    cc.EaseSineInOut:create(cc.MoveTo:create(0.8, centerX, centerY - orbitRadius)),
+    cc.EaseSineInOut:create(cc.MoveTo:create(0.8, centerX + orbitRadius, centerY)),
 })))
 
 sprite:runAction(cc.RepeatForever:create(cc.RotateBy:create(1.0, 360.0)))

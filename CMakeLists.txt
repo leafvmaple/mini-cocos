@@ -226,6 +226,7 @@ if(ZOCOS_BUILD_TESTS)
     tests/test_stringutils.cpp
     tests/test_ref.cpp
     tests/test_renderer.cpp
+    tests/test_ease.cpp
     src/base/ZCRef.cpp
     src/base/ZCAutoreleasePool.cpp
     src/base/ZCStringUtils.cpp

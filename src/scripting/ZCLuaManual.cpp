@@ -1,6 +1,7 @@
 #include "scripting/ZCLuaManual.h"
 
 #include "base/ZCAction.h"
+#include "base/ZCActionEase.h"
 #include "base/ZCActionInterval.h"
 #include "base/ZCDirector.h"
 #include "base/ZCFontAtlas.h"
@@ -664,6 +665,42 @@ int lua_zocos_RepeatForever_create(lua_State* tolua_S) {
     return reportWrongArgCount(tolua_S, "cc.RepeatForever:create", argc, 1);
 }
 
+// Ease wrappers all share the same shape: create(innerActionInterval). The
+// inner is stored under kActionMeta like every other action; ActionInterval is
+// its base subobject so the pointer reinterpretation is address-correct.
+template <typename EaseT>
+int lua_zocos_ease_create(lua_State* tolua_S, const char* name) {
+    const int base = classArgBase(tolua_S);
+    const int argc = classArgCount(tolua_S);
+    if (argc == 1) {
+        ActionInterval* inner =
+            luaval_to_object<ActionInterval>(tolua_S, base, kActionMeta, "ActionInterval expected");
+        object_to_luaval(tolua_S, kActionMeta, EaseT::create(inner));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, name, argc, 1);
+}
+
+int lua_zocos_EaseSineIn_create(lua_State* s) {
+    return lua_zocos_ease_create<EaseSineIn>(s, "cc.EaseSineIn:create");
+}
+int lua_zocos_EaseSineOut_create(lua_State* s) {
+    return lua_zocos_ease_create<EaseSineOut>(s, "cc.EaseSineOut:create");
+}
+int lua_zocos_EaseSineInOut_create(lua_State* s) {
+    return lua_zocos_ease_create<EaseSineInOut>(s, "cc.EaseSineInOut:create");
+}
+int lua_zocos_EaseCubicIn_create(lua_State* s) {
+    return lua_zocos_ease_create<EaseCubicIn>(s, "cc.EaseCubicIn:create");
+}
+int lua_zocos_EaseCubicOut_create(lua_State* s) {
+    return lua_zocos_ease_create<EaseCubicOut>(s, "cc.EaseCubicOut:create");
+}
+int lua_zocos_EaseCubicInOut_create(lua_State* s) {
+    return lua_zocos_ease_create<EaseCubicInOut>(s, "cc.EaseCubicInOut:create");
+}
+
 int lua_zocos_Node_setPosition(lua_State* tolua_S) {
     Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
     const int argc = lua_gettop(tolua_S) - 1;
@@ -1308,6 +1345,36 @@ int register_all_zocos_manual(lua_State* tolua_S) {
     tolua_beginmodule(tolua_S, "RepeatForever");
     stashCurrentModuleInRegistry(tolua_S, "RepeatForever");
     tolua_function(tolua_S, "create", lua_zocos_RepeatForever_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "EaseSineIn");
+    stashCurrentModuleInRegistry(tolua_S, "EaseSineIn");
+    tolua_function(tolua_S, "create", lua_zocos_EaseSineIn_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "EaseSineOut");
+    stashCurrentModuleInRegistry(tolua_S, "EaseSineOut");
+    tolua_function(tolua_S, "create", lua_zocos_EaseSineOut_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "EaseSineInOut");
+    stashCurrentModuleInRegistry(tolua_S, "EaseSineInOut");
+    tolua_function(tolua_S, "create", lua_zocos_EaseSineInOut_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "EaseCubicIn");
+    stashCurrentModuleInRegistry(tolua_S, "EaseCubicIn");
+    tolua_function(tolua_S, "create", lua_zocos_EaseCubicIn_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "EaseCubicOut");
+    stashCurrentModuleInRegistry(tolua_S, "EaseCubicOut");
+    tolua_function(tolua_S, "create", lua_zocos_EaseCubicOut_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "EaseCubicInOut");
+    stashCurrentModuleInRegistry(tolua_S, "EaseCubicInOut");
+    tolua_function(tolua_S, "create", lua_zocos_EaseCubicInOut_create);
     tolua_endmodule(tolua_S);
 
     lua_pushstring(tolua_S, "zocos-lua");

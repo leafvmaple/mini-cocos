@@ -13,6 +13,7 @@
 - 文本渲染：`Label` 使用 TTF/OTF 字体（`stb_truetype`）动态栅格化；仓库内置免费 Noto 字体（`fonts/`）
 - 资源缓存：`TextureCache` 复用纹理并按引用计数自动释放 GPU 资源
 - 帧动画：`Animation` + `Animate`（可通过 `setTextureRect` 切换图集帧）
+- 缓动动作：`ActionEase` 包裹任意 `ActionInterval`，内置 `EaseSine*` / `EaseCubic*`（In/Out/InOut）曲线
 - Lua 脚本导出系统（`cc.*`）：可在 Lua 中创建 `Director` / `Scene` / `Sprite` / `Label` 并驱动 `Action`
 - 示例：Lua 脚本中的精灵轨道运动与自转（或通过命令行传入图片路径）
 
