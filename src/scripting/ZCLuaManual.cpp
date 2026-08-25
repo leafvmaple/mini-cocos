@@ -260,7 +260,7 @@ int reportWrongArgCount(lua_State* tolua_S, const char* funcName, int argc, int 
 
 template <typename T>
 mstd::vector<T*> luaval_to_object_array(lua_State* tolua_S, int index, const char* metatableName,
-                                       const char* expectedMessage) {
+                                        const char* expectedMessage) {
     const int absIndex = lua_absindex(tolua_S, index);
     luaL_checktype(tolua_S, absIndex, LUA_TTABLE);
 
@@ -301,7 +301,8 @@ Rect luaval_to_rect(lua_State* tolua_S, int index, const char* expectedMessage) 
     return Rect{x, y, width, height};
 }
 
-mstd::vector<Rect> luaval_to_rect_array(lua_State* tolua_S, int index, const char* expectedMessage) {
+mstd::vector<Rect> luaval_to_rect_array(lua_State* tolua_S, int index,
+                                        const char* expectedMessage) {
     const int absIndex = lua_absindex(tolua_S, index);
     luaL_checktype(tolua_S, absIndex, LUA_TTABLE);
 
@@ -357,6 +358,25 @@ int lua_zocos_Director_runWithScene(lua_State* tolua_S) {
     }
 
     return reportWrongArgCount(tolua_S, "cc.Director:runWithScene", argc, 1);
+}
+
+int lua_zocos_Director_replaceScene(lua_State* tolua_S) {
+    Director* cobj = luaval_to_object<Director>(tolua_S, 1, kDirectorMeta, "Director expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1 || argc == 2) {
+        Node* node = luaval_to_object<Node>(tolua_S, 2, kNodeMeta, "Node expected");
+        auto* scene = dynamic_cast<Scene*>(node);
+        if (!scene) {
+            return luaL_error(tolua_S, "cc.Director:replaceScene expects Scene as first argument");
+        }
+
+        const float duration = argc == 2 ? static_cast<float>(luaL_checknumber(tolua_S, 3)) : 0.f;
+        luaL_argcheck(tolua_S, duration >= 0.f, 3, "fade duration must not be negative");
+        cobj->replaceScene(scene, duration);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Director:replaceScene", argc, 1, 2);
 }
 
 int lua_zocos_Director_shutdown(lua_State* tolua_S) {
@@ -668,8 +688,7 @@ int lua_zocos_RepeatForever_create(lua_State* tolua_S) {
 // Ease wrappers all share the same shape: create(innerActionInterval). The
 // inner is stored under kActionMeta like every other action; ActionInterval is
 // its base subobject so the pointer reinterpretation is address-correct.
-template <typename EaseT>
-int lua_zocos_ease_create(lua_State* tolua_S, const char* name) {
+template <typename EaseT> int lua_zocos_ease_create(lua_State* tolua_S, const char* name) {
     const int base = classArgBase(tolua_S);
     const int argc = classArgCount(tolua_S);
     if (argc == 1) {
@@ -702,8 +721,7 @@ int lua_zocos_EaseCubicInOut_create(lua_State* s) {
 }
 
 // Rate-parameterized eases: create(innerActionInterval, rate).
-template <typename EaseT>
-int lua_zocos_rate_ease_create(lua_State* tolua_S, const char* name) {
+template <typename EaseT> int lua_zocos_rate_ease_create(lua_State* tolua_S, const char* name) {
     const int base = classArgBase(tolua_S);
     const int argc = classArgCount(tolua_S);
     if (argc == 2) {
@@ -858,7 +876,7 @@ int lua_zocos_Node_schedule(lua_State* tolua_S) {
                 if (lua_pcall(tolua_S, 1, 0, 0) != LUA_OK) {
                     const char* message = lua_tostring(tolua_S, -1);
                     mstd::fprintf(stderr, "Lua schedule callback error (%s): %s\n",
-                                 keyString.c_str(), message ? message : "(unknown)");
+                                  keyString.c_str(), message ? message : "(unknown)");
                     lua_pop(tolua_S, 1);
                 }
             },
@@ -898,7 +916,7 @@ int lua_zocos_Node_scheduleOnce(lua_State* tolua_S) {
                 if (lua_pcall(tolua_S, 1, 0, 0) != LUA_OK) {
                     const char* message = lua_tostring(tolua_S, -1);
                     mstd::fprintf(stderr, "Lua scheduleOnce callback error (%s): %s\n",
-                                 keyString.c_str(), message ? message : "(unknown)");
+                                  keyString.c_str(), message ? message : "(unknown)");
                     lua_pop(tolua_S, 1);
                 }
 
@@ -1101,7 +1119,7 @@ int lua_zocos_Widget_addEventListener(lua_State* tolua_S) {
             if (lua_pcall(tolua_S, 1, 0, 0) != LUA_OK) {
                 const char* message = lua_tostring(tolua_S, -1);
                 mstd::fprintf(stderr, "Lua widget event callback error: %s\n",
-                             message ? message : "(unknown)");
+                              message ? message : "(unknown)");
                 lua_pop(tolua_S, 1);
             }
         });
@@ -1196,6 +1214,7 @@ int register_all_zocos_manual(lua_State* tolua_S) {
     static const luaL_Reg directorMethods[] = {
         {"init", lua_zocos_Director_init},
         {"runWithScene", lua_zocos_Director_runWithScene},
+        {"replaceScene", lua_zocos_Director_replaceScene},
         {"shutdown", lua_zocos_Director_shutdown},
         {"getFramebufferWidth", lua_zocos_Director_getFramebufferWidth},
         {"getFramebufferHeight", lua_zocos_Director_getFramebufferHeight},

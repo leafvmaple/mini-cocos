@@ -12,16 +12,21 @@ struct FakeDevice : public RenderDevice {
     int beginFrames = 0;
     int endFrames = 0;
     mstd::vector<mstd::size_t> drawVertexCounts;
+    mstd::vector<float> drawOpacities;
+    mstd::vector<mstd::uint8_t> firstVertexAlphas;
 
     void beginFrame(const Mat4&, int, int) override { ++beginFrames; }
     void submit(const RenderCommand& command) override {
         drawVertexCounts.push_back(command.vertices.size());
+        drawOpacities.push_back(command.opacity);
+        firstVertexAlphas.push_back(command.vertices.empty() ? 0 : command.vertices[0].color.a);
     }
     void endFrame() override { ++endFrames; }
 
     TextureHandle createTexture(const TextureCreateInfo&) override { return {}; }
     void destroyTexture(TextureHandle) override {}
-    void updateTextureRegion(TextureHandle, int, int, int, int, const TextureUploadData&) override {}
+    void updateTextureRegion(TextureHandle, int, int, int, int, const TextureUploadData&) override {
+    }
 };
 
 mstd::vector<QuadVertex> unitQuad() {
@@ -103,4 +108,23 @@ ZC_TEST(renderer_skips_invalid_texture) {
     renderer.endFrame();
 
     ZC_CHECK_EQ(device.drawVertexCounts.size(), static_cast<mstd::size_t>(0));
+}
+
+ZC_TEST(renderer_global_opacity_applies_to_quads_and_sprites) {
+    Renderer renderer;
+    FakeDevice device;
+    TextureHandle tex;
+    tex.value = 9;
+
+    renderer.beginFrame(Mat4::identity());
+    renderer.setGlobalOpacity(0.5f);
+    renderer.addDrawQuads(Mat4::identity(), tex, unitQuad(), 0.8f, 0);
+    renderer.addDrawSprite(Mat4::identity(), Size{10.f, 10.f}, tex, 0.5f, 1);
+    renderer.flush(device, 800, 600);
+    renderer.endFrame();
+
+    ZC_CHECK_EQ(device.drawOpacities.size(), static_cast<mstd::size_t>(2));
+    ZC_CHECK_NEAR(device.drawOpacities[0], 0.4f, 1e-5);
+    ZC_CHECK_EQ(device.firstVertexAlphas[1], static_cast<mstd::uint8_t>(64));
+    ZC_CHECK_NEAR(renderer.getGlobalOpacity(), 1.f, 1e-5);
 }

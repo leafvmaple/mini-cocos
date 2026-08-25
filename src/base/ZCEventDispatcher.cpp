@@ -1,7 +1,6 @@
 #include "base/ZCEventDispatcher.h"
 
 #include "2d/ZCNode.h"
-#include "base/ZCDirector.h"
 
 #include "base/ZCStd.h"
 
@@ -283,15 +282,15 @@ void EventDispatcher::sortEventListeners(EventListenerVector& listeners) {
         _nodePriorityMap.clear();
         _nodePriorityIndex = 0;
 
-        Node* rootNode = Director::getInstance().getRunningScene();
+        Node* rootNode = _sceneGraphRoot;
         if (rootNode) {
             visitTarget(rootNode);
         }
 
         mstd::stable_sort(listeners._nodeListeners.begin(), listeners._nodeListeners.end(),
-                         [this](const ListenerEntry& a, const ListenerEntry& b) {
-                             return _nodePriorityMap[a.target] > _nodePriorityMap[b.target];
-                         });
+                          [this](const ListenerEntry& a, const ListenerEntry& b) {
+                              return _nodePriorityMap[a.target] > _nodePriorityMap[b.target];
+                          });
 
         listeners._dirtyNodePriority = false;
     }

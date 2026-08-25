@@ -11,6 +11,8 @@ class RenderDevice;
 class Renderer {
 public:
     void beginFrame(const Mat4& projection);
+    void setGlobalOpacity(float opacity) { _globalOpacity = mstd::clamp(opacity, 0.f, 1.f); }
+    float getGlobalOpacity() const { return _globalOpacity; }
     void addDrawSprite(const Mat4& world, const Size& contentSize, TextureHandle texture,
                        float opacity, RenderSortKey sortKey = 0);
     void addDrawSprite(const Mat4& world, const Size& contentSize, TextureHandle texture,
@@ -26,6 +28,7 @@ private:
     Mat4 _projection = Mat4::identity();
     mstd::vector<RenderCommand> _commands;
     mstd::uint32_t _submissionCounter = 0;
+    float _globalOpacity = 1.f;
 };
 
 } // namespace zocos

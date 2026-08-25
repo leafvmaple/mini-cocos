@@ -20,6 +20,12 @@ public:
     void removeAllEventListeners();
 
     void dispatchEvent(Event& event);
+    void setSceneGraphRoot(Node* root) {
+        _sceneGraphRoot = root;
+        for (auto& entry : _listenerMap) {
+            entry.second._dirtyNodePriority = true;
+        }
+    }
 
     mstd::size_t getListenerCount() const;
 
@@ -68,6 +74,7 @@ private:
     mstd::unordered_map<Node*, mstd::size_t> _nodePriorityMap;
     mstd::size_t _nodePriorityIndex = 0;
     ListenerVector _toAddedListeners;
+    Node* _sceneGraphRoot = nullptr;
 };
 
 } // namespace zocos

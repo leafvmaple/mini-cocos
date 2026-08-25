@@ -10,6 +10,7 @@ void Renderer::beginFrame(const Mat4& projection) {
     _projection = projection;
     _commands.clear();
     _submissionCounter = 0;
+    _globalOpacity = 1.f;
 }
 
 void Renderer::addDrawSprite(const Mat4& world, const Size& contentSize, TextureHandle texture,
@@ -33,9 +34,8 @@ void Renderer::addDrawSprite(const Mat4& world, const Size& contentSize, Texture
     // A sprite is just a one-quad batch. Fold opacity into per-vertex alpha and
     // emit it through the same DrawQuads path as Labels so consecutive
     // same-texture sprites collapse into a single draw call (see flush()).
-    const float clampedOpacity = mstd::clamp(opacity, 0.f, 1.f);
-    const Color4B color{255, 255, 255,
-                        static_cast<mstd::uint8_t>(clampedOpacity * 255.f + 0.5f)};
+    const float clampedOpacity = mstd::clamp(opacity * _globalOpacity, 0.f, 1.f);
+    const Color4B color{255, 255, 255, static_cast<mstd::uint8_t>(clampedOpacity * 255.f + 0.5f)};
     const QuadVertex verts[] = {
         {{0.f, 0.f}, {u0, v0}, color}, {{w, 0.f}, {u1, v0}, color}, {{w, h}, {u1, v1}, color},
         {{0.f, 0.f}, {u0, v0}, color}, {{w, h}, {u1, v1}, color},   {{0.f, h}, {u0, v1}, color},
@@ -67,18 +67,18 @@ void Renderer::addDrawQuads(const Mat4& world, TextureHandle texture,
     cmd.world = world;
     cmd.texture = texture;
     cmd.vertices = vertices;
-    cmd.opacity = opacity;
+    cmd.opacity = mstd::clamp(opacity * _globalOpacity, 0.f, 1.f);
     _commands.push_back(mstd::move(cmd));
 }
 
 void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebufferHeight) {
     mstd::stable_sort(_commands.begin(), _commands.end(),
-                     [](const RenderCommand& a, const RenderCommand& b) {
-                         if (a.sortKey != b.sortKey) {
-                             return a.sortKey < b.sortKey;
-                         }
-                         return a.submissionIndex < b.submissionIndex;
-                     });
+                      [](const RenderCommand& a, const RenderCommand& b) {
+                          if (a.sortKey != b.sortKey) {
+                              return a.sortKey < b.sortKey;
+                          }
+                          return a.submissionIndex < b.submissionIndex;
+                      });
 
     // Cross-node batching: consecutive commands with the same texture and
     // opacity merge into a single draw by pre-transforming each source quad's
@@ -133,6 +133,7 @@ void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebuffer
 void Renderer::endFrame() {
     _commands.clear();
     _submissionCounter = 0;
+    _globalOpacity = 1.f;
 }
 
 } // namespace zocos

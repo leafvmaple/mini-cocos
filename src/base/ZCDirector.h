@@ -24,7 +24,9 @@ public:
     void shutdown();
 
     void runWithScene(Scene* scene);
+    void replaceScene(Scene* scene, float fadeDuration = 0.f);
     Scene* getRunningScene() const { return _runningScene; }
+    bool isSceneTransitioning() const { return _nextScene != nullptr; }
 
     bool mainLoop();
 
@@ -56,6 +58,8 @@ private:
 
     void onFramebufferResize(int w, int h);
     void updateProjection();
+    void setRunningScene(Scene* scene);
+    void updateSceneTransition(float dt);
 
     void onViewResized(int width, int height) override;
     bool onViewKeyEvent(int keyCode, int scanCode, int modifiers, bool pressed,
@@ -67,6 +71,10 @@ private:
 
     mstd::unique_ptr<View> _view;
     Scene* _runningScene = nullptr;
+    Scene* _nextScene = nullptr;
+    float _transitionDuration = 0.f;
+    float _transitionElapsed = 0.f;
+    bool _transitionSceneSwitched = false;
     Scheduler _scheduler;
     ActionManager _actionManager;
     EventDispatcher _eventDispatcher;

@@ -94,6 +94,17 @@ if button then
         if clickInfo then
             clickInfo:setString(string.format("Button clicks: %d", clickCount))
         end
+
+        if clickCount == 3 then
+            local nextScene = cc.Scene:create()
+            local nextLabel = cc.Label:createWithTTF(
+                "Scene replaced with a 0.8s fade", defaultFont, 28.0)
+            if nextScene and nextLabel then
+                nextLabel:setPosition(centerX, centerY)
+                nextScene:addChild(nextLabel)
+                director:replaceScene(nextScene, 0.8)
+            end
+        end
     end)
 
     scene:addChild(button)

@@ -73,6 +73,10 @@ bool Director::init(int width, int height, const char* title) {
 }
 
 void Director::shutdown() {
+    if (_nextScene) {
+        _nextScene->release();
+        _nextScene = nullptr;
+    }
     if (_runningScene) {
         if (_runningScene->isRunning()) {
             _runningScene->onExit();
@@ -111,6 +115,9 @@ void Director::shutdown() {
     _fbWidth = 0;
     _fbHeight = 0;
     _hasMousePosition = false;
+    _transitionDuration = 0.f;
+    _transitionElapsed = 0.f;
+    _transitionSceneSwitched = false;
 }
 
 void Director::updateProjection() {
@@ -121,6 +128,13 @@ void Director::updateProjection() {
 }
 
 void Director::runWithScene(Scene* scene) {
+    replaceScene(scene);
+
+    // Flush startup auto released objects; retained objects stay alive.
+    PoolManager::getInstance().clearRootPool();
+}
+
+void Director::setRunningScene(Scene* scene) {
     if (_runningScene == scene) {
         return;
     }
@@ -138,9 +152,53 @@ void Director::runWithScene(Scene* scene) {
         _runningScene->retain();
         _runningScene->onEnter();
     }
+    _eventDispatcher.setSceneGraphRoot(_runningScene);
+}
 
-    // Flush startup auto released objects; retained objects stay alive.
-    PoolManager::getInstance().clearRootPool();
+void Director::replaceScene(Scene* scene, float fadeDuration) {
+    if (!scene || scene == _runningScene || scene == _nextScene) {
+        return;
+    }
+
+    if (_nextScene) {
+        _nextScene->release();
+        _nextScene = nullptr;
+    }
+
+    if (!_runningScene || fadeDuration <= 0.f) {
+        setRunningScene(scene);
+        return;
+    }
+
+    _nextScene = scene;
+    _nextScene->retain();
+    _transitionDuration = fadeDuration;
+    _transitionElapsed = 0.f;
+    _transitionSceneSwitched = false;
+}
+
+void Director::updateSceneTransition(float dt) {
+    if (!_nextScene) {
+        return;
+    }
+
+    _transitionElapsed += mstd::max(dt, 0.f);
+    const float halfway = _transitionDuration * 0.5f;
+    if (!_transitionSceneSwitched && _transitionElapsed >= halfway) {
+        Scene* incoming = _nextScene;
+        incoming->retain();
+        setRunningScene(incoming);
+        incoming->release();
+        _transitionSceneSwitched = true;
+    }
+
+    if (_transitionElapsed >= _transitionDuration) {
+        _nextScene->release();
+        _nextScene = nullptr;
+        _transitionDuration = 0.f;
+        _transitionElapsed = 0.f;
+        _transitionSceneSwitched = false;
+    }
 }
 
 bool Director::mainLoop() {
@@ -157,12 +215,20 @@ bool Director::mainLoop() {
     _view->pollEvents();
     _scheduler.update(dt);
     _actionManager.update(dt);
+    updateSceneTransition(dt);
     if (_runningScene)
         _runningScene->updateTree(dt);
 
     _renderer.beginFrame(_projection);
     if (_runningScene) {
+        if (_nextScene) {
+            const float progress = mstd::clamp(_transitionElapsed / _transitionDuration, 0.f, 1.f);
+            const float opacity =
+                _transitionSceneSwitched ? (progress - 0.5f) * 2.f : 1.f - progress * 2.f;
+            _renderer.setGlobalOpacity(opacity);
+        }
         _runningScene->render(_renderer);
+        _renderer.setGlobalOpacity(1.f);
     }
     _renderer.flush(*_renderDevice, _fbWidth, _fbHeight);
     _renderer.endFrame();

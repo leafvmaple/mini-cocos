@@ -227,10 +227,15 @@ if(ZOCOS_BUILD_TESTS)
     tests/test_ref.cpp
     tests/test_renderer.cpp
     tests/test_ease.cpp
+    tests/test_core_systems.cpp
     src/base/ZCRef.cpp
     src/base/ZCAutoreleasePool.cpp
     src/base/ZCStringUtils.cpp
     src/base/ZCRenderer.cpp
+    src/base/ZCAction.cpp
+    src/base/ZCActionManager.cpp
+    src/base/ZCScheduler.cpp
+    src/base/ZCEventDispatcher.cpp
   )
   target_include_directories(zocos_tests PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
