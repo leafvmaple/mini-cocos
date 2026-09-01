@@ -119,8 +119,29 @@ void Node::stopAction(Action* action) {
     Director::getInstance().getActionManager().removeAction(action);
 }
 
+void Node::stopActionByTag(int tag) {
+    Director::getInstance().getActionManager().removeActionByTag(tag, this);
+}
+
+void Node::stopAllActionsByTag(int tag) {
+    Director::getInstance().getActionManager().removeAllActionsByTag(tag, this);
+}
+
 void Node::stopAllActions() {
     Director::getInstance().getActionManager().removeAllActionsFromTarget(this);
+}
+
+Action* Node::getActionByTag(int tag) const {
+    return Director::getInstance().getActionManager().getActionByTag(tag, this);
+}
+
+mstd::size_t Node::getNumberOfRunningActions() const {
+    return Director::getInstance().getActionManager().getNumberOfRunningActionsInTarget(this);
+}
+
+mstd::size_t Node::getNumberOfRunningActionsByTag(int tag) const {
+    return Director::getInstance().getActionManager().getNumberOfRunningActionsInTargetByTag(this,
+                                                                                             tag);
 }
 
 void Node::setLocalZOrder(int localZOrder) {

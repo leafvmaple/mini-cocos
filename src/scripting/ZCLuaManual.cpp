@@ -1138,6 +1138,92 @@ int lua_zocos_Node_runAction(lua_State* tolua_S) {
     return reportWrongArgCount(tolua_S, "cc.Node:runAction", argc, 1);
 }
 
+int lua_zocos_Node_stopAction(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        cobj->stopAction(luaval_to_object<Action>(tolua_S, 2, kActionMeta, "Action expected"));
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:stopAction", argc, 1);
+}
+
+int lua_zocos_Node_stopActionByTag(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        const int tag = static_cast<int>(luaL_checkinteger(tolua_S, 2));
+        luaL_argcheck(tolua_S, tag != Action::InvalidTag, 2, "valid action tag expected");
+        cobj->stopActionByTag(tag);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:stopActionByTag", argc, 1);
+}
+
+int lua_zocos_Node_stopAllActionsByTag(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        const int tag = static_cast<int>(luaL_checkinteger(tolua_S, 2));
+        luaL_argcheck(tolua_S, tag != Action::InvalidTag, 2, "valid action tag expected");
+        cobj->stopAllActionsByTag(tag);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:stopAllActionsByTag", argc, 1);
+}
+
+int lua_zocos_Node_stopAllActions(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        cobj->stopAllActions();
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:stopAllActions", argc, 0);
+}
+
+int lua_zocos_Node_getActionByTag(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        const int tag = static_cast<int>(luaL_checkinteger(tolua_S, 2));
+        luaL_argcheck(tolua_S, tag != Action::InvalidTag, 2, "valid action tag expected");
+        object_to_luaval(tolua_S, kActionMeta, cobj->getActionByTag(tag));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:getActionByTag", argc, 1);
+}
+
+int lua_zocos_Node_getNumberOfRunningActions(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        lua_pushinteger(tolua_S, static_cast<lua_Integer>(cobj->getNumberOfRunningActions()));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:getNumberOfRunningActions", argc, 0);
+}
+
+int lua_zocos_Node_getNumberOfRunningActionsByTag(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        const int tag = static_cast<int>(luaL_checkinteger(tolua_S, 2));
+        luaL_argcheck(tolua_S, tag != Action::InvalidTag, 2, "valid action tag expected");
+        lua_pushinteger(tolua_S,
+                        static_cast<lua_Integer>(cobj->getNumberOfRunningActionsByTag(tag)));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:getNumberOfRunningActionsByTag", argc, 1);
+}
+
 int lua_zocos_Node_schedule(lua_State* tolua_S) {
     Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
     const int argc = lua_gettop(tolua_S) - 1;
@@ -1537,6 +1623,13 @@ int register_all_zocos_manual(lua_State* tolua_S) {
         {"removeChildByTag", lua_zocos_Node_removeChildByTag},
         {"removeFromParent", lua_zocos_Node_removeFromParent},
         {"runAction", lua_zocos_Node_runAction},
+        {"stopAction", lua_zocos_Node_stopAction},
+        {"stopActionByTag", lua_zocos_Node_stopActionByTag},
+        {"stopAllActionsByTag", lua_zocos_Node_stopAllActionsByTag},
+        {"stopAllActions", lua_zocos_Node_stopAllActions},
+        {"getActionByTag", lua_zocos_Node_getActionByTag},
+        {"getNumberOfRunningActions", lua_zocos_Node_getNumberOfRunningActions},
+        {"getNumberOfRunningActionsByTag", lua_zocos_Node_getNumberOfRunningActionsByTag},
         {"schedule", lua_zocos_Node_schedule},
         {"scheduleOnce", lua_zocos_Node_scheduleOnce},
         {"unschedule", lua_zocos_Node_unschedule},

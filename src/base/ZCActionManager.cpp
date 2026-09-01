@@ -37,6 +37,58 @@ void ActionManager::removeAction(Action* action) {
     }
 }
 
+void ActionManager::removeActionByTag(int tag, Node* target) {
+    if (tag == Action::InvalidTag || !target) {
+        return;
+    }
+
+    bool found = false;
+    for (auto& entry : _entries) {
+        if (!entry.removed && entry.target == target && entry.action &&
+            entry.action->getTag() == tag) {
+            entry.removed = true;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        for (auto& entry : _pendingEntries) {
+            if (!entry.removed && entry.target == target && entry.action &&
+                entry.action->getTag() == tag) {
+                entry.removed = true;
+                break;
+            }
+        }
+    }
+
+    if (!_updating && !_compacting) {
+        compactEntries();
+    }
+}
+
+void ActionManager::removeAllActionsByTag(int tag, Node* target) {
+    if (tag == Action::InvalidTag || !target) {
+        return;
+    }
+
+    for (auto& entry : _entries) {
+        if (!entry.removed && entry.target == target && entry.action &&
+            entry.action->getTag() == tag) {
+            entry.removed = true;
+        }
+    }
+    for (auto& entry : _pendingEntries) {
+        if (!entry.removed && entry.target == target && entry.action &&
+            entry.action->getTag() == tag) {
+            entry.removed = true;
+        }
+    }
+
+    if (!_updating && !_compacting) {
+        compactEntries();
+    }
+}
+
 void ActionManager::removeAllActionsFromTarget(Node* target) {
     for (auto& entry : _entries) {
         if (entry.target == target) {
@@ -65,6 +117,67 @@ void ActionManager::removeAllActions() {
     if (!_updating && !_compacting) {
         compactEntries();
     }
+}
+
+Action* ActionManager::getActionByTag(int tag, const Node* target) const {
+    if (tag == Action::InvalidTag || !target) {
+        return nullptr;
+    }
+
+    for (const auto& entry : _entries) {
+        if (!entry.removed && entry.target == target && entry.action &&
+            entry.action->getTag() == tag) {
+            return entry.action;
+        }
+    }
+    for (const auto& entry : _pendingEntries) {
+        if (!entry.removed && entry.target == target && entry.action &&
+            entry.action->getTag() == tag) {
+            return entry.action;
+        }
+    }
+    return nullptr;
+}
+
+mstd::size_t ActionManager::getNumberOfRunningActionsInTarget(const Node* target) const {
+    if (!target) {
+        return 0;
+    }
+
+    mstd::size_t count = 0;
+    for (const auto& entry : _entries) {
+        if (!entry.removed && entry.target == target && entry.action) {
+            ++count;
+        }
+    }
+    for (const auto& entry : _pendingEntries) {
+        if (!entry.removed && entry.target == target && entry.action) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+mstd::size_t ActionManager::getNumberOfRunningActionsInTargetByTag(const Node* target,
+                                                                    int tag) const {
+    if (!target || tag == Action::InvalidTag) {
+        return 0;
+    }
+
+    mstd::size_t count = 0;
+    for (const auto& entry : _entries) {
+        if (!entry.removed && entry.target == target && entry.action &&
+            entry.action->getTag() == tag) {
+            ++count;
+        }
+    }
+    for (const auto& entry : _pendingEntries) {
+        if (!entry.removed && entry.target == target && entry.action &&
+            entry.action->getTag() == tag) {
+            ++count;
+        }
+    }
+    return count;
 }
 
 void ActionManager::update(float dt) {

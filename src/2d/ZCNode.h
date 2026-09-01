@@ -100,7 +100,12 @@ public:
 
     Action* runAction(Action* action);
     void stopAction(Action* action);
+    void stopActionByTag(int tag);
+    void stopAllActionsByTag(int tag);
     void stopAllActions();
+    Action* getActionByTag(int tag) const;
+    mstd::size_t getNumberOfRunningActions() const;
+    mstd::size_t getNumberOfRunningActionsByTag(int tag) const;
 
     void addChild(Node* child);
     void addChild(Node* child, int localZOrder);

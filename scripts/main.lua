@@ -84,14 +84,28 @@ if actionInfo then
     actionInfo:setAnchorPoint(0.0, 0.0)
     actionInfo:setPosition(12.0, 48.0)
     scene:addChild(actionInfo)
-    actionInfo:runAction(cc.Sequence:create({
+
+    local actionTag = 1001
+    local action = cc.Sequence:create({
         cc.DelayTime:create(0.8),
         cc.CallFunc:create(function()
             actionInfo:setString("CallFunc fired; RemoveSelf next")
         end),
         cc.DelayTime:create(1.2),
         cc.RemoveSelf:create(),
-    }))
+    })
+    action:setTag(actionTag)
+    actionInfo:runAction(action)
+
+    local cancelled = cc.RepeatForever:create(cc.DelayTime:create(1.0))
+    cancelled:setTag(1002)
+    actionInfo:runAction(cancelled)
+    actionInfo:stopActionByTag(1002)
+
+    assert(actionInfo:getActionByTag(actionTag), "tagged action not found")
+    assert(actionInfo:getNumberOfRunningActions() == 1, "unexpected running action count")
+    assert(actionInfo:getNumberOfRunningActionsByTag(actionTag) == 1,
+        "unexpected tagged action count")
 end
 
 local button = cc.Button:create("Click Me")

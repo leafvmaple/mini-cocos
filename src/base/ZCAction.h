@@ -10,6 +10,8 @@ class Node;
 
 class Action : public Ref {
 public:
+    static constexpr int InvalidTag = -1;
+
     ~Action() override = default;
 
     virtual void startWithTarget(Node* target);
@@ -29,7 +31,7 @@ protected:
 
     Node* _target = nullptr;
     Node* _originalTarget = nullptr;
-    int _tag = -1;
+    int _tag = InvalidTag;
 };
 
 class FiniteTimeAction : public Action {

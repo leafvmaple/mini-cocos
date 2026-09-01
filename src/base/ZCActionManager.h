@@ -13,8 +13,14 @@ public:
     void addAction(Action* action, Node* target);
 
     void removeAction(Action* action);
+    void removeActionByTag(int tag, Node* target);
+    void removeAllActionsByTag(int tag, Node* target);
     void removeAllActionsFromTarget(Node* target);
     void removeAllActions();
+
+    Action* getActionByTag(int tag, const Node* target) const;
+    mstd::size_t getNumberOfRunningActionsInTarget(const Node* target) const;
+    mstd::size_t getNumberOfRunningActionsInTargetByTag(const Node* target, int tag) const;
 
     void update(float dt);
 

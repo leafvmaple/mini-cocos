@@ -103,6 +103,75 @@ ZC_TEST(action_manager_finishes_and_releases_actions) {
     node.leave();
 }
 
+ZC_TEST(node_action_tags_select_count_and_remove_actions) {
+    auto& manager = Director::getInstance().getActionManager();
+    TestNode node;
+    auto* first = new CountingAction(10);
+    auto* second = new CountingAction(10);
+    auto* third = new CountingAction(10);
+
+    ZC_CHECK_EQ(manager.getRunningActionCount(), static_cast<mstd::size_t>(0));
+    node.enter();
+    first->setTag(7);
+    second->setTag(7);
+    third->setTag(8);
+    node.runAction(first);
+    node.runAction(second);
+    node.runAction(third);
+
+    ZC_CHECK_EQ(node.getNumberOfRunningActions(), static_cast<mstd::size_t>(3));
+    ZC_CHECK_EQ(node.getNumberOfRunningActionsByTag(7), static_cast<mstd::size_t>(2));
+    ZC_CHECK_EQ(node.getActionByTag(7), first);
+
+    node.stopActionByTag(7);
+    ZC_CHECK_EQ(first->getTarget(), nullptr);
+    ZC_CHECK_EQ(node.getActionByTag(7), second);
+    ZC_CHECK_EQ(node.getNumberOfRunningActions(), static_cast<mstd::size_t>(2));
+
+    node.stopAllActionsByTag(7);
+    ZC_CHECK_EQ(second->getTarget(), nullptr);
+    ZC_CHECK_EQ(node.getActionByTag(7), nullptr);
+    ZC_CHECK_EQ(node.getNumberOfRunningActionsByTag(7), static_cast<mstd::size_t>(0));
+    ZC_CHECK_EQ(node.getNumberOfRunningActions(), static_cast<mstd::size_t>(1));
+
+    node.stopAllActions();
+    ZC_CHECK_EQ(third->getTarget(), nullptr);
+    ZC_CHECK_EQ(node.getNumberOfRunningActions(), static_cast<mstd::size_t>(0));
+
+    first->release();
+    second->release();
+    third->release();
+    node.leave();
+}
+
+ZC_TEST(action_tag_queries_include_pending_actions) {
+    AutoreleasePool pool("pending action tag test");
+    ActionManager manager;
+    TestNode node;
+    auto* pending = new CountingAction(10);
+
+    node.enter();
+    pending->setTag(9);
+    manager.addAction(
+        CallFunc::create([&]() {
+            manager.addAction(pending, &node);
+            ZC_CHECK_EQ(manager.getActionByTag(9, &node), pending);
+            ZC_CHECK_EQ(manager.getNumberOfRunningActionsInTarget(&node),
+                        static_cast<mstd::size_t>(2));
+            ZC_CHECK_EQ(manager.getNumberOfRunningActionsInTargetByTag(&node, 9),
+                        static_cast<mstd::size_t>(1));
+            manager.removeActionByTag(9, &node);
+            ZC_CHECK_EQ(manager.getActionByTag(9, &node), nullptr);
+        }),
+        &node);
+
+    manager.update(0.f);
+    ZC_CHECK_EQ(manager.getRunningActionCount(), static_cast<mstd::size_t>(0));
+
+    pending->release();
+    node.leave();
+}
+
 ZC_TEST(action_instant_sequence_runs_callbacks_in_order) {
     AutoreleasePool pool("action instant test");
     ActionManager manager;
