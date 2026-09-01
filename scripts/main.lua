@@ -98,6 +98,26 @@ if button then
         if clickCount == 3 then
             local nextScene = cc.Scene:create()
             local nextLabel = cc.Label:createWithTTF(
+                "The previous scene is paused on the stack", defaultFont, 28.0)
+            local backButton = cc.Button:create("Back (popScene)")
+            if nextScene and nextLabel and backButton then
+                nextLabel:setPosition(centerX, centerY + 40.0)
+                nextScene:addChild(nextLabel)
+
+                backButton:setTitleFontName(defaultFont)
+                backButton:setTitleFontSize(22.0)
+                backButton:setContentSize(260.0, 62.0)
+                backButton:setPosition(centerX, centerY - 50.0)
+                backButton:addEventListener(function()
+                    director:popScene()
+                end)
+                nextScene:addChild(backButton)
+
+                director:pushScene(nextScene)
+            end
+        elseif clickCount == 6 then
+            local nextScene = cc.Scene:create()
+            local nextLabel = cc.Label:createWithTTF(
                 "Scene replaced with a 0.8s fade", defaultFont, 28.0)
             if nextScene and nextLabel then
                 nextLabel:setPosition(centerX, centerY)

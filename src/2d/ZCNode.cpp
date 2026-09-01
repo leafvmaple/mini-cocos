@@ -51,9 +51,17 @@ void Node::onExit() {
             child->onExit();
         }
     }
+    _running = false;
+}
+
+void Node::cleanup() {
     stopAllActions();
     unscheduleAllCallbacks();
-    _running = false;
+    for (auto* child : _children) {
+        if (child) {
+            child->cleanup();
+        }
+    }
 }
 
 void Node::schedule(const mstd::string& key, ScheduleCallback callback, float interval, int repeat,
@@ -131,7 +139,7 @@ void Node::addChild(Node* child, int localZOrder) {
     // Keep child alive while it is detached from the old parent.
     child->retain();
     if (child->_parent) {
-        child->_parent->removeChild(child);
+        child->_parent->removeChild(child, false);
     }
 
     child->_parent = this;
@@ -176,11 +184,14 @@ Node* Node::getChildByTag(int tag) const {
     return nullptr;
 }
 
-void Node::removeChild(Node* child) {
+void Node::removeChild(Node* child, bool cleanup) {
     for (auto it = _children.begin(); it != _children.end(); ++it) {
         if (*it == child) {
             if (_running && (*it)->isRunning()) {
                 (*it)->onExit();
+            }
+            if (cleanup) {
+                (*it)->cleanup();
             }
             (*it)->_parent = nullptr;
             (*it)->release();
@@ -190,16 +201,21 @@ void Node::removeChild(Node* child) {
     }
 }
 
-void Node::removeChildByTag(int tag) {
+void Node::removeChildByTag(int tag, bool cleanup) {
     if (Node* child = getChildByTag(tag)) {
-        removeChild(child);
+        removeChild(child, cleanup);
     }
 }
 
-void Node::removeAllChildren() {
+void Node::removeAllChildren() { removeAllChildrenWithCleanup(true); }
+
+void Node::removeAllChildrenWithCleanup(bool cleanup) {
     for (auto* child : _children) {
         if (_running && child->isRunning()) {
             child->onExit();
+        }
+        if (cleanup) {
+            child->cleanup();
         }
         child->_parent = nullptr;
         child->release();
@@ -207,9 +223,11 @@ void Node::removeAllChildren() {
     _children.clear();
 }
 
-void Node::removeFromParent() {
+void Node::removeFromParent() { removeFromParentAndCleanup(true); }
+
+void Node::removeFromParentAndCleanup(bool cleanup) {
     if (_parent) {
-        _parent->removeChild(this);
+        _parent->removeChild(this, cleanup);
     }
 }
 

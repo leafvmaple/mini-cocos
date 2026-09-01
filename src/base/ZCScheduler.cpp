@@ -6,8 +6,8 @@
 
 namespace zocos {
 
-void Scheduler::schedule(Node* target, const mstd::string& key, Callback callback, float interval, int repeat,
-                         float delay, int priority) {
+void Scheduler::schedule(Node* target, const mstd::string& key, Callback callback, float interval,
+                         int repeat, float delay, int priority) {
     if (!target || key.empty() || !callback) {
         return;
     }
@@ -89,14 +89,14 @@ void Scheduler::unschedule(Node* target, const mstd::string& key) {
     }
 
     _entries.erase(mstd::remove_if(_entries.begin(), _entries.end(),
-                                  [target, &key](const Entry& entry) {
-                                      return entry.target == target && entry.key == key;
-                                  }),
+                                   [target, &key](const Entry& entry) {
+                                       return entry.target == target && entry.key == key;
+                                   }),
                    _entries.end());
     _pendingEntries.erase(mstd::remove_if(_pendingEntries.begin(), _pendingEntries.end(),
-                                         [target, &key](const Entry& entry) {
-                                             return entry.target == target && entry.key == key;
-                                         }),
+                                          [target, &key](const Entry& entry) {
+                                              return entry.target == target && entry.key == key;
+                                          }),
                           _pendingEntries.end());
 }
 
@@ -120,11 +120,12 @@ void Scheduler::unscheduleAllForTarget(Node* target) {
     }
 
     _entries.erase(mstd::remove_if(_entries.begin(), _entries.end(),
-                                  [target](const Entry& entry) { return entry.target == target; }),
+                                   [target](const Entry& entry) { return entry.target == target; }),
                    _entries.end());
-    _pendingEntries.erase(mstd::remove_if(_pendingEntries.begin(), _pendingEntries.end(),
-                                         [target](const Entry& entry) { return entry.target == target; }),
-                          _pendingEntries.end());
+    _pendingEntries.erase(
+        mstd::remove_if(_pendingEntries.begin(), _pendingEntries.end(),
+                        [target](const Entry& entry) { return entry.target == target; }),
+        _pendingEntries.end());
 }
 
 void Scheduler::mergePendingEntries() {
@@ -204,11 +205,10 @@ void Scheduler::update(float dt) {
     }
     _updating = false;
 
-    _entries.erase(mstd::remove_if(_entries.begin(), _entries.end(),
-                                  [](const Entry& entry) {
-                                      return entry.cancelled || !entry.target || !entry.target->isRunning();
-                                  }),
-                   _entries.end());
+    _entries.erase(
+        mstd::remove_if(_entries.begin(), _entries.end(),
+                        [](const Entry& entry) { return entry.cancelled || !entry.target; }),
+        _entries.end());
 
     mergePendingEntries();
     sortEntriesIfNeeded();

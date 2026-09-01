@@ -73,17 +73,23 @@ bool Director::init(int width, int height, const char* title) {
 }
 
 void Director::shutdown() {
-    if (_nextScene) {
-        _nextScene->release();
-        _nextScene = nullptr;
-    }
+    cancelSceneTransition();
+    Scene* runningScene = _runningScene;
     if (_runningScene) {
         if (_runningScene->isRunning()) {
             _runningScene->onExit();
         }
-        _runningScene->release();
+        _runningScene->cleanup();
         _runningScene = nullptr;
     }
+    _eventDispatcher.setSceneGraphRoot(nullptr);
+    for (auto* scene : _sceneStack) {
+        if (scene != runningScene) {
+            scene->cleanup();
+        }
+        scene->release();
+    }
+    _sceneStack.clear();
 
     assert(_scheduler.getScheduledCount() == 0 && "Scheduled callbacks were not fully released.");
     assert(_actionManager.getRunningActionCount() == 0 && "Actions were not fully released.");
@@ -128,13 +134,17 @@ void Director::updateProjection() {
 }
 
 void Director::runWithScene(Scene* scene) {
-    replaceScene(scene);
+    if (!_runningScene) {
+        pushScene(scene);
+    } else {
+        replaceScene(scene);
+    }
 
     // Flush startup auto released objects; retained objects stay alive.
     PoolManager::getInstance().clearRootPool();
 }
 
-void Director::setRunningScene(Scene* scene) {
+void Director::setRunningScene(Scene* scene, bool cleanupOutgoing) {
     if (_runningScene == scene) {
         return;
     }
@@ -143,13 +153,13 @@ void Director::setRunningScene(Scene* scene) {
         if (_runningScene->isRunning()) {
             _runningScene->onExit();
         }
-        _runningScene->release();
-        _runningScene = nullptr;
+        if (cleanupOutgoing) {
+            _runningScene->cleanup();
+        }
     }
 
     _runningScene = scene;
     if (_runningScene) {
-        _runningScene->retain();
         _runningScene->onEnter();
     }
     _eventDispatcher.setSceneGraphRoot(_runningScene);
@@ -160,13 +170,10 @@ void Director::replaceScene(Scene* scene, float fadeDuration) {
         return;
     }
 
-    if (_nextScene) {
-        _nextScene->release();
-        _nextScene = nullptr;
-    }
+    cancelSceneTransition();
 
     if (!_runningScene || fadeDuration <= 0.f) {
-        setRunningScene(scene);
+        replaceSceneNow(scene);
         return;
     }
 
@@ -177,6 +184,76 @@ void Director::replaceScene(Scene* scene, float fadeDuration) {
     _transitionSceneSwitched = false;
 }
 
+void Director::pushScene(Scene* scene) {
+    if (!scene || scene == _runningScene || scene == _nextScene) {
+        return;
+    }
+
+    cancelSceneTransition();
+    scene->retain();
+    _sceneStack.push_back(scene);
+    setRunningScene(scene, false);
+}
+
+void Director::popScene() {
+    if (_sceneStack.empty()) {
+        return;
+    }
+
+    cancelSceneTransition();
+    Scene* outgoing = _sceneStack.back();
+    Scene* incoming = _sceneStack.size() > 1 ? _sceneStack[_sceneStack.size() - 2] : nullptr;
+    setRunningScene(incoming, true);
+    _sceneStack.pop_back();
+    outgoing->release();
+}
+
+void Director::popToRootScene() {
+    if (_sceneStack.size() <= 1) {
+        return;
+    }
+
+    cancelSceneTransition();
+    Scene* root = _sceneStack.front();
+    Scene* outgoing = _runningScene;
+    setRunningScene(root, true);
+
+    for (mstd::size_t i = 1; i < _sceneStack.size(); ++i) {
+        Scene* scene = _sceneStack[i];
+        if (scene != outgoing) {
+            scene->cleanup();
+        }
+        scene->release();
+    }
+    _sceneStack.resize(1);
+}
+
+void Director::cancelSceneTransition() {
+    if (_nextScene) {
+        _nextScene->release();
+        _nextScene = nullptr;
+    }
+    _transitionDuration = 0.f;
+    _transitionElapsed = 0.f;
+    _transitionSceneSwitched = false;
+}
+
+void Director::replaceSceneNow(Scene* scene) {
+    if (!scene) {
+        return;
+    }
+
+    scene->retain();
+    Scene* outgoing = _sceneStack.empty() ? nullptr : _sceneStack.back();
+    setRunningScene(scene, true);
+    if (_sceneStack.empty()) {
+        _sceneStack.push_back(scene);
+    } else {
+        _sceneStack.back() = scene;
+        outgoing->release();
+    }
+}
+
 void Director::updateSceneTransition(float dt) {
     if (!_nextScene) {
         return;
@@ -185,10 +262,7 @@ void Director::updateSceneTransition(float dt) {
     _transitionElapsed += mstd::max(dt, 0.f);
     const float halfway = _transitionDuration * 0.5f;
     if (!_transitionSceneSwitched && _transitionElapsed >= halfway) {
-        Scene* incoming = _nextScene;
-        incoming->retain();
-        setRunningScene(incoming);
-        incoming->release();
+        replaceSceneNow(_nextScene);
         _transitionSceneSwitched = true;
     }
 

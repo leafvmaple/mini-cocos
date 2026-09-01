@@ -25,7 +25,11 @@ public:
 
     void runWithScene(Scene* scene);
     void replaceScene(Scene* scene, float fadeDuration = 0.f);
+    void pushScene(Scene* scene);
+    void popScene();
+    void popToRootScene();
     Scene* getRunningScene() const { return _runningScene; }
+    mstd::size_t getSceneCount() const { return _sceneStack.size(); }
     bool isSceneTransitioning() const { return _nextScene != nullptr; }
 
     bool mainLoop();
@@ -58,7 +62,9 @@ private:
 
     void onFramebufferResize(int w, int h);
     void updateProjection();
-    void setRunningScene(Scene* scene);
+    void setRunningScene(Scene* scene, bool cleanupOutgoing);
+    void cancelSceneTransition();
+    void replaceSceneNow(Scene* scene);
     void updateSceneTransition(float dt);
 
     void onViewResized(int width, int height) override;
@@ -71,6 +77,7 @@ private:
 
     mstd::unique_ptr<View> _view;
     Scene* _runningScene = nullptr;
+    mstd::vector<Scene*> _sceneStack;
     Scene* _nextScene = nullptr;
     float _transitionDuration = 0.f;
     float _transitionElapsed = 0.f;

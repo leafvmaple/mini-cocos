@@ -2,29 +2,23 @@
 
 #include "base/ZCFontAtlasCache.h"
 #include "base/ZCFontCache.h"
+#include "base/ZCPlatformFactory.h"
 #include "base/ZCTextureCache.h"
 
 namespace zocos {
 
-// Node's lifecycle hooks use the Director's core managers. Tests need those
-// managers but deliberately never initialize a window or render device.
-Director& Director::getInstance() {
-    static Director* director = new Director();
-    return *director;
-}
+// Headless platform and cache implementations let the tests exercise the real
+// Director scene-stack code without creating a window or render device.
+mstd::unique_ptr<View> createDefaultView() { return {}; }
 
-void Director::onViewResized(int, int) {}
+mstd::unique_ptr<RenderDevice> createDefaultRenderDevice(View&) { return {}; }
 
-bool Director::onViewKeyEvent(int, int, int, bool, bool) { return false; }
-
-void Director::onViewMouseButtonEvent(int, int, bool, float, float) {}
-
-void Director::onViewMouseMoveEvent(float, float, float, float) {}
-
-void Director::onViewMouseScrollEvent(float, float, float, float) {}
-
-// The headless Director never creates this cache. Its destructor is still
-// referenced by the constructor's cleanup path generated for unique_ptr.
+FontAtlasCache::FontAtlasCache(Director& director) : _director(director) {}
 FontAtlasCache::~FontAtlasCache() = default;
+void FontAtlasCache::removeAllFontAtlas() {}
+
+void FontCache::removeAllFonts() {}
+
+void TextureCache::removeAllTextures(Director&) {}
 
 } // namespace zocos

@@ -1,4 +1,4 @@
-# zocos: a small cocos2d-x–style 2D engine for learning (GLFW + OpenGL 3.3 Core).
+# zocos: a small cocos2d-x-style 2D engine for learning (GLFW + OpenGL/Vulkan).
 # Build (from this directory):
 #   cmake -B build
 #   cmake --build build --config Release
@@ -223,6 +223,7 @@ if(ZOCOS_BUILD_TESTS)
   add_executable(zocos_tests
     tests/test_main.cpp
     tests/test_math.cpp
+    tests/test_director.cpp
     tests/test_node.cpp
     tests/test_stringutils.cpp
     tests/test_ref.cpp
@@ -231,6 +232,7 @@ if(ZOCOS_BUILD_TESTS)
     tests/test_core_systems.cpp
     tests/ZCDirectorStub.cpp
     src/2d/ZCNode.cpp
+    src/2d/ZCScene.cpp
     src/base/ZCRef.cpp
     src/base/ZCAutoreleasePool.cpp
     src/base/ZCStringUtils.cpp
@@ -239,6 +241,9 @@ if(ZOCOS_BUILD_TESTS)
     src/base/ZCActionManager.cpp
     src/base/ZCScheduler.cpp
     src/base/ZCEventDispatcher.cpp
+    src/base/ZCEventListenerMouse.cpp
+    src/base/ZCDirector.cpp
+    src/ui/UIWidget.cpp
   )
   target_include_directories(zocos_tests PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"

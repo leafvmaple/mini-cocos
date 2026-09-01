@@ -86,6 +86,7 @@ public:
 
     virtual void onEnter();
     virtual void onExit();
+    virtual void cleanup();
 
     void schedule(const mstd::string& key, ScheduleCallback callback, float interval = 0.f,
                   int repeat = RepeatForever, float delay = 0.f, int priority = 0);
@@ -103,10 +104,12 @@ public:
     void addChild(Node* child, int localZOrder, int tag);
     void reorderChild(Node* child, int localZOrder);
     Node* getChildByTag(int tag) const;
-    void removeChild(Node* child);
-    void removeChildByTag(int tag);
+    void removeChild(Node* child, bool cleanup = true);
+    void removeChildByTag(int tag, bool cleanup = true);
     void removeAllChildren();
+    void removeAllChildrenWithCleanup(bool cleanup);
     void removeFromParent();
+    void removeFromParentAndCleanup(bool cleanup);
     const mstd::vector<Node*>& getChildren() const { return _children; }
     void sortAllChildren();
 

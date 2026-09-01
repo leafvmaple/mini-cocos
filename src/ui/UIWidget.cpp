@@ -109,7 +109,12 @@ void Widget::handleMouseUp(EventMouse& event) {
     }
 
     if (inside && _eventCallback) {
-        _eventCallback(*this);
+        auto callback = _eventCallback;
+        retain();
+        callback(*this);
+        event.stopPropagation();
+        release();
+        return;
     }
 
     event.stopPropagation();

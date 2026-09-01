@@ -1,12 +1,12 @@
 # zocos
 
-**zocos** 是为学习 [cocos2d-x](https://github.com/cocos2d/cocos2d-x) 而**自研**的极简 2D 引擎示例：用 GLFW + OpenGL 3.3 Core 实现与 cocos2d-x 相近的概念（`Director`、`Scene`、`Node`、`Sprite`），便于对照官方引擎理解场景图、变换与渲染循环。仅供学习阅读，不面向生产。
+**zocos** 是为学习 [cocos2d-x](https://github.com/cocos2d/cocos2d-x) 而**自研**的极简 2D 引擎示例：用 GLFW + OpenGL 3.3 Core / Vulkan 1.0 实现与 cocos2d-x 相近的概念（`Director`、`Scene`、`Node`、`Sprite`），便于对照官方引擎理解场景图、变换与渲染循环。仅供学习阅读，不面向生产。
 
 命名与约定见仓库根目录 [`CONVENTIONS.md`](CONVENTIONS.md)（供人类与 AI 助手统一遵循）。
 
 ## Features
 
-- GLFW 窗口与 **OpenGL 3.3 Core**（通过 `glfwGetProcAddress` 加载函数指针）
+- GLFW 窗口与可切换的 **OpenGL 3.3 Core / Vulkan 1.0** 渲染后端
 - 正交 2D 投影（Y 轴向上，帧缓冲左下角为原点）
 - 场景图：父子节点、局部变换（位置、缩放、旋转、锚点、内容尺寸）
 - 带纹理的四边形；可选 PNG/JPEG 等（[stb_image](https://github.com/nothings/stb)，`third_party/stb_image.h`）
@@ -15,30 +15,38 @@
 - 帧动画：`Animation` + `Animate`（可通过 `setTextureRect` 切换图集帧）
 - 缓动动作：`ActionEase` 包裹任意 `ActionInterval`，内置 `EaseSine*` / `EaseCubic*`（In/Out/InOut）曲线，以及带 `rate` 指数的乘幂缓动 `EaseIn` / `EaseOut` / `EaseInOut`
 - Lua 脚本导出系统（`cc.*`）：可在 Lua 中创建 `Director` / `Scene` / `Sprite` / `Label` 并驱动 `Action`
-- 场景替换：`Director::replaceScene` 支持立即替换或淡出至黑再淡入的新场景过渡
+- 场景管理：`Director` 支持 `replaceScene` 淡入淡出，以及可暂停/恢复 Action 和 Scheduler 的 `pushScene` / `popScene` 场景栈
 - 示例：Lua 脚本中的精灵轨道运动与自转（或通过命令行传入图片路径）
 
 ## Requirements
 
 - **CMake** 3.16+
 - **C++17** 编译器
-- **OpenGL 3.3** 驱动
+- 支持 **OpenGL 3.3** 或 **Vulkan 1.0** 的显卡驱动（只需其中一种即可运行对应后端）
 - 首次配置需联网（CMake **FetchContent** 拉取 GLFW 3.4 与 Lua 5.4.6）
+- Vulkan SDK 可选；找不到 SDK 时，CMake 会自动拉取 Vulkan Loader 与 Headers
 
 ## Build
 
+渲染后端在配置时通过 `ZOCOS_RENDER_API` 选择。建议为不同后端使用独立构建目录，避免在同一目录中切换缓存；当前默认后端是 Vulkan。
+
 ```bash
-cmake -B build
-cmake --build build --config Release   # MSVC: 使用 --config Release
+# OpenGL 3.3（依赖少，适合先阅读渲染流程）
+cmake -S . -B build-opengl -DZOCOS_RENDER_API=OPENGL
+cmake --build build-opengl --config Release
+
+# Vulkan 1.0（未安装 Vulkan SDK 时会自动拉取编译依赖）
+cmake -S . -B build-vulkan -DZOCOS_RENDER_API=VULKAN
+cmake --build build-vulkan --config Release
 ```
 
 在 Windows（Visual Studio 生成器）下，可执行文件一般在：
 
-`build/Release/zocos.exe`（或 `build/Debug/zocos.exe`）。
+`build-opengl/Release/zocos.exe` 或 `build-vulkan/Release/zocos.exe`。使用 Ninja 等单配置生成器时，可执行文件直接位于对应构建目录下。
 
 在类 Unix 系统上：
 
-`build/zocos`
+`build-opengl/zocos` 或 `build-vulkan/zocos`
 
 ### 可选：freestanding STL（zstl）
 
@@ -99,11 +107,11 @@ Get-ChildItem -Path src -Recurse -Include *.cpp,*.h | ForEach-Object { clang-for
 
 ```bash
 # 内置棋盘格纹理
-./build/Release/zocos.exe          # Windows 示例路径
-./build/zocos                      # Linux / macOS
+./build-opengl/Release/zocos.exe   # Windows + Visual Studio 生成器示例
+./build-opengl/zocos               # Ninja / Linux / macOS 示例
 
 # 图片（stb_image 支持的常见格式）
-./build/zocos path/to/image.png
+./build-opengl/zocos path/to/image.png
 ```
 
 默认会执行 `scripts/main.lua`，CMake 在构建后会自动把 `scripts/` 目录复制到可执行文件同级目录。
@@ -131,7 +139,8 @@ ctest --test-dir build -C Debug --output-on-failure
 | `src/2d/ZCSprite.*` | 纹理四边形与简单着色器（类型为 `Sprite`） |
 | `src/base/ZCAction.*` | 基础动作系统（含 `Animation` / `Animate` 帧动画） |
 | `src/scripting/ZCLuaEngine.*` / `src/scripting/ZCLuaManual.*` | Lua 引擎封装、统一导出入口（`register_all_zocos*`）与手动导出 |
-| `src/platform/ZCOpenGLLoader.*` | 最小 GL 3.3 入口（平台 / 图形后端相关） |
+| `src/platform/opengl/` | OpenGL 3.3 View、最小函数入口与 RenderDevice |
+| `src/platform/vulkan/` | Vulkan View、交换链、资源与 RenderDevice |
 | `src/main.cpp` | 引擎入口（加载并执行 Lua demo 脚本） |
 | `scripts/main.lua` | Lua demo 场景脚本 |
 | `.clang-format` / `.clang-format-ignore` | 代码风格（4 空格）；忽略第三方目录 |

@@ -379,6 +379,67 @@ int lua_zocos_Director_replaceScene(lua_State* tolua_S) {
     return reportWrongArgCount(tolua_S, "cc.Director:replaceScene", argc, 1, 2);
 }
 
+int lua_zocos_Director_pushScene(lua_State* tolua_S) {
+    Director* cobj = luaval_to_object<Director>(tolua_S, 1, kDirectorMeta, "Director expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        Node* node = luaval_to_object<Node>(tolua_S, 2, kNodeMeta, "Node expected");
+        auto* scene = dynamic_cast<Scene*>(node);
+        if (!scene) {
+            return luaL_error(tolua_S, "cc.Director:pushScene expects Scene as first argument");
+        }
+
+        cobj->pushScene(scene);
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Director:pushScene", argc, 1);
+}
+
+int lua_zocos_Director_popScene(lua_State* tolua_S) {
+    Director* cobj = luaval_to_object<Director>(tolua_S, 1, kDirectorMeta, "Director expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        cobj->popScene();
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Director:popScene", argc, 0);
+}
+
+int lua_zocos_Director_popToRootScene(lua_State* tolua_S) {
+    Director* cobj = luaval_to_object<Director>(tolua_S, 1, kDirectorMeta, "Director expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        cobj->popToRootScene();
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Director:popToRootScene", argc, 0);
+}
+
+int lua_zocos_Director_getRunningScene(lua_State* tolua_S) {
+    Director* cobj = luaval_to_object<Director>(tolua_S, 1, kDirectorMeta, "Director expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        node_to_luaval(tolua_S, cobj->getRunningScene());
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Director:getRunningScene", argc, 0);
+}
+
+int lua_zocos_Director_getSceneCount(lua_State* tolua_S) {
+    Director* cobj = luaval_to_object<Director>(tolua_S, 1, kDirectorMeta, "Director expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        lua_pushinteger(tolua_S, static_cast<lua_Integer>(cobj->getSceneCount()));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Director:getSceneCount", argc, 0);
+}
+
 int lua_zocos_Director_shutdown(lua_State* tolua_S) {
     Director* cobj = luaval_to_object<Director>(tolua_S, 1, kDirectorMeta, "Director expected");
     const int argc = lua_gettop(tolua_S) - 1;
@@ -1334,6 +1395,11 @@ int register_all_zocos_manual(lua_State* tolua_S) {
         {"init", lua_zocos_Director_init},
         {"runWithScene", lua_zocos_Director_runWithScene},
         {"replaceScene", lua_zocos_Director_replaceScene},
+        {"pushScene", lua_zocos_Director_pushScene},
+        {"popScene", lua_zocos_Director_popScene},
+        {"popToRootScene", lua_zocos_Director_popToRootScene},
+        {"getRunningScene", lua_zocos_Director_getRunningScene},
+        {"getSceneCount", lua_zocos_Director_getSceneCount},
         {"shutdown", lua_zocos_Director_shutdown},
         {"getFramebufferWidth", lua_zocos_Director_getFramebufferWidth},
         {"getFramebufferHeight", lua_zocos_Director_getFramebufferHeight},
