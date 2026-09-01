@@ -21,6 +21,16 @@ public:
         Scene::onExit();
     }
 
+    void onEnterTransitionDidFinish() override {
+        ++enterTransitionFinishedCount;
+        Scene::onEnterTransitionDidFinish();
+    }
+
+    void onExitTransitionDidStart() override {
+        ++exitTransitionStartedCount;
+        Scene::onExitTransitionDidStart();
+    }
+
     void cleanup() override {
         ++cleanupCount;
         Scene::cleanup();
@@ -28,6 +38,8 @@ public:
 
     int enterCount = 0;
     int exitCount = 0;
+    int enterTransitionFinishedCount = 0;
+    int exitTransitionStartedCount = 0;
     int cleanupCount = 0;
 };
 
@@ -64,6 +76,7 @@ ZC_TEST(director_scene_stack_pauses_resumes_and_cleans_scenes) {
     int actionSteps = 0;
 
     director.runWithScene(root);
+    ZC_CHECK_EQ(root->enterTransitionFinishedCount, 1);
     root->schedule("tick", [&](float) { ++scheduleCalls; });
     auto* action = new CountingAction(actionSteps);
     root->runAction(action);
@@ -79,6 +92,9 @@ ZC_TEST(director_scene_stack_pauses_resumes_and_cleans_scenes) {
     ZC_CHECK_EQ(director.getRunningScene(), top);
     ZC_CHECK_EQ(director.getSceneCount(), static_cast<mstd::size_t>(3));
     ZC_CHECK(!root->isRunning());
+    ZC_CHECK_EQ(root->exitTransitionStartedCount, 1);
+    ZC_CHECK_EQ(middle->enterTransitionFinishedCount, 1);
+    ZC_CHECK_EQ(top->enterTransitionFinishedCount, 1);
 
     director.getScheduler().update(0.1f);
     director.getActionManager().update(0.1f);
@@ -88,6 +104,7 @@ ZC_TEST(director_scene_stack_pauses_resumes_and_cleans_scenes) {
     director.popToRootScene();
     ZC_CHECK_EQ(director.getRunningScene(), root);
     ZC_CHECK_EQ(director.getSceneCount(), static_cast<mstd::size_t>(1));
+    ZC_CHECK_EQ(root->enterTransitionFinishedCount, 2);
     ZC_CHECK_EQ(middle->cleanupCount, 1);
     ZC_CHECK_EQ(top->cleanupCount, 1);
 
@@ -105,6 +122,7 @@ ZC_TEST(director_scene_stack_pauses_resumes_and_cleans_scenes) {
     ZC_CHECK_EQ(director.getRunningScene(), replacement);
     ZC_CHECK_EQ(director.getSceneCount(), static_cast<mstd::size_t>(1));
     ZC_CHECK_EQ(root->cleanupCount, 1);
+    ZC_CHECK_EQ(replacement->enterTransitionFinishedCount, 1);
     ZC_CHECK_EQ(director.getScheduler().getScheduledCount(), static_cast<mstd::size_t>(0));
     ZC_CHECK_EQ(director.getActionManager().getRunningActionCount(), static_cast<mstd::size_t>(0));
 
@@ -158,4 +176,69 @@ ZC_TEST(widget_survives_until_its_removal_callback_returns) {
 
     director.shutdown();
     scene->release();
+}
+
+ZC_TEST(director_applies_frame_callback_scene_changes_at_a_safe_point) {
+    Director& director = Director::getInstance();
+    director.shutdown();
+    ZC_CHECK(director.init(320, 180, "headless"));
+
+    auto* root = new RecordingScene();
+    auto* next = new RecordingScene();
+    bool callbackRan = false;
+    bool rootWasStillRunningInsideCallback = false;
+    director.runWithScene(root);
+    root->scheduleOnce("push_scene", [&](float) {
+        director.pushScene(next);
+        callbackRan = true;
+        rootWasStillRunningInsideCallback = director.getRunningScene() == root;
+    });
+
+    ZC_CHECK(director.mainLoop());
+    ZC_CHECK(callbackRan);
+    ZC_CHECK(rootWasStillRunningInsideCallback);
+    ZC_CHECK_EQ(director.getRunningScene(), next);
+    ZC_CHECK_EQ(director.getSceneCount(), static_cast<mstd::size_t>(2));
+    ZC_CHECK_EQ(root->exitTransitionStartedCount, 1);
+    ZC_CHECK_EQ(next->enterTransitionFinishedCount, 1);
+
+    director.shutdown();
+    root->release();
+    next->release();
+}
+
+ZC_TEST(director_finishes_incoming_lifecycle_after_fade_transition) {
+    Director& director = Director::getInstance();
+    director.shutdown();
+    ZC_CHECK(director.init(320, 180, "headless"));
+
+    auto* outgoing = new RecordingScene();
+    auto* incoming = new RecordingScene();
+    auto* incomingChild = new RecordingScene();
+    incoming->addChild(incomingChild);
+    director.runWithScene(outgoing);
+    director.replaceScene(incoming, 0.18f);
+
+    ZC_CHECK(director.mainLoop());
+    ZC_CHECK_EQ(director.getRunningScene(), outgoing);
+    ZC_CHECK(director.isSceneTransitioning());
+
+    ZC_CHECK(director.mainLoop());
+    ZC_CHECK_EQ(director.getRunningScene(), incoming);
+    ZC_CHECK_EQ(outgoing->exitTransitionStartedCount, 1);
+    ZC_CHECK_EQ(incoming->enterCount, 1);
+    ZC_CHECK_EQ(incoming->enterTransitionFinishedCount, 0);
+    ZC_CHECK_EQ(incomingChild->enterCount, 1);
+    ZC_CHECK_EQ(incomingChild->enterTransitionFinishedCount, 0);
+
+    ZC_CHECK(director.mainLoop());
+    ZC_CHECK(director.mainLoop());
+    ZC_CHECK(!director.isSceneTransitioning());
+    ZC_CHECK_EQ(incoming->enterTransitionFinishedCount, 1);
+    ZC_CHECK_EQ(incomingChild->enterTransitionFinishedCount, 1);
+
+    director.shutdown();
+    outgoing->release();
+    incoming->release();
+    incomingChild->release();
 }

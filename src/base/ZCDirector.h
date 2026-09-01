@@ -60,11 +60,32 @@ public:
 private:
     Director() = default;
 
+    enum class SceneOperationType {
+        Replace,
+        Push,
+        Pop,
+        PopToRoot,
+    };
+
+    struct SceneOperation {
+        SceneOperationType type = SceneOperationType::Replace;
+        Scene* scene = nullptr;
+        float fadeDuration = 0.f;
+    };
+
     void onFramebufferResize(int w, int h);
     void updateProjection();
-    void setRunningScene(Scene* scene, bool cleanupOutgoing);
+    void queueSceneOperation(SceneOperationType type, Scene* scene = nullptr,
+                             float fadeDuration = 0.f);
+    void applyPendingSceneOperations();
+    void clearPendingSceneOperations();
+    void setRunningScene(Scene* scene, bool cleanupOutgoing, bool finishIncoming = true);
     void cancelSceneTransition();
-    void replaceSceneNow(Scene* scene);
+    void beginSceneTransition(Scene* scene, float fadeDuration);
+    void replaceSceneNow(Scene* scene, bool finishIncoming = true);
+    void pushSceneNow(Scene* scene);
+    void popSceneNow();
+    void popToRootSceneNow();
     void updateSceneTransition(float dt);
 
     void onViewResized(int width, int height) override;
@@ -78,10 +99,13 @@ private:
     mstd::unique_ptr<View> _view;
     Scene* _runningScene = nullptr;
     mstd::vector<Scene*> _sceneStack;
+    mstd::vector<SceneOperation> _pendingSceneOperations;
     Scene* _nextScene = nullptr;
     float _transitionDuration = 0.f;
     float _transitionElapsed = 0.f;
     bool _transitionSceneSwitched = false;
+    bool _insideMainLoop = false;
+    bool _applyingSceneOperations = false;
     Scheduler _scheduler;
     ActionManager _actionManager;
     EventDispatcher _eventDispatcher;

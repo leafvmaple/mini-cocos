@@ -79,12 +79,15 @@ public:
     int getLocalZOrder() const { return _localZOrder; }
 
     bool isRunning() const { return _running; }
+    bool isTransitionFinished() const { return _transitionFinished; }
     bool isPaused() const { return _paused; }
 
     void pause() { _paused = true; }
     void resume() { _paused = false; }
 
     virtual void onEnter();
+    virtual void onEnterTransitionDidFinish();
+    virtual void onExitTransitionDidStart();
     virtual void onExit();
     virtual void cleanup();
 
@@ -141,6 +144,7 @@ protected:
     mstd::vector<Node*> _children;
 
     bool _running = false;
+    bool _transitionFinished = false;
     bool _paused = false;
 
     Vec2 _position{};

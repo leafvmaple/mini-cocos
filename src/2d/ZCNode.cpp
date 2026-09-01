@@ -35,9 +35,34 @@ void Node::onEnter() {
         return;
     }
     _running = true;
+    _transitionFinished = false;
     for (auto* child : _children) {
         if (child) {
             child->onEnter();
+        }
+    }
+}
+
+void Node::onEnterTransitionDidFinish() {
+    if (!_running) {
+        return;
+    }
+    _transitionFinished = true;
+    for (auto* child : _children) {
+        if (child) {
+            child->onEnterTransitionDidFinish();
+        }
+    }
+}
+
+void Node::onExitTransitionDidStart() {
+    if (!_running) {
+        return;
+    }
+    _transitionFinished = false;
+    for (auto* child : _children) {
+        if (child) {
+            child->onExitTransitionDidStart();
         }
     }
 }
@@ -52,6 +77,7 @@ void Node::onExit() {
         }
     }
     _running = false;
+    _transitionFinished = false;
 }
 
 void Node::cleanup() {
@@ -152,6 +178,9 @@ void Node::addChild(Node* child, int localZOrder) {
 
     if (_running) {
         child->onEnter();
+        if (_transitionFinished) {
+            child->onEnterTransitionDidFinish();
+        }
     }
 }
 
@@ -188,6 +217,7 @@ void Node::removeChild(Node* child, bool cleanup) {
     for (auto it = _children.begin(); it != _children.end(); ++it) {
         if (*it == child) {
             if (_running && (*it)->isRunning()) {
+                (*it)->onExitTransitionDidStart();
                 (*it)->onExit();
             }
             if (cleanup) {
@@ -212,6 +242,7 @@ void Node::removeAllChildren() { removeAllChildrenWithCleanup(true); }
 void Node::removeAllChildrenWithCleanup(bool cleanup) {
     for (auto* child : _children) {
         if (_running && child->isRunning()) {
+            child->onExitTransitionDidStart();
             child->onExit();
         }
         if (cleanup) {
