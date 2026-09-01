@@ -808,6 +808,28 @@ int lua_zocos_Node_setOpacity(lua_State* tolua_S) {
     return reportWrongArgCount(tolua_S, "cc.Node:setOpacity", argc, 1);
 }
 
+int lua_zocos_Node_setLocalZOrder(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        cobj->setLocalZOrder(static_cast<int>(luaL_checkinteger(tolua_S, 2)));
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setLocalZOrder", argc, 1);
+}
+
+int lua_zocos_Node_getLocalZOrder(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        lua_pushinteger(tolua_S, cobj->getLocalZOrder());
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:getLocalZOrder", argc, 0);
+}
+
 int lua_zocos_Node_setContentSize(lua_State* tolua_S) {
     Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
     const int argc = lua_gettop(tolua_S) - 1;
@@ -824,13 +846,17 @@ int lua_zocos_Node_setContentSize(lua_State* tolua_S) {
 int lua_zocos_Node_addChild(lua_State* tolua_S) {
     Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
     const int argc = lua_gettop(tolua_S) - 1;
-    if (argc == 1) {
+    if (argc == 1 || argc == 2) {
         Node* child = luaval_to_object<Node>(tolua_S, 2, kNodeMeta, "Node expected");
-        cobj->addChild(child);
+        if (argc == 2) {
+            cobj->addChild(child, static_cast<int>(luaL_checkinteger(tolua_S, 3)));
+        } else {
+            cobj->addChild(child);
+        }
         return 0;
     }
 
-    return reportWrongArgCount(tolua_S, "cc.Node:addChild", argc, 1);
+    return reportWrongArgCount(tolua_S, "cc.Node:addChild", argc, 1, 2);
 }
 
 int lua_zocos_Node_runAction(lua_State* tolua_S) {
@@ -1227,6 +1253,8 @@ int register_all_zocos_manual(lua_State* tolua_S) {
         {"setRotation", lua_zocos_Node_setRotation},
         {"setAnchorPoint", lua_zocos_Node_setAnchorPoint},
         {"setOpacity", lua_zocos_Node_setOpacity},
+        {"setLocalZOrder", lua_zocos_Node_setLocalZOrder},
+        {"getLocalZOrder", lua_zocos_Node_getLocalZOrder},
         {"setContentSize", lua_zocos_Node_setContentSize},
         {"addChild", lua_zocos_Node_addChild},
         {"runAction", lua_zocos_Node_runAction},

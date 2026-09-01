@@ -75,6 +75,9 @@ public:
     void setTag(int t) { _tag = t; }
     int getTag() const { return _tag; }
 
+    void setLocalZOrder(int localZOrder);
+    int getLocalZOrder() const { return _localZOrder; }
+
     bool isRunning() const { return _running; }
     bool isPaused() const { return _paused; }
 
@@ -96,6 +99,8 @@ public:
     void stopAllActions();
 
     void addChild(Node* child);
+    void addChild(Node* child, int localZOrder);
+    void reorderChild(Node* child, int localZOrder);
     void removeChild(Node* child);
     void removeAllChildren();
     const mstd::vector<Node*>& getChildren() const { return _children; }
@@ -137,6 +142,7 @@ protected:
     bool _visible = true;
     float _opacity = 1.f;
     int _tag = -1;
+    int _localZOrder = 0;
     mstd::size_t _orderOfArrival = 0;
     bool _reorderChildDirty = false;
 

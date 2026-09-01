@@ -89,12 +89,27 @@ void Node::stopAllActions() {
     Director::getInstance().getActionManager().removeAllActionsFromTarget(this);
 }
 
+void Node::setLocalZOrder(int localZOrder) {
+    if (_localZOrder == localZOrder) {
+        return;
+    }
+
+    if (_parent) {
+        _parent->reorderChild(this, localZOrder);
+    } else {
+        _localZOrder = localZOrder;
+    }
+}
+
 void Node::sortAllChildren() {
     if (!_reorderChildDirty) {
         return;
     }
 
     mstd::stable_sort(_children.begin(), _children.end(), [](const Node* a, const Node* b) {
+        if (a->_localZOrder != b->_localZOrder) {
+            return a->_localZOrder < b->_localZOrder;
+        }
         return a->_orderOfArrival < b->_orderOfArrival;
     });
 
@@ -102,6 +117,17 @@ void Node::sortAllChildren() {
 }
 
 void Node::addChild(Node* child) {
+    if (!child) {
+        return;
+    }
+    addChild(child, child->_localZOrder);
+}
+
+void Node::addChild(Node* child, int localZOrder) {
+    if (!child || child == this) {
+        return;
+    }
+
     // Keep child alive while it is detached from the old parent.
     child->retain();
     if (child->_parent) {
@@ -109,6 +135,7 @@ void Node::addChild(Node* child) {
     }
 
     child->_parent = this;
+    child->_localZOrder = localZOrder;
     child->_orderOfArrival = sGlobalOrderOfArrival++;
     child->retain();
     _children.push_back(child);
@@ -118,6 +145,18 @@ void Node::addChild(Node* child) {
     if (_running) {
         child->onEnter();
     }
+}
+
+void Node::reorderChild(Node* child, int localZOrder) {
+    assert(child && "Child must not be null.");
+    assert(child && child->_parent == this && "Child must belong to this node.");
+    if (!child || child->_parent != this) {
+        return;
+    }
+
+    child->_localZOrder = localZOrder;
+    child->_orderOfArrival = sGlobalOrderOfArrival++;
+    _reorderChildDirty = true;
 }
 
 void Node::removeChild(Node* child) {
@@ -157,16 +196,26 @@ void Node::updateTree(float dt) {
 }
 
 void Node::visit(Renderer& renderer, const Mat4& parentWorld) {
-    if (!_visible)
+    if (!_visible) {
         return;
+    }
 
     sortAllChildren();
 
     const Mat4 world = parentWorld * localMatrix();
+    mstd::size_t childIndex = 0;
+    for (; childIndex < _children.size(); ++childIndex) {
+        Node* child = _children[childIndex];
+        if (child->_localZOrder >= 0) {
+            break;
+        }
+        child->visit(renderer, world);
+    }
+
     draw(renderer, world);
-    for (auto* ch : _children) {
-        if (ch)
-            ch->visit(renderer, world);
+
+    for (; childIndex < _children.size(); ++childIndex) {
+        _children[childIndex]->visit(renderer, world);
     }
 }
 

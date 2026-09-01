@@ -9,29 +9,6 @@
 
 using namespace zocos;
 
-// The headless target deliberately does not link the platform-coupled Node.cpp.
-// These minimal lifecycle definitions let the core managers be tested without a
-// Director, window, or GPU.
-namespace zocos {
-Node::~Node() = default;
-void Node::onEnter() { _running = true; }
-void Node::onExit() { _running = false; }
-void Node::updateTree(float dt) {
-    if (!_paused) {
-        update(dt);
-    }
-}
-void Node::visit(Renderer&, const Mat4&) {}
-void Node::sortAllChildren() {
-    if (_reorderChildDirty) {
-        mstd::stable_sort(_children.begin(), _children.end(), [](const Node* a, const Node* b) {
-            return a->_orderOfArrival < b->_orderOfArrival;
-        });
-        _reorderChildDirty = false;
-    }
-}
-} // namespace zocos
-
 namespace {
 class TestNode final : public Node {
 public:

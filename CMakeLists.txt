@@ -223,11 +223,14 @@ if(ZOCOS_BUILD_TESTS)
   add_executable(zocos_tests
     tests/test_main.cpp
     tests/test_math.cpp
+    tests/test_node.cpp
     tests/test_stringutils.cpp
     tests/test_ref.cpp
     tests/test_renderer.cpp
     tests/test_ease.cpp
     tests/test_core_systems.cpp
+    tests/ZCDirectorStub.cpp
+    src/2d/ZCNode.cpp
     src/base/ZCRef.cpp
     src/base/ZCAutoreleasePool.cpp
     src/base/ZCStringUtils.cpp
