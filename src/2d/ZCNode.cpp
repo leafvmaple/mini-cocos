@@ -184,6 +184,27 @@ void Node::removeAllChildren() {
     _children.clear();
 }
 
+Mat4 Node::getNodeToWorldTransform() const {
+    Mat4 transform = getNodeToParentTransform();
+    for (const Node* parent = _parent; parent; parent = parent->_parent) {
+        transform = parent->getNodeToParentTransform() * transform;
+    }
+    return transform;
+}
+
+Vec2 Node::convertToWorldSpace(const Vec2& nodePoint) const {
+    return getNodeToWorldTransform().transformPoint(nodePoint);
+}
+
+bool Node::convertToNodeSpace(const Vec2& worldPoint, Vec2& nodePoint) const {
+    Mat4 worldToNode;
+    if (!getNodeToWorldTransform().getAffineInverse2D(worldToNode)) {
+        return false;
+    }
+    nodePoint = worldToNode.transformPoint(worldPoint);
+    return true;
+}
+
 void Node::updateTree(float dt) {
     if (!_paused) {
         update(dt);
@@ -202,7 +223,7 @@ void Node::visit(Renderer& renderer, const Mat4& parentWorld) {
 
     sortAllChildren();
 
-    const Mat4 world = parentWorld * localMatrix();
+    const Mat4 world = parentWorld * getNodeToParentTransform();
     mstd::size_t childIndex = 0;
     for (; childIndex < _children.size(); ++childIndex) {
         Node* child = _children[childIndex];

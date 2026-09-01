@@ -77,3 +77,35 @@ ZC_TEST(node_reorder_updates_z_order_and_same_z_arrival_order) {
 
     parent.removeAllChildren();
 }
+
+ZC_TEST(node_converts_points_across_nested_coordinate_spaces) {
+    mstd::vector<int> drawOrder;
+    RecordingNode parent(0, drawOrder);
+    RecordingNode child(1, drawOrder);
+
+    parent.setAnchorPoint({0.f, 0.f});
+    parent.setPosition(10.f, 20.f);
+    parent.setRotation(90.f);
+    child.setAnchorPoint({0.f, 0.f});
+    child.setPosition(5.f, 0.f);
+    child.setScale({2.f, 3.f});
+    parent.addChild(&child);
+
+    const Vec2 parentPoint = child.getNodeToParentTransform().transformPoint({1.f, 2.f});
+    ZC_CHECK_NEAR(parentPoint.x, 7.f, 1e-4);
+    ZC_CHECK_NEAR(parentPoint.y, 6.f, 1e-4);
+
+    const Vec2 worldPoint = child.convertToWorldSpace({1.f, 2.f});
+    ZC_CHECK_NEAR(worldPoint.x, 4.f, 1e-4);
+    ZC_CHECK_NEAR(worldPoint.y, 27.f, 1e-4);
+
+    Vec2 restored;
+    ZC_CHECK(child.convertToNodeSpace(worldPoint, restored));
+    ZC_CHECK_NEAR(restored.x, 1.f, 1e-4);
+    ZC_CHECK_NEAR(restored.y, 2.f, 1e-4);
+
+    child.setScale({0.f, 1.f});
+    ZC_CHECK(!child.convertToNodeSpace(worldPoint, restored));
+
+    parent.removeAllChildren();
+}

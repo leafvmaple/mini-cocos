@@ -107,6 +107,17 @@ public:
     void sortAllChildren();
 
     Node* getParent() const { return _parent; }
+    const Mat4& getNodeToParentTransform() const {
+        if (_transformDirty) {
+            _localMatrix =
+                zcNodeLocalMatrix(_position, _scale, _rotation, _anchorPoint, _contentSize);
+            _transformDirty = false;
+        }
+        return _localMatrix;
+    }
+    Mat4 getNodeToWorldTransform() const;
+    Vec2 convertToWorldSpace(const Vec2& nodePoint) const;
+    bool convertToNodeSpace(const Vec2& worldPoint, Vec2& nodePoint) const;
 
     virtual void update(float /*dt*/) {}
 
@@ -118,15 +129,6 @@ protected:
     Node() = default;
 
     virtual void draw(Renderer& /*renderer*/, const Mat4& /*world*/) {}
-
-    const Mat4& localMatrix() const {
-        if (_transformDirty) {
-            _localMatrix =
-                zcNodeLocalMatrix(_position, _scale, _rotation, _anchorPoint, _contentSize);
-            _transformDirty = false;
-        }
-        return _localMatrix;
-    }
 
     Node* _parent = nullptr;
     mstd::vector<Node*> _children;
@@ -147,8 +149,7 @@ protected:
     bool _reorderChildDirty = false;
 
     // Lazily rebuilt node-to-parent transform. The setters above mark it dirty;
-    // localMatrix() recomputes only when something actually moved, instead of
-    // every visit() each frame.
+    // getNodeToParentTransform() recomputes only when something actually moved.
     mutable Mat4 _localMatrix = Mat4::identity();
     mutable bool _transformDirty = true;
 };

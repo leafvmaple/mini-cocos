@@ -50,3 +50,19 @@ ZC_TEST(math_node_local_matrix_scale) {
     ZC_CHECK_NEAR(p.x, 25.f, 1e-4);
     ZC_CHECK_NEAR(p.y, 20.f, 1e-4);
 }
+
+ZC_TEST(math_affine_inverse_2d_roundtrip) {
+    const Mat4 transform =
+        Mat4::translate(12.f, -4.f) * Mat4::rotateZ(35.f) * Mat4::scale(2.f, 3.f);
+    const Vec2 point{7.f, -5.f};
+    const Vec2 transformed = transform.transformPoint(point);
+
+    Mat4 inverse;
+    ZC_CHECK(transform.getAffineInverse2D(inverse));
+    const Vec2 restored = inverse.transformPoint(transformed);
+    ZC_CHECK_NEAR(restored.x, point.x, 1e-4);
+    ZC_CHECK_NEAR(restored.y, point.y, 1e-4);
+
+    const Mat4 singular = Mat4::scale(0.f, 1.f);
+    ZC_CHECK(!singular.getAffineInverse2D(inverse));
+}

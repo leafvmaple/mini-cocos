@@ -89,6 +89,24 @@ struct Mat4 {
         return {m[0] * point.x + m[4] * point.y + m[12], m[1] * point.x + m[5] * point.y + m[13]};
     }
 
+    bool getAffineInverse2D(Mat4& inverse) const {
+        const float determinant = m[0] * m[5] - m[1] * m[4];
+        if (mstd::fabs(determinant) <= 1e-6f) {
+            return false;
+        }
+
+        const float inverseDeterminant = 1.f / determinant;
+        Mat4 result = identity();
+        result.m[0] = m[5] * inverseDeterminant;
+        result.m[1] = -m[1] * inverseDeterminant;
+        result.m[4] = -m[4] * inverseDeterminant;
+        result.m[5] = m[0] * inverseDeterminant;
+        result.m[12] = (m[4] * m[13] - m[5] * m[12]) * inverseDeterminant;
+        result.m[13] = (m[1] * m[12] - m[0] * m[13]) * inverseDeterminant;
+        inverse = result;
+        return true;
+    }
+
     const float* data() const { return m; }
 };
 

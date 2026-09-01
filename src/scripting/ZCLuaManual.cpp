@@ -830,6 +830,40 @@ int lua_zocos_Node_getLocalZOrder(lua_State* tolua_S) {
     return reportWrongArgCount(tolua_S, "cc.Node:getLocalZOrder", argc, 0);
 }
 
+int lua_zocos_Node_convertToWorldSpace(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 2) {
+        const Vec2 worldPoint =
+            cobj->convertToWorldSpace({static_cast<float>(luaL_checknumber(tolua_S, 2)),
+                                       static_cast<float>(luaL_checknumber(tolua_S, 3))});
+        lua_pushnumber(tolua_S, worldPoint.x);
+        lua_pushnumber(tolua_S, worldPoint.y);
+        return 2;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:convertToWorldSpace", argc, 2);
+}
+
+int lua_zocos_Node_convertToNodeSpace(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 2) {
+        const Vec2 worldPoint{static_cast<float>(luaL_checknumber(tolua_S, 2)),
+                              static_cast<float>(luaL_checknumber(tolua_S, 3))};
+        Vec2 nodePoint;
+        if (!cobj->convertToNodeSpace(worldPoint, nodePoint)) {
+            lua_pushnil(tolua_S);
+            return 1;
+        }
+        lua_pushnumber(tolua_S, nodePoint.x);
+        lua_pushnumber(tolua_S, nodePoint.y);
+        return 2;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:convertToNodeSpace", argc, 2);
+}
+
 int lua_zocos_Node_setContentSize(lua_State* tolua_S) {
     Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
     const int argc = lua_gettop(tolua_S) - 1;
@@ -1255,6 +1289,8 @@ int register_all_zocos_manual(lua_State* tolua_S) {
         {"setOpacity", lua_zocos_Node_setOpacity},
         {"setLocalZOrder", lua_zocos_Node_setLocalZOrder},
         {"getLocalZOrder", lua_zocos_Node_getLocalZOrder},
+        {"convertToWorldSpace", lua_zocos_Node_convertToWorldSpace},
+        {"convertToNodeSpace", lua_zocos_Node_convertToNodeSpace},
         {"setContentSize", lua_zocos_Node_setContentSize},
         {"addChild", lua_zocos_Node_addChild},
         {"runAction", lua_zocos_Node_runAction},

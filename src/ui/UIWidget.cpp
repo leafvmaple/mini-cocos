@@ -9,63 +9,6 @@
 
 namespace zocos::ui {
 
-namespace {
-
-constexpr float kPi = 3.14159265f;
-
-bool applyInverseNodeTransform(const Node* node, Vec2& point) {
-    if (!node) {
-        return false;
-    }
-
-    const Vec2 position = node->getPosition();
-    const Vec2 scale = node->getScale();
-    const float rotationDegrees = node->getRotation();
-    const Vec2 anchor = node->getAnchorPoint();
-    const Size size = node->getContentSize();
-
-    point.x -= position.x;
-    point.y -= position.y;
-
-    const float rad = -rotationDegrees * kPi / 180.f;
-    const float c = mstd::cos(rad);
-    const float s = mstd::sin(rad);
-    const float rx = point.x * c - point.y * s;
-    const float ry = point.x * s + point.y * c;
-    point.x = rx;
-    point.y = ry;
-
-    if (mstd::fabs(scale.x) <= 1e-6f || mstd::fabs(scale.y) <= 1e-6f) {
-        return false;
-    }
-    point.x /= scale.x;
-    point.y /= scale.y;
-
-    point.x += anchor.x * size.width;
-    point.y += anchor.y * size.height;
-    return true;
-}
-
-Vec2 worldToLocal(const Node* node, Vec2 point, bool& ok) {
-    ok = true;
-
-    mstd::vector<const Node*> chain;
-    for (const Node* current = node; current != nullptr; current = current->getParent()) {
-        chain.push_back(current);
-    }
-
-    for (auto it = chain.rbegin(); it != chain.rend(); ++it) {
-        if (!applyInverseNodeTransform(*it, point)) {
-            ok = false;
-            return point;
-        }
-    }
-
-    return point;
-}
-
-} // namespace
-
 Widget::~Widget() { unregisterInputListener(); }
 
 bool Widget::init() { return Node::init(); }
@@ -121,9 +64,8 @@ void Widget::unregisterInputListener() {
 }
 
 bool Widget::containsWorldPoint(float x, float y) const {
-    bool ok = false;
-    const Vec2 local = worldToLocal(this, Vec2{x, y}, ok);
-    if (!ok) {
+    Vec2 local;
+    if (!convertToNodeSpace(Vec2{x, y}, local)) {
         return false;
     }
 
