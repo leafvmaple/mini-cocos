@@ -100,9 +100,13 @@ public:
 
     void addChild(Node* child);
     void addChild(Node* child, int localZOrder);
+    void addChild(Node* child, int localZOrder, int tag);
     void reorderChild(Node* child, int localZOrder);
+    Node* getChildByTag(int tag) const;
     void removeChild(Node* child);
+    void removeChildByTag(int tag);
     void removeAllChildren();
+    void removeFromParent();
     const mstd::vector<Node*>& getChildren() const { return _children; }
     void sortAllChildren();
 

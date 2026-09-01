@@ -830,6 +830,28 @@ int lua_zocos_Node_getLocalZOrder(lua_State* tolua_S) {
     return reportWrongArgCount(tolua_S, "cc.Node:getLocalZOrder", argc, 0);
 }
 
+int lua_zocos_Node_setTag(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        cobj->setTag(static_cast<int>(luaL_checkinteger(tolua_S, 2)));
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:setTag", argc, 1);
+}
+
+int lua_zocos_Node_getTag(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        lua_pushinteger(tolua_S, cobj->getTag());
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:getTag", argc, 0);
+}
+
 int lua_zocos_Node_convertToWorldSpace(lua_State* tolua_S) {
     Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
     const int argc = lua_gettop(tolua_S) - 1;
@@ -880,9 +902,12 @@ int lua_zocos_Node_setContentSize(lua_State* tolua_S) {
 int lua_zocos_Node_addChild(lua_State* tolua_S) {
     Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
     const int argc = lua_gettop(tolua_S) - 1;
-    if (argc == 1 || argc == 2) {
+    if (argc >= 1 && argc <= 3) {
         Node* child = luaval_to_object<Node>(tolua_S, 2, kNodeMeta, "Node expected");
-        if (argc == 2) {
+        if (argc == 3) {
+            cobj->addChild(child, static_cast<int>(luaL_checkinteger(tolua_S, 3)),
+                           static_cast<int>(luaL_checkinteger(tolua_S, 4)));
+        } else if (argc == 2) {
             cobj->addChild(child, static_cast<int>(luaL_checkinteger(tolua_S, 3)));
         } else {
             cobj->addChild(child);
@@ -890,7 +915,41 @@ int lua_zocos_Node_addChild(lua_State* tolua_S) {
         return 0;
     }
 
-    return reportWrongArgCount(tolua_S, "cc.Node:addChild", argc, 1, 2);
+    return reportWrongArgCount(tolua_S, "cc.Node:addChild", argc, 1, 3);
+}
+
+int lua_zocos_Node_getChildByTag(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        node_to_luaval(tolua_S,
+                       cobj->getChildByTag(static_cast<int>(luaL_checkinteger(tolua_S, 2))));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:getChildByTag", argc, 1);
+}
+
+int lua_zocos_Node_removeChildByTag(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 1) {
+        cobj->removeChildByTag(static_cast<int>(luaL_checkinteger(tolua_S, 2)));
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:removeChildByTag", argc, 1);
+}
+
+int lua_zocos_Node_removeFromParent(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        cobj->removeFromParent();
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:removeFromParent", argc, 0);
 }
 
 int lua_zocos_Node_runAction(lua_State* tolua_S) {
@@ -1289,10 +1348,15 @@ int register_all_zocos_manual(lua_State* tolua_S) {
         {"setOpacity", lua_zocos_Node_setOpacity},
         {"setLocalZOrder", lua_zocos_Node_setLocalZOrder},
         {"getLocalZOrder", lua_zocos_Node_getLocalZOrder},
+        {"setTag", lua_zocos_Node_setTag},
+        {"getTag", lua_zocos_Node_getTag},
         {"convertToWorldSpace", lua_zocos_Node_convertToWorldSpace},
         {"convertToNodeSpace", lua_zocos_Node_convertToNodeSpace},
         {"setContentSize", lua_zocos_Node_setContentSize},
         {"addChild", lua_zocos_Node_addChild},
+        {"getChildByTag", lua_zocos_Node_getChildByTag},
+        {"removeChildByTag", lua_zocos_Node_removeChildByTag},
+        {"removeFromParent", lua_zocos_Node_removeFromParent},
         {"runAction", lua_zocos_Node_runAction},
         {"schedule", lua_zocos_Node_schedule},
         {"scheduleOnce", lua_zocos_Node_scheduleOnce},

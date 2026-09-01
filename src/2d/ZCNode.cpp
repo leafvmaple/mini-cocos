@@ -147,6 +147,14 @@ void Node::addChild(Node* child, int localZOrder) {
     }
 }
 
+void Node::addChild(Node* child, int localZOrder, int tag) {
+    if (!child || child == this) {
+        return;
+    }
+    child->_tag = tag;
+    addChild(child, localZOrder);
+}
+
 void Node::reorderChild(Node* child, int localZOrder) {
     assert(child && "Child must not be null.");
     assert(child && child->_parent == this && "Child must belong to this node.");
@@ -157,6 +165,15 @@ void Node::reorderChild(Node* child, int localZOrder) {
     child->_localZOrder = localZOrder;
     child->_orderOfArrival = sGlobalOrderOfArrival++;
     _reorderChildDirty = true;
+}
+
+Node* Node::getChildByTag(int tag) const {
+    for (auto* child : _children) {
+        if (child->_tag == tag) {
+            return child;
+        }
+    }
+    return nullptr;
 }
 
 void Node::removeChild(Node* child) {
@@ -173,6 +190,12 @@ void Node::removeChild(Node* child) {
     }
 }
 
+void Node::removeChildByTag(int tag) {
+    if (Node* child = getChildByTag(tag)) {
+        removeChild(child);
+    }
+}
+
 void Node::removeAllChildren() {
     for (auto* child : _children) {
         if (_running && child->isRunning()) {
@@ -182,6 +205,12 @@ void Node::removeAllChildren() {
         child->release();
     }
     _children.clear();
+}
+
+void Node::removeFromParent() {
+    if (_parent) {
+        _parent->removeChild(this);
+    }
 }
 
 Mat4 Node::getNodeToWorldTransform() const {

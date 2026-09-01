@@ -109,3 +109,28 @@ ZC_TEST(node_converts_points_across_nested_coordinate_spaces) {
 
     parent.removeAllChildren();
 }
+
+ZC_TEST(node_finds_and_removes_children_by_tag) {
+    mstd::vector<int> drawOrder;
+    RecordingNode parent(0, drawOrder);
+    RecordingNode first(1, drawOrder);
+    RecordingNode second(2, drawOrder);
+
+    parent.addChild(&first, -1, 42);
+    second.setTag(7);
+    parent.addChild(&second);
+
+    ZC_CHECK_EQ(first.getTag(), 42);
+    ZC_CHECK_EQ(parent.getChildByTag(42), &first);
+    ZC_CHECK_EQ(parent.getChildByTag(7), &second);
+    ZC_CHECK_EQ(parent.getChildByTag(99), nullptr);
+
+    parent.removeChildByTag(42);
+    ZC_CHECK_EQ(first.getParent(), nullptr);
+    ZC_CHECK_EQ(parent.getChildByTag(42), nullptr);
+    ZC_CHECK_EQ(parent.getChildren().size(), static_cast<mstd::size_t>(1));
+
+    second.removeFromParent();
+    ZC_CHECK_EQ(second.getParent(), nullptr);
+    ZC_CHECK(parent.getChildren().empty());
+}
