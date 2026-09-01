@@ -77,10 +77,16 @@ struct Mat4 {
         for (int c = 0; c < 4; ++c) {
             for (int r = 0; r < 4; ++r) {
                 o.m[c * 4 + r] = m[0 * 4 + r] * b.m[c * 4 + 0] + m[1 * 4 + r] * b.m[c * 4 + 1] +
-                    m[2 * 4 + r] * b.m[c * 4 + 2] + m[3 * 4 + r] * b.m[c * 4 + 3];
+                                 m[2 * 4 + r] * b.m[c * 4 + 2] + m[3 * 4 + r] * b.m[c * 4 + 3];
             }
         }
         return o;
+    }
+
+    // Transform a 2D point (z = 0, w = 1). This assumes an affine matrix,
+    // so no perspective divide is performed.
+    Vec2 transformPoint(const Vec2& point) const {
+        return {m[0] * point.x + m[4] * point.y + m[12], m[1] * point.x + m[5] * point.y + m[13]};
     }
 
     const float* data() const { return m; }
@@ -91,7 +97,7 @@ inline Mat4 zcNodeLocalMatrix(const Vec2& position, const Vec2& scale, float rot
     const float ax = anchorPoint.x * contentSize.width;
     const float ay = anchorPoint.y * contentSize.height;
     return Mat4::translate(position.x, position.y, 0.f) * Mat4::rotateZ(rotationDegrees) *
-        Mat4::scale(scale.x, scale.y, 1.f) * Mat4::translate(-ax, -ay, 0.f);
+           Mat4::scale(scale.x, scale.y, 1.f) * Mat4::translate(-ax, -ay, 0.f);
 }
 
 } // namespace zocos

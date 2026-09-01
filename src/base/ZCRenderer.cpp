@@ -1,7 +1,5 @@
 #include "base/ZCRenderer.h"
-
 #include "base/ZCRenderDevice.h"
-
 #include "base/ZCStd.h"
 
 namespace zocos {
@@ -61,14 +59,8 @@ void Renderer::addDrawQuads(const Mat4& world, TextureHandle texture,
         return;
     }
 
-    RenderCommand cmd;
-    cmd.sortKey = sortKey;
-    cmd.submissionIndex = _submissionCounter++;
-    cmd.world = world;
-    cmd.texture = texture;
-    cmd.vertices = vertices;
-    cmd.opacity = mstd::clamp(opacity * _globalOpacity, 0.f, 1.f);
-    _commands.push_back(mstd::move(cmd));
+    _commands.push_back(RenderCommand{sortKey, _submissionCounter++, world, texture, vertices,
+                                      mstd::clamp(opacity * _globalOpacity, 0.f, 1.f)});
 }
 
 void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebufferHeight) {
@@ -80,24 +72,12 @@ void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebuffer
                           return a.submissionIndex < b.submissionIndex;
                       });
 
-    // Cross-node batching: consecutive commands with the same texture and
-    // opacity merge into a single draw by pre-transforming each source quad's
-    // vertices into world space and emitting them with an identity world
-    // matrix. Sprites and Labels sharing a texture collapse into one draw this
-    // way.
     auto transformVerts = [](const Mat4& world, const mstd::vector<QuadVertex>& src,
                              mstd::vector<QuadVertex>& dst) {
         dst.reserve(dst.size() + src.size());
-        const float m0 = world.m[0];
-        const float m1 = world.m[1];
-        const float m4 = world.m[4];
-        const float m5 = world.m[5];
-        const float m12 = world.m[12];
-        const float m13 = world.m[13];
         for (const auto& v : src) {
             QuadVertex out;
-            out.position.x = m0 * v.position.x + m4 * v.position.y + m12;
-            out.position.y = m1 * v.position.x + m5 * v.position.y + m13;
+            out.position = world.transformPoint(v.position);
             out.uv = v.uv;
             out.color = v.color;
             dst.push_back(out);
@@ -113,12 +93,9 @@ void Renderer::flush(RenderDevice& device, int framebufferWidth, int framebuffer
             continue;
         }
 
-        RenderCommand out;
-        out.sortKey = command.sortKey;
-        out.submissionIndex = command.submissionIndex;
-        out.world = Mat4::identity();
-        out.texture = command.texture;
-        out.opacity = command.opacity;
+        RenderCommand out{
+            command.sortKey, command.submissionIndex, Mat4::identity(), command.texture, {},
+            command.opacity};
         transformVerts(command.world, command.vertices, out.vertices);
         merged.push_back(mstd::move(out));
     }
