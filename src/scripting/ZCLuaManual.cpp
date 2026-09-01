@@ -34,6 +34,80 @@ constexpr const char* kActionMeta = "zocos.Action";
 constexpr const char* kAnimationMeta = "zocos.Animation";
 constexpr const char* kFontAtlasMeta = "zocos.FontAtlas";
 
+class LuaFunctionRef {
+public:
+    LuaFunctionRef(lua_State* state, int ref) {
+        _control = new (mstd::nothrow) Control{state, ref, 1};
+        if (!_control) {
+            luaL_unref(state, LUA_REGISTRYINDEX, ref);
+        }
+    }
+
+    LuaFunctionRef(const LuaFunctionRef& other) : _control(other._control) {
+        if (_control) {
+            ++_control->owners;
+        }
+    }
+
+    LuaFunctionRef(LuaFunctionRef&& other) noexcept : _control(other._control) {
+        other._control = nullptr;
+    }
+
+    LuaFunctionRef& operator=(const LuaFunctionRef& other) {
+        if (this == &other) {
+            return *this;
+        }
+        release();
+        _control = other._control;
+        if (_control) {
+            ++_control->owners;
+        }
+        return *this;
+    }
+
+    LuaFunctionRef& operator=(LuaFunctionRef&& other) noexcept {
+        if (this == &other) {
+            return *this;
+        }
+        release();
+        _control = other._control;
+        other._control = nullptr;
+        return *this;
+    }
+
+    ~LuaFunctionRef() { release(); }
+
+    bool push() const {
+        if (!_control) {
+            return false;
+        }
+        lua_rawgeti(_control->state, LUA_REGISTRYINDEX, _control->ref);
+        return true;
+    }
+
+    lua_State* state() const { return _control ? _control->state : nullptr; }
+
+private:
+    struct Control {
+        lua_State* state = nullptr;
+        int ref = LUA_NOREF;
+        mstd::size_t owners = 0;
+    };
+
+    void release() {
+        if (!_control) {
+            return;
+        }
+        if (--_control->owners == 0) {
+            luaL_unref(_control->state, LUA_REGISTRYINDEX, _control->ref);
+            delete _control;
+        }
+        _control = nullptr;
+    }
+
+    Control* _control = nullptr;
+};
+
 bool hasMetatable(lua_State* tolua_S, int index, const char* metatableName) {
     const int absIndex = lua_absindex(tolua_S, index);
     if (!lua_getmetatable(tolua_S, absIndex)) {
@@ -666,6 +740,45 @@ int lua_zocos_DelayTime_create(lua_State* tolua_S) {
     }
 
     return reportWrongArgCount(tolua_S, "cc.DelayTime:create", argc, 1);
+}
+
+int lua_zocos_CallFunc_create(lua_State* tolua_S) {
+    const int base = classArgBase(tolua_S);
+    const int argc = classArgCount(tolua_S);
+    if (argc == 1) {
+        luaL_checktype(tolua_S, base, LUA_TFUNCTION);
+        lua_pushvalue(tolua_S, base);
+        LuaFunctionRef callback(tolua_S, luaL_ref(tolua_S, LUA_REGISTRYINDEX));
+        object_to_luaval(
+            tolua_S, kActionMeta,
+            CallFunc::create([callback]() {
+                if (!callback.push()) {
+                    return;
+                }
+                lua_State* state = callback.state();
+                if (lua_pcall(state, 0, 0, 0) != LUA_OK) {
+                    const char* message = lua_tostring(state, -1);
+                    mstd::fprintf(stderr, "Lua CallFunc callback error: %s\n",
+                                  message ? message : "(unknown)");
+                    lua_pop(state, 1);
+                }
+            }));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.CallFunc:create", argc, 1);
+}
+
+int lua_zocos_RemoveSelf_create(lua_State* tolua_S) {
+    const int base = classArgBase(tolua_S);
+    const int argc = classArgCount(tolua_S);
+    if (argc == 0 || argc == 1) {
+        const bool cleanup = argc == 0 || lua_toboolean(tolua_S, base) != 0;
+        object_to_luaval(tolua_S, kActionMeta, RemoveSelf::create(cleanup));
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.RemoveSelf:create", argc, 0, 1);
 }
 
 int lua_zocos_Animation_create(lua_State* tolua_S) {
@@ -1554,6 +1667,16 @@ int register_all_zocos_manual(lua_State* tolua_S) {
     tolua_beginmodule(tolua_S, "DelayTime");
     stashCurrentModuleInRegistry(tolua_S, "DelayTime");
     tolua_function(tolua_S, "create", lua_zocos_DelayTime_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "CallFunc");
+    stashCurrentModuleInRegistry(tolua_S, "CallFunc");
+    tolua_function(tolua_S, "create", lua_zocos_CallFunc_create);
+    tolua_endmodule(tolua_S);
+
+    tolua_beginmodule(tolua_S, "RemoveSelf");
+    stashCurrentModuleInRegistry(tolua_S, "RemoveSelf");
+    tolua_function(tolua_S, "create", lua_zocos_RemoveSelf_create);
     tolua_endmodule(tolua_S);
 
     tolua_beginmodule(tolua_S, "Animation");

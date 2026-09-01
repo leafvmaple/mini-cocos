@@ -79,6 +79,21 @@ if clickInfo then
     scene:addChild(clickInfo)
 end
 
+local actionInfo = cc.Label:createWithTTF("CallFunc waiting...", defaultFont, 18.0)
+if actionInfo then
+    actionInfo:setAnchorPoint(0.0, 0.0)
+    actionInfo:setPosition(12.0, 48.0)
+    scene:addChild(actionInfo)
+    actionInfo:runAction(cc.Sequence:create({
+        cc.DelayTime:create(0.8),
+        cc.CallFunc:create(function()
+            actionInfo:setString("CallFunc fired; RemoveSelf next")
+        end),
+        cc.DelayTime:create(1.2),
+        cc.RemoveSelf:create(),
+    }))
+end
+
 local button = cc.Button:create("Click Me")
 if button then
     button:setTitleFontName(defaultFont)

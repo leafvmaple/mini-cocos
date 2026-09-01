@@ -33,6 +33,7 @@ private:
     void releaseEntry(Entry& entry);
 
     bool _updating = false;
+    bool _compacting = false;
     mstd::vector<Entry> _entries;
     mstd::vector<Entry> _pendingEntries;
 };

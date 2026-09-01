@@ -40,6 +40,25 @@ void Action::stop() { _target = nullptr; }
 
 FiniteTimeAction::FiniteTimeAction(float duration) { _duration = mstd::max(0.f, duration); }
 
+ActionInstant::ActionInstant() : FiniteTimeAction(0.f) {}
+
+void ActionInstant::startWithTarget(Node* target) {
+    Action::startWithTarget(target);
+    _done = false;
+}
+
+void ActionInstant::step(float dt) {
+    (void)dt;
+    update(1.f);
+}
+
+bool ActionInstant::isDone() const { return _done; }
+
+void ActionInstant::update(float time) {
+    (void)time;
+    _done = true;
+}
+
 CallFunc::CallFunc(Callback callback) : _callback(mstd::move(callback)) {}
 
 CallFunc* CallFunc::create(Callback callback) {
@@ -52,23 +71,31 @@ CallFunc* CallFunc::create(Callback callback) {
     return nullptr;
 }
 
-void CallFunc::startWithTarget(Node* target) {
-    Action::startWithTarget(target);
-    _done = false;
-}
-
-void CallFunc::step(float dt) {
-    (void)dt;
-    if (_done) {
-        return;
-    }
+void CallFunc::update(float time) {
+    ActionInstant::update(time);
     if (_callback) {
         _callback();
     }
-    _done = true;
 }
 
-bool CallFunc::isDone() const { return _done; }
+RemoveSelf::RemoveSelf(bool cleanup) : _cleanup(cleanup) {}
+
+RemoveSelf* RemoveSelf::create(bool cleanup) {
+    auto* action = new (mstd::nothrow) RemoveSelf(cleanup);
+    if (action) {
+        action->autorelease();
+        return action;
+    }
+    delete action;
+    return nullptr;
+}
+
+void RemoveSelf::update(float time) {
+    ActionInstant::update(time);
+    if (_target) {
+        _target->removeFromParentAndCleanup(_cleanup);
+    }
+}
 
 Sequence::Sequence(const mstd::vector<Action*>& actions) : _actions(retainActions(actions)) {}
 

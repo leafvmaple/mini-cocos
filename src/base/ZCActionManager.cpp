@@ -32,7 +32,7 @@ void ActionManager::removeAction(Action* action) {
         }
     }
 
-    if (!_updating) {
+    if (!_updating && !_compacting) {
         compactEntries();
     }
 }
@@ -49,7 +49,7 @@ void ActionManager::removeAllActionsFromTarget(Node* target) {
         }
     }
 
-    if (!_updating) {
+    if (!_updating && !_compacting) {
         compactEntries();
     }
 }
@@ -62,7 +62,7 @@ void ActionManager::removeAllActions() {
         entry.removed = true;
     }
 
-    if (!_updating) {
+    if (!_updating && !_compacting) {
         compactEntries();
     }
 }
@@ -133,6 +133,11 @@ void ActionManager::mergePendingEntries() {
 }
 
 void ActionManager::compactEntries() {
+    if (_compacting) {
+        return;
+    }
+
+    _compacting = true;
     for (auto it = _entries.begin(); it != _entries.end();) {
         if (it->removed || !it->target || !it->action) {
             releaseEntry(*it);
@@ -150,17 +155,20 @@ void ActionManager::compactEntries() {
             ++it;
         }
     }
+    _compacting = false;
 }
 
 void ActionManager::releaseEntry(Entry& entry) {
     if (entry.action) {
-        entry.action->stop();
-        entry.action->release();
+        Action* action = entry.action;
         entry.action = nullptr;
+        action->stop();
+        action->release();
     }
     if (entry.target) {
-        entry.target->release();
+        Node* target = entry.target;
         entry.target = nullptr;
+        target->release();
     }
 }
 

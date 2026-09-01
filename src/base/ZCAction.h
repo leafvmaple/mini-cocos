@@ -42,22 +42,46 @@ protected:
     float _duration = 0.f;
 };
 
-class CallFunc : public Action {
+class ActionInstant : public FiniteTimeAction {
+public:
+    void startWithTarget(Node* target) override;
+    void step(float dt) override;
+    bool isDone() const override;
+    virtual void update(float time);
+
+protected:
+    ActionInstant();
+
+private:
+    bool _done = false;
+};
+
+class CallFunc : public ActionInstant {
 public:
     using Callback = mstd::function<void()>;
 
     static CallFunc* create(Callback callback);
 
-    void startWithTarget(Node* target) override;
-    void step(float dt) override;
-    bool isDone() const override;
+    void update(float time) override;
 
 protected:
     explicit CallFunc(Callback callback);
 
 private:
     Callback _callback;
-    bool _done = false;
+};
+
+class RemoveSelf : public ActionInstant {
+public:
+    static RemoveSelf* create(bool cleanup = true);
+
+    void update(float time) override;
+
+protected:
+    explicit RemoveSelf(bool cleanup);
+
+private:
+    bool _cleanup = true;
 };
 
 class Sequence : public Action {
