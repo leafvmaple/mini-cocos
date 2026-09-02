@@ -85,6 +85,39 @@ ZC_TEST(scheduler_honors_lifecycle_pause_and_repeat) {
     node.leave();
 }
 
+ZC_TEST(scheduler_target_pause_stops_later_callbacks) {
+    Scheduler scheduler;
+    TestNode node;
+    mstd::vector<int> order;
+
+    scheduler.schedule(
+        &node, "pause",
+        [&](float) {
+            order.push_back(1);
+            scheduler.pauseTarget(&node);
+        },
+        0.f, 0, 0.f, -1);
+    scheduler.schedule(&node, "second", [&](float) { order.push_back(2); }, 0.f, 0);
+    node.enter();
+    scheduler.update(0.1f);
+
+    ZC_CHECK_EQ(order.size(), static_cast<mstd::size_t>(1));
+    ZC_CHECK_EQ(order[0], 1);
+    ZC_CHECK(scheduler.isTargetPaused(&node));
+
+    scheduler.schedule(&node, "third", [&](float) { order.push_back(3); }, 0.f, 0);
+    scheduler.update(0.1f);
+    ZC_CHECK_EQ(order.size(), static_cast<mstd::size_t>(1));
+
+    scheduler.resumeTarget(&node);
+    scheduler.update(0.1f);
+    ZC_CHECK_EQ(order.size(), static_cast<mstd::size_t>(3));
+    ZC_CHECK_EQ(order[1], 2);
+    ZC_CHECK_EQ(order[2], 3);
+    ZC_CHECK_EQ(scheduler.getScheduledCount(), static_cast<mstd::size_t>(0));
+    node.leave();
+}
+
 ZC_TEST(action_manager_finishes_and_releases_actions) {
     ActionManager manager;
     TestNode node;
@@ -99,6 +132,75 @@ ZC_TEST(action_manager_finishes_and_releases_actions) {
     ZC_CHECK_EQ(action->steps, 2);
     ZC_CHECK_EQ(manager.getRunningActionCount(), static_cast<mstd::size_t>(0));
 
+    action->release();
+    node.leave();
+}
+
+ZC_TEST(action_manager_target_pause_stops_later_and_new_actions) {
+    AutoreleasePool pool("action target pause test");
+    ActionManager manager;
+    TestNode node;
+    auto* later = new CountingAction(10);
+    auto* addedWhilePaused = new CountingAction(10);
+
+    node.enter();
+    manager.addAction(CallFunc::create([&]() { manager.pauseTarget(&node); }), &node);
+    manager.addAction(later, &node);
+    manager.update(0.1f);
+
+    ZC_CHECK_EQ(later->steps, 0);
+    ZC_CHECK(manager.isTargetPaused(&node));
+
+    manager.addAction(addedWhilePaused, &node);
+    manager.update(0.1f);
+    ZC_CHECK_EQ(later->steps, 0);
+    ZC_CHECK_EQ(addedWhilePaused->steps, 0);
+
+    manager.resumeTarget(&node);
+    manager.update(0.1f);
+    ZC_CHECK_EQ(later->steps, 1);
+    ZC_CHECK_EQ(addedWhilePaused->steps, 1);
+
+    manager.removeAllActions();
+    later->release();
+    addedWhilePaused->release();
+    node.leave();
+}
+
+ZC_TEST(node_pause_forwards_to_actions_and_scheduler) {
+    auto& director = Director::getInstance();
+    auto& actionManager = director.getActionManager();
+    auto& scheduler = director.getScheduler();
+    TestNode node;
+    auto* action = new CountingAction(10);
+    int scheduleCalls = 0;
+
+    ZC_CHECK_EQ(actionManager.getRunningActionCount(), static_cast<mstd::size_t>(0));
+    ZC_CHECK_EQ(scheduler.getScheduledCount(), static_cast<mstd::size_t>(0));
+    node.enter();
+    node.runAction(action);
+    node.schedule("tick", [&](float) { ++scheduleCalls; });
+
+    node.pause();
+    ZC_CHECK(node.isPaused());
+    ZC_CHECK(actionManager.isTargetPaused(&node));
+    ZC_CHECK(scheduler.isTargetPaused(&node));
+    actionManager.update(0.1f);
+    scheduler.update(0.1f);
+    ZC_CHECK_EQ(action->steps, 0);
+    ZC_CHECK_EQ(scheduleCalls, 0);
+
+    node.resume();
+    ZC_CHECK(!node.isPaused());
+    ZC_CHECK(!actionManager.isTargetPaused(&node));
+    ZC_CHECK(!scheduler.isTargetPaused(&node));
+    actionManager.update(0.1f);
+    scheduler.update(0.1f);
+    ZC_CHECK_EQ(action->steps, 1);
+    ZC_CHECK_EQ(scheduleCalls, 1);
+
+    node.stopAllActions();
+    node.unscheduleAllCallbacks();
     action->release();
     node.leave();
 }

@@ -36,6 +36,7 @@ void Node::onEnter() {
     }
     _running = true;
     _transitionFinished = false;
+    resume();
     for (auto* child : _children) {
         if (child) {
             child->onEnter();
@@ -76,6 +77,7 @@ void Node::onExit() {
             child->onExit();
         }
     }
+    pause();
     _running = false;
     _transitionFinished = false;
 }
@@ -108,6 +110,18 @@ void Node::unschedule(const mstd::string& key) {
 
 void Node::unscheduleAllCallbacks() {
     Director::getInstance().getScheduler().unscheduleAllForTarget(this);
+}
+
+void Node::pause() {
+    _paused = true;
+    Director::getInstance().getScheduler().pauseTarget(this);
+    Director::getInstance().getActionManager().pauseTarget(this);
+}
+
+void Node::resume() {
+    _paused = false;
+    Director::getInstance().getScheduler().resumeTarget(this);
+    Director::getInstance().getActionManager().resumeTarget(this);
 }
 
 Action* Node::runAction(Action* action) {

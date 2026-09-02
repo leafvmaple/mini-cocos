@@ -82,8 +82,8 @@ public:
     bool isTransitionFinished() const { return _transitionFinished; }
     bool isPaused() const { return _paused; }
 
-    void pause() { _paused = true; }
-    void resume() { _paused = false; }
+    void pause();
+    void resume();
 
     virtual void onEnter();
     virtual void onEnterTransitionDidFinish();

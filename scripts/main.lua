@@ -106,6 +106,11 @@ if actionInfo then
     assert(actionInfo:getNumberOfRunningActions() == 1, "unexpected running action count")
     assert(actionInfo:getNumberOfRunningActionsByTag(actionTag) == 1,
         "unexpected tagged action count")
+
+    actionInfo:pause()
+    assert(actionInfo:isPaused(), "node did not pause")
+    actionInfo:resume()
+    assert(not actionInfo:isPaused(), "node did not resume")
 end
 
 local button = cc.Button:create("Click Me")

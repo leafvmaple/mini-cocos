@@ -54,6 +54,7 @@ void Scheduler::schedule(Node* target, const mstd::string& key, Callback callbac
     entry.order = _nextOrder++;
     entry.timesExecuted = 0;
     entry.cancelled = false;
+    entry.paused = isTargetPaused(target);
 
     if (_updating) {
         _pendingEntries.push_back(mstd::move(entry));
@@ -128,6 +129,58 @@ void Scheduler::unscheduleAllForTarget(Node* target) {
         _pendingEntries.end());
 }
 
+void Scheduler::pauseTarget(Node* target) {
+    if (!target) {
+        return;
+    }
+
+    for (auto& entry : _entries) {
+        if (!entry.cancelled && entry.target == target) {
+            entry.paused = true;
+        }
+    }
+    for (auto& entry : _pendingEntries) {
+        if (!entry.cancelled && entry.target == target) {
+            entry.paused = true;
+        }
+    }
+}
+
+void Scheduler::resumeTarget(Node* target) {
+    if (!target) {
+        return;
+    }
+
+    for (auto& entry : _entries) {
+        if (!entry.cancelled && entry.target == target) {
+            entry.paused = false;
+        }
+    }
+    for (auto& entry : _pendingEntries) {
+        if (!entry.cancelled && entry.target == target) {
+            entry.paused = false;
+        }
+    }
+}
+
+bool Scheduler::isTargetPaused(const Node* target) const {
+    if (!target) {
+        return false;
+    }
+
+    for (const auto& entry : _entries) {
+        if (!entry.cancelled && entry.target == target && entry.paused) {
+            return true;
+        }
+    }
+    for (const auto& entry : _pendingEntries) {
+        if (!entry.cancelled && entry.target == target && entry.paused) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void Scheduler::mergePendingEntries() {
     if (_pendingEntries.empty()) {
         return;
@@ -167,8 +220,8 @@ void Scheduler::update(float dt) {
 
     _updating = true;
     for (auto& entry : _entries) {
-        if (entry.cancelled || !entry.callback || !entry.target || !entry.target->isRunning() ||
-            entry.target->isPaused()) {
+        if (entry.cancelled || entry.paused || !entry.callback || !entry.target ||
+            !entry.target->isRunning() || entry.target->isPaused()) {
             continue;
         }
 

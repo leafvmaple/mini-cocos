@@ -22,6 +22,10 @@ public:
     mstd::size_t getNumberOfRunningActionsInTarget(const Node* target) const;
     mstd::size_t getNumberOfRunningActionsInTargetByTag(const Node* target, int tag) const;
 
+    void pauseTarget(Node* target);
+    void resumeTarget(Node* target);
+    bool isTargetPaused(const Node* target) const;
+
     void update(float dt);
 
     mstd::size_t getRunningActionCount() const;
@@ -31,6 +35,7 @@ private:
         Node* target = nullptr;
         Action* action = nullptr;
         bool removed = false;
+        bool paused = false;
     };
 
     void addEntry(Entry entry);

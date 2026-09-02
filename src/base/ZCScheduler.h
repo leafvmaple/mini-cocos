@@ -18,6 +18,11 @@ public:
                       int priority = 0);
     void unschedule(Node* target, const mstd::string& key);
     void unscheduleAllForTarget(Node* target);
+
+    void pauseTarget(Node* target);
+    void resumeTarget(Node* target);
+    bool isTargetPaused(const Node* target) const;
+
     void update(float dt);
 
     mstd::size_t getScheduledCount() const;
@@ -35,6 +40,7 @@ private:
         mstd::size_t order = 0;
         int timesExecuted = 0;
         bool cancelled = false;
+        bool paused = false;
     };
 
     void mergePendingEntries();

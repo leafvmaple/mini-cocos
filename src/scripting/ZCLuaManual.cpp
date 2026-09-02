@@ -1026,6 +1026,39 @@ int lua_zocos_Node_getTag(lua_State* tolua_S) {
     return reportWrongArgCount(tolua_S, "cc.Node:getTag", argc, 0);
 }
 
+int lua_zocos_Node_pause(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        cobj->pause();
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:pause", argc, 0);
+}
+
+int lua_zocos_Node_resume(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        cobj->resume();
+        return 0;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:resume", argc, 0);
+}
+
+int lua_zocos_Node_isPaused(lua_State* tolua_S) {
+    Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
+    const int argc = lua_gettop(tolua_S) - 1;
+    if (argc == 0) {
+        lua_pushboolean(tolua_S, cobj->isPaused());
+        return 1;
+    }
+
+    return reportWrongArgCount(tolua_S, "cc.Node:isPaused", argc, 0);
+}
+
 int lua_zocos_Node_convertToWorldSpace(lua_State* tolua_S) {
     Node* cobj = luaval_to_object<Node>(tolua_S, 1, kNodeMeta, "Node expected");
     const int argc = lua_gettop(tolua_S) - 1;
@@ -1615,6 +1648,9 @@ int register_all_zocos_manual(lua_State* tolua_S) {
         {"getLocalZOrder", lua_zocos_Node_getLocalZOrder},
         {"setTag", lua_zocos_Node_setTag},
         {"getTag", lua_zocos_Node_getTag},
+        {"pause", lua_zocos_Node_pause},
+        {"resume", lua_zocos_Node_resume},
+        {"isPaused", lua_zocos_Node_isPaused},
         {"convertToWorldSpace", lua_zocos_Node_convertToWorldSpace},
         {"convertToNodeSpace", lua_zocos_Node_convertToNodeSpace},
         {"setContentSize", lua_zocos_Node_setContentSize},

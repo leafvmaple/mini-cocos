@@ -12,6 +12,7 @@ void ActionManager::addAction(Action* action, Node* target) {
     entry.target = target;
     entry.action = action;
     entry.removed = false;
+    entry.paused = isTargetPaused(target);
 
     entry.target->retain();
     entry.action->retain();
@@ -180,6 +181,58 @@ mstd::size_t ActionManager::getNumberOfRunningActionsInTargetByTag(const Node* t
     return count;
 }
 
+void ActionManager::pauseTarget(Node* target) {
+    if (!target) {
+        return;
+    }
+
+    for (auto& entry : _entries) {
+        if (!entry.removed && entry.target == target) {
+            entry.paused = true;
+        }
+    }
+    for (auto& entry : _pendingEntries) {
+        if (!entry.removed && entry.target == target) {
+            entry.paused = true;
+        }
+    }
+}
+
+void ActionManager::resumeTarget(Node* target) {
+    if (!target) {
+        return;
+    }
+
+    for (auto& entry : _entries) {
+        if (!entry.removed && entry.target == target) {
+            entry.paused = false;
+        }
+    }
+    for (auto& entry : _pendingEntries) {
+        if (!entry.removed && entry.target == target) {
+            entry.paused = false;
+        }
+    }
+}
+
+bool ActionManager::isTargetPaused(const Node* target) const {
+    if (!target) {
+        return false;
+    }
+
+    for (const auto& entry : _entries) {
+        if (!entry.removed && entry.target == target && entry.paused) {
+            return true;
+        }
+    }
+    for (const auto& entry : _pendingEntries) {
+        if (!entry.removed && entry.target == target && entry.paused) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void ActionManager::update(float dt) {
     mergePendingEntries();
     if (_entries.empty()) {
@@ -191,7 +244,7 @@ void ActionManager::update(float dt) {
         if (entry.removed || !entry.target || !entry.action) {
             continue;
         }
-        if (!entry.target->isRunning() || entry.target->isPaused()) {
+        if (entry.paused || !entry.target->isRunning() || entry.target->isPaused()) {
             continue;
         }
 
