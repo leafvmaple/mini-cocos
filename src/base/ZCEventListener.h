@@ -12,6 +12,7 @@ public:
     enum class Type {
         Keyboard,
         Mouse,
+        TouchOneByOne,
     };
 
     Type getType() const { return _type; }
@@ -72,6 +73,38 @@ public:
 
 private:
     EventListenerMouse();
+};
+
+class EventListenerTouchOneByOne final : public EventListener {
+public:
+    using TouchBeganCallback = mstd::function<bool(Touch&, EventTouch&)>;
+    using TouchCallback = mstd::function<void(Touch&, EventTouch&)>;
+
+    static EventListenerTouchOneByOne* create();
+
+    bool init();
+    bool hasCallbacks() const override;
+    bool dispatchEvent(Event& event) override;
+
+    void setSwallowTouches(bool swallowTouches) { _swallowTouches = swallowTouches; }
+    bool isSwallowTouches() const { return _swallowTouches; }
+
+    TouchBeganCallback onTouchBegan;
+    TouchCallback onTouchMoved;
+    TouchCallback onTouchEnded;
+    TouchCallback onTouchCancelled;
+
+private:
+    EventListenerTouchOneByOne();
+
+    bool hasClaimedTouch(int touchId) const;
+    void claimTouch(int touchId);
+    void unclaimTouch(int touchId);
+
+    mstd::vector<int> _claimedTouchIds;
+    bool _swallowTouches = false;
+
+    friend class EventDispatcher;
 };
 
 } // namespace zocos

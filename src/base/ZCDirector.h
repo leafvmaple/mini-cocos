@@ -120,6 +120,8 @@ private:
     float _mouseX = 0.f;
     float _mouseY = 0.f;
     bool _hasMousePosition = false;
+    Touch _mouseTouch;
+    bool _mouseTouchActive = false;
     double _lastTime = 0.0;
 };
 

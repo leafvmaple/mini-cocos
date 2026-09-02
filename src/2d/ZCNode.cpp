@@ -237,6 +237,7 @@ void Node::reorderChild(Node* child, int localZOrder) {
     child->_localZOrder = localZOrder;
     child->_orderOfArrival = sGlobalOrderOfArrival++;
     _reorderChildDirty = true;
+    Director::getInstance().getEventDispatcher().setDirtyForNode(child);
 }
 
 Node* Node::getChildByTag(int tag) const {

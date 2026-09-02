@@ -14,6 +14,7 @@
 - 资源缓存：`TextureCache` 复用纹理并按引用计数自动释放 GPU 资源
 - 帧动画：`Animation` + `Animate`（可通过 `setTextureRect` 切换图集帧）
 - 缓动动作：`ActionEase` 包裹任意 `ActionInterval`，内置 `EaseSine*` / `EaseCubic*`（In/Out/InOut）曲线，以及带 `rate` 指数的乘幂缓动 `EaseIn` / `EaseOut` / `EaseInOut`
+- 输入事件：键盘、鼠标与单点 Touch；Touch 支持认领、吞噬和场景图优先级，桌面左键拖动会映射为完整触摸序列
 - Lua 脚本导出系统（`cc.*`）：可在 Lua 中创建 `Director` / `Scene` / `Sprite` / `Label` 并驱动 `Action`
 - 场景管理：`Director` 支持 `replaceScene` 淡入淡出，以及可暂停/恢复 Action 和 Scheduler 的 `pushScene` / `popScene` 场景栈
 - 示例：Lua 脚本中的精灵轨道运动与自转（或通过命令行传入图片路径）

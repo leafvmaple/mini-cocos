@@ -1,14 +1,47 @@
 #pragma once
 
+#include "base/ZCStd.h"
+#include "math/ZCMath.h"
+
 namespace zocos {
 
 class Node;
+
+class Touch {
+public:
+    void setTouchInfo(int id, float x, float y) {
+        _id = id;
+        _previousLocation = _location;
+        _location = {x, y};
+        if (!_startLocationCaptured) {
+            _startLocation = _location;
+            _previousLocation = _location;
+            _startLocationCaptured = true;
+        }
+    }
+
+    int getID() const { return _id; }
+    const Vec2& getLocation() const { return _location; }
+    const Vec2& getPreviousLocation() const { return _previousLocation; }
+    const Vec2& getStartLocation() const { return _startLocation; }
+    Vec2 getDelta() const {
+        return {_location.x - _previousLocation.x, _location.y - _previousLocation.y};
+    }
+
+private:
+    int _id = 0;
+    bool _startLocationCaptured = false;
+    Vec2 _startLocation{};
+    Vec2 _location{};
+    Vec2 _previousLocation{};
+};
 
 class Event {
 public:
     enum class Type {
         Keyboard,
         Mouse,
+        Touch,
     };
 
     virtual ~Event() = default;
@@ -115,6 +148,35 @@ private:
     float _deltaY = 0.f;
     float _offsetX = 0.f;
     float _offsetY = 0.f;
+};
+
+class EventTouch : public Event {
+public:
+    enum class EventCode {
+        BEGAN,
+        MOVED,
+        ENDED,
+        CANCELLED,
+    };
+
+    explicit EventTouch(EventCode eventCode) : Event(Type::Touch), _eventCode(eventCode) {}
+    EventTouch(EventCode eventCode, Touch* touch) : EventTouch(eventCode) {
+        if (touch) {
+            _touches.push_back(touch);
+        }
+    }
+
+    EventCode getEventCode() const { return _eventCode; }
+    const mstd::vector<Touch*>& getTouches() const { return _touches; }
+    void addTouch(Touch* touch) {
+        if (touch) {
+            _touches.push_back(touch);
+        }
+    }
+
+private:
+    EventCode _eventCode;
+    mstd::vector<Touch*> _touches;
 };
 
 } // namespace zocos

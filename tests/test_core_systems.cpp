@@ -368,3 +368,80 @@ ZC_TEST(event_dispatcher_honors_priority_and_mutation_during_dispatch) {
     first->release();
     second->release();
 }
+
+ZC_TEST(touch_listener_claims_sequences_and_optionally_swallows) {
+    AutoreleasePool pool("touch listener test");
+    EventDispatcher dispatcher;
+    mstd::vector<int> order;
+    bool verifyTouchGeometry = true;
+
+    auto* first = EventListenerTouchOneByOne::create();
+    auto* second = EventListenerTouchOneByOne::create();
+    first->onTouchBegan = [&](Touch& touch, EventTouch&) {
+        order.push_back(1);
+        ZC_CHECK_EQ(touch.getID(), 7);
+        if (verifyTouchGeometry) {
+            ZC_CHECK_NEAR(touch.getStartLocation().x, 10.f, 1e-4);
+        }
+        return true;
+    };
+    first->onTouchMoved = [&](Touch& touch, EventTouch&) {
+        order.push_back(3);
+        if (verifyTouchGeometry) {
+            ZC_CHECK_NEAR(touch.getPreviousLocation().x, 10.f, 1e-4);
+            ZC_CHECK_NEAR(touch.getDelta().x, 5.f, 1e-4);
+        }
+    };
+    first->onTouchEnded = [&](Touch&, EventTouch&) { order.push_back(5); };
+    second->onTouchBegan = [&](Touch&, EventTouch&) {
+        order.push_back(2);
+        return true;
+    };
+    second->onTouchMoved = [&](Touch&, EventTouch&) { order.push_back(4); };
+    second->onTouchEnded = [&](Touch&, EventTouch&) { order.push_back(6); };
+
+    dispatcher.addEventListenerWithFixedPriority(first, -10);
+    dispatcher.addEventListenerWithFixedPriority(second, 10);
+
+    Touch touch;
+    touch.setTouchInfo(7, 10.f, 20.f);
+    EventTouch began(EventTouch::EventCode::BEGAN, &touch);
+    dispatcher.dispatchEvent(began);
+    touch.setTouchInfo(7, 15.f, 25.f);
+    EventTouch moved(EventTouch::EventCode::MOVED, &touch);
+    dispatcher.dispatchEvent(moved);
+    EventTouch ended(EventTouch::EventCode::ENDED, &touch);
+    dispatcher.dispatchEvent(ended);
+
+    const int unswallowedOrder[] = {1, 2, 3, 4, 5, 6};
+    ZC_CHECK_EQ(order.size(), static_cast<mstd::size_t>(6));
+    for (mstd::size_t i = 0; i < order.size(); ++i) {
+        ZC_CHECK_EQ(order[i], unswallowedOrder[i]);
+    }
+
+    order.clear();
+    verifyTouchGeometry = false;
+    first->setSwallowTouches(true);
+    touch = Touch{};
+    touch.setTouchInfo(7, 30.f, 40.f);
+    EventTouch swallowedBegan(EventTouch::EventCode::BEGAN, &touch);
+    dispatcher.dispatchEvent(swallowedBegan);
+    touch.setTouchInfo(7, 31.f, 41.f);
+    EventTouch swallowedMoved(EventTouch::EventCode::MOVED, &touch);
+    dispatcher.dispatchEvent(swallowedMoved);
+    EventTouch swallowedEnded(EventTouch::EventCode::ENDED, &touch);
+    dispatcher.dispatchEvent(swallowedEnded);
+
+    const int swallowedOrder[] = {1, 3, 5};
+    ZC_CHECK_EQ(order.size(), static_cast<mstd::size_t>(3));
+    for (mstd::size_t i = 0; i < order.size(); ++i) {
+        ZC_CHECK_EQ(order[i], swallowedOrder[i]);
+    }
+
+    order.clear();
+    EventTouch movedAfterEnd(EventTouch::EventCode::MOVED, &touch);
+    dispatcher.dispatchEvent(movedAfterEnd);
+    ZC_CHECK(order.empty());
+
+    dispatcher.removeAllEventListeners();
+}

@@ -242,6 +242,7 @@ if(ZOCOS_BUILD_TESTS)
     src/base/ZCScheduler.cpp
     src/base/ZCEventDispatcher.cpp
     src/base/ZCEventListenerMouse.cpp
+    src/base/ZCEventListenerTouch.cpp
     src/base/ZCDirector.cpp
     src/ui/UIWidget.cpp
   )

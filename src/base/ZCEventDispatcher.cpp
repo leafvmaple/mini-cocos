@@ -14,6 +14,8 @@ int EventDispatcher::getListenerID(Event::Type type) {
         return getListenerID(EventListener::Type::Keyboard);
     case Event::Type::Mouse:
         return getListenerID(EventListener::Type::Mouse);
+    case Event::Type::Touch:
+        return getListenerID(EventListener::Type::TouchOneByOne);
     default:
         break;
     }
@@ -154,6 +156,11 @@ void EventDispatcher::dispatchEvent(Event& event) {
         updateListeners();
     }
 
+    if (event.getType() == Event::Type::Touch) {
+        dispatchTouchEvent(static_cast<EventTouch&>(event));
+        return;
+    }
+
     const int eventTypeKey = getListenerID(event.getType());
     if (eventTypeKey < 0) {
         return;
@@ -177,6 +184,93 @@ void EventDispatcher::dispatchEvent(Event& event) {
     };
 
     dispatchEventToListeners(listeners, onEvent);
+
+    --_inDispatch;
+    event.setCurrentTarget(nullptr);
+
+    if (!isDispatching()) {
+        updateListeners();
+    }
+}
+
+void EventDispatcher::setDirtyForNode(Node* node) {
+    if (!node) {
+        return;
+    }
+
+    for (auto& [_, listeners] : _listenerMap) {
+        listeners._dirtyNodePriority = true;
+    }
+}
+
+void EventDispatcher::dispatchTouchEvent(EventTouch& event) {
+    const int eventTypeKey = getListenerID(EventListener::Type::TouchOneByOne);
+    auto iter = _listenerMap.find(eventTypeKey);
+    if (iter == _listenerMap.end() || iter->second.empty()) {
+        return;
+    }
+
+    auto& listeners = iter->second;
+    sortEventListeners(listeners);
+
+    event.resetForDispatch();
+    ++_inDispatch;
+
+    for (Touch* touch : event.getTouches()) {
+        if (!touch) {
+            continue;
+        }
+
+        auto onTouchEvent = [&event, touch](ListenerEntry& entry) -> bool {
+            auto* listener = static_cast<EventListenerTouchOneByOne*>(entry.listener);
+            event.setCurrentTarget(entry.target);
+
+            const int touchId = touch->getID();
+            bool claimed = false;
+            if (event.getEventCode() == EventTouch::EventCode::BEGAN) {
+                listener->unclaimTouch(touchId);
+                if (listener->onTouchBegan) {
+                    claimed = listener->onTouchBegan(*touch, event);
+                    if (claimed && !entry.removed) {
+                        listener->claimTouch(touchId);
+                    }
+                }
+            } else if (listener->hasClaimedTouch(touchId)) {
+                claimed = true;
+                switch (event.getEventCode()) {
+                case EventTouch::EventCode::MOVED:
+                    if (listener->onTouchMoved) {
+                        listener->onTouchMoved(*touch, event);
+                    }
+                    break;
+                case EventTouch::EventCode::ENDED:
+                    if (listener->onTouchEnded) {
+                        listener->onTouchEnded(*touch, event);
+                    }
+                    listener->unclaimTouch(touchId);
+                    break;
+                case EventTouch::EventCode::CANCELLED:
+                    if (listener->onTouchCancelled) {
+                        listener->onTouchCancelled(*touch, event);
+                    }
+                    listener->unclaimTouch(touchId);
+                    break;
+                case EventTouch::EventCode::BEGAN:
+                    break;
+                }
+            }
+
+            if (event.isStopped()) {
+                return true;
+            }
+            return claimed && !entry.removed && listener->isSwallowTouches();
+        };
+
+        dispatchEventToListeners(listeners, onTouchEvent);
+        if (event.isStopped()) {
+            break;
+        }
+    }
 
     --_inDispatch;
     event.setCurrentTarget(nullptr);
@@ -298,13 +392,21 @@ void EventDispatcher::sortEventListeners(EventListenerVector& listeners) {
 
 void EventDispatcher::visitTarget(Node* node) {
     node->sortAllChildren();
-    _nodePriorityMap[node] = ++_nodePriorityIndex;
 
     const auto& children = node->getChildren();
+    bool nodeVisited = false;
     for (Node* child : children) {
         if (child) {
+            if (!nodeVisited && child->getLocalZOrder() >= 0) {
+                _nodePriorityMap[node] = ++_nodePriorityIndex;
+                nodeVisited = true;
+            }
             visitTarget(child);
         }
+    }
+
+    if (!nodeVisited) {
+        _nodePriorityMap[node] = ++_nodePriorityIndex;
     }
 }
 

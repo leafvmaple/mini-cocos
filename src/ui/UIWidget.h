@@ -8,7 +8,7 @@
 
 namespace zocos {
 
-class EventMouse;
+class Touch;
 
 namespace ui {
 
@@ -38,9 +38,10 @@ private:
     void unregisterInputListener();
 
     bool containsWorldPoint(float x, float y) const;
-    void handleMouseDown(EventMouse& event);
-    void handleMouseUp(EventMouse& event);
-    void handleMouseMove(EventMouse& event);
+    bool handleTouchBegan(Touch& touch);
+    void handleTouchMoved(Touch& touch);
+    void handleTouchEnded(Touch& touch);
+    void handleTouchCancelled();
 
     EventDispatcher::ListenerHandle _listenerId = 0;
     bool _pressed = false;

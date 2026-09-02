@@ -20,6 +20,7 @@ public:
     void removeAllEventListeners();
 
     void dispatchEvent(Event& event);
+    void setDirtyForNode(Node* node);
     void setSceneGraphRoot(Node* root) {
         _sceneGraphRoot = root;
         for (auto& entry : _listenerMap) {
@@ -59,6 +60,7 @@ private:
     void updateListeners();
     void sortEventListeners(EventListenerVector& listeners);
     void visitTarget(Node* node);
+    void dispatchTouchEvent(EventTouch& event);
     bool dispatchEventToListeners(EventListenerVector& listeners, const ListenerEvent& onEvent);
     bool cleanRemovedListenersInVector(ListenerVector& listeners);
     void cleanToRemovedListeners();

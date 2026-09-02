@@ -60,6 +60,8 @@ bool Director::init(int width, int height, const char* title) {
 
     _fbWidth = _view->getFramebufferWidth();
     _fbHeight = _view->getFramebufferHeight();
+    _mouseTouch = Touch{};
+    _mouseTouchActive = false;
 
     float mouseX = 0.f;
     float mouseY = 0.f;
@@ -123,6 +125,8 @@ void Director::shutdown() {
     _fbWidth = 0;
     _fbHeight = 0;
     _hasMousePosition = false;
+    _mouseTouch = Touch{};
+    _mouseTouchActive = false;
     _transitionDuration = 0.f;
     _transitionElapsed = 0.f;
     _transitionSceneSwitched = false;
@@ -410,6 +414,7 @@ bool Director::onViewKeyEvent(int keyCode, int scanCode, int modifiers, bool pre
 
 void Director::onViewMouseButtonEvent(int button, int modifiers, bool buttonActive, float x,
                                       float y) {
+    setMousePosition(x, y);
     const auto mouseEventType = buttonActive ? EventMouse::MouseEventType::MOUSE_DOWN
                                              : EventMouse::MouseEventType::MOUSE_UP;
     const auto mouseButton = (button >= static_cast<int>(EventMouse::MouseButton::BUTTON_LEFT) &&
@@ -421,6 +426,30 @@ void Director::onViewMouseButtonEvent(int button, int modifiers, bool buttonActi
     event.setMouseButton(mouseButton);
     event.setModifiers(modifiers);
     _eventDispatcher.dispatchEvent(event);
+
+    if (mouseButton != EventMouse::MouseButton::BUTTON_LEFT) {
+        return;
+    }
+
+    if (buttonActive) {
+        if (_mouseTouchActive) {
+            return;
+        }
+        _mouseTouch = Touch{};
+        _mouseTouch.setTouchInfo(0, x, y);
+        _mouseTouchActive = true;
+        EventTouch touchEvent(EventTouch::EventCode::BEGAN, &_mouseTouch);
+        _eventDispatcher.dispatchEvent(touchEvent);
+        return;
+    }
+
+    if (!_mouseTouchActive) {
+        return;
+    }
+    _mouseTouch.setTouchInfo(0, x, y);
+    EventTouch touchEvent(EventTouch::EventCode::ENDED, &_mouseTouch);
+    _eventDispatcher.dispatchEvent(touchEvent);
+    _mouseTouchActive = false;
 }
 
 void Director::onViewMouseMoveEvent(float x, float y, float deltaX, float deltaY) {
@@ -429,6 +458,12 @@ void Director::onViewMouseMoveEvent(float x, float y, float deltaX, float deltaY
     event.setPosition(x, y);
     event.setDelta(deltaX, deltaY);
     _eventDispatcher.dispatchEvent(event);
+
+    if (_mouseTouchActive) {
+        _mouseTouch.setTouchInfo(0, x, y);
+        EventTouch touchEvent(EventTouch::EventCode::MOVED, &_mouseTouch);
+        _eventDispatcher.dispatchEvent(touchEvent);
+    }
 }
 
 void Director::onViewMouseScrollEvent(float offsetX, float offsetY, float x, float y) {

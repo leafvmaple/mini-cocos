@@ -41,14 +41,17 @@ void Widget::registerInputListener() {
         return;
     }
 
-    auto* listener = EventListenerMouse::create();
+    auto* listener = EventListenerTouchOneByOne::create();
     if (!listener) {
         return;
     }
 
-    listener->onMouseDown = [this](EventMouse& event) { handleMouseDown(event); };
-    listener->onMouseUp = [this](EventMouse& event) { handleMouseUp(event); };
-    listener->onMouseMove = [this](EventMouse& event) { handleMouseMove(event); };
+    listener->setSwallowTouches(true);
+    listener->onTouchBegan =
+        [this](Touch& touch, EventTouch&) { return handleTouchBegan(touch); };
+    listener->onTouchMoved = [this](Touch& touch, EventTouch&) { handleTouchMoved(touch); };
+    listener->onTouchEnded = [this](Touch& touch, EventTouch&) { handleTouchEnded(touch); };
+    listener->onTouchCancelled = [this](Touch&, EventTouch&) { handleTouchCancelled(); };
 
     _listenerId = Director::getInstance().getEventDispatcher().addEventListenerWithNodePriority(
         listener, this);
@@ -77,31 +80,25 @@ bool Widget::containsWorldPoint(float x, float y) const {
     return local.x >= 0.f && local.y >= 0.f && local.x <= size.width && local.y <= size.height;
 }
 
-void Widget::handleMouseDown(EventMouse& event) {
-    if (event.getMouseButton() != EventMouse::MouseButton::BUTTON_LEFT) {
-        return;
-    }
-
-    if (!hitTest(event.getX(), event.getY())) {
-        return;
+bool Widget::handleTouchBegan(Touch& touch) {
+    const Vec2& location = touch.getLocation();
+    if (!hitTest(location.x, location.y)) {
+        return false;
     }
 
     _trackingPress = true;
     _pressed = true;
     onPressStateChanged(true);
-    event.stopPropagation();
+    return true;
 }
 
-void Widget::handleMouseUp(EventMouse& event) {
-    if (event.getMouseButton() != EventMouse::MouseButton::BUTTON_LEFT) {
-        return;
-    }
-
+void Widget::handleTouchEnded(Touch& touch) {
     if (!_trackingPress) {
         return;
     }
 
-    const bool inside = hitTest(event.getX(), event.getY());
+    const Vec2& location = touch.getLocation();
+    const bool inside = hitTest(location.x, location.y);
     _trackingPress = false;
     if (_pressed) {
         _pressed = false;
@@ -112,26 +109,31 @@ void Widget::handleMouseUp(EventMouse& event) {
         auto callback = _eventCallback;
         retain();
         callback(*this);
-        event.stopPropagation();
         release();
-        return;
     }
-
-    event.stopPropagation();
 }
 
-void Widget::handleMouseMove(EventMouse& event) {
+void Widget::handleTouchMoved(Touch& touch) {
     if (!_trackingPress) {
         return;
     }
 
-    const bool pressed = hitTest(event.getX(), event.getY());
+    const Vec2& location = touch.getLocation();
+    const bool pressed = hitTest(location.x, location.y);
     if (pressed == _pressed) {
         return;
     }
 
     _pressed = pressed;
     onPressStateChanged(pressed);
+}
+
+void Widget::handleTouchCancelled() {
+    _trackingPress = false;
+    if (_pressed) {
+        _pressed = false;
+        onPressStateChanged(false);
+    }
 }
 
 } // namespace zocos::ui

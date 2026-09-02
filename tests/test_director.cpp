@@ -2,8 +2,10 @@
 
 #include "2d/ZCScene.h"
 #include "base/ZCAction.h"
+#include "base/ZCAutoreleasePool.h"
 #include "base/ZCDirector.h"
 #include "base/ZCEvent.h"
+#include "base/ZCEventListener.h"
 #include "ui/UIWidget.h"
 
 using namespace zocos;
@@ -61,6 +63,18 @@ public:
 
 private:
     bool& _destroyed;
+};
+
+class TrackingWidget final : public ui::Widget {
+public:
+    bool pressed() const { return isPressed(); }
+    const mstd::vector<bool>& pressStates() const { return _pressStates; }
+
+protected:
+    void onPressStateChanged(bool pressed) override { _pressStates.push_back(pressed); }
+
+private:
+    mstd::vector<bool> _pressStates;
 };
 } // namespace
 
@@ -160,15 +174,13 @@ ZC_TEST(widget_survives_until_its_removal_callback_returns) {
     widget->release();
     director.runWithScene(scene);
 
-    EventMouse mouseDown(EventMouse::MouseEventType::MOUSE_DOWN);
-    mouseDown.setMouseButton(EventMouse::MouseButton::BUTTON_LEFT);
-    mouseDown.setPosition(10.f, 10.f);
-    director.getEventDispatcher().dispatchEvent(mouseDown);
+    Touch touch;
+    touch.setTouchInfo(0, 10.f, 10.f);
+    EventTouch touchBegan(EventTouch::EventCode::BEGAN, &touch);
+    director.getEventDispatcher().dispatchEvent(touchBegan);
 
-    EventMouse mouseUp(EventMouse::MouseEventType::MOUSE_UP);
-    mouseUp.setMouseButton(EventMouse::MouseButton::BUTTON_LEFT);
-    mouseUp.setPosition(10.f, 10.f);
-    director.getEventDispatcher().dispatchEvent(mouseUp);
+    EventTouch touchEnded(EventTouch::EventCode::ENDED, &touch);
+    director.getEventDispatcher().dispatchEvent(touchEnded);
 
     ZC_CHECK(callbackCalled);
     ZC_CHECK(aliveAfterRemoval);
@@ -176,6 +188,167 @@ ZC_TEST(widget_survives_until_its_removal_callback_returns) {
 
     director.shutdown();
     scene->release();
+}
+
+ZC_TEST(widget_touch_prefers_topmost_and_drag_out_cancels_click) {
+    Director& director = Director::getInstance();
+    director.shutdown();
+
+    auto* scene = new RecordingScene();
+    auto* bottom = new TrackingWidget();
+    auto* top = new TrackingWidget();
+    bottom->setAnchorPoint({0.f, 0.f});
+    bottom->setContentSize({100.f, 100.f});
+    top->setAnchorPoint({0.f, 0.f});
+    top->setContentSize({100.f, 100.f});
+
+    int bottomClicks = 0;
+    int topClicks = 0;
+    bottom->addEventListener([&](ui::Widget&) { ++bottomClicks; });
+    top->addEventListener([&](ui::Widget&) { ++topClicks; });
+    scene->addChild(bottom);
+    scene->addChild(top);
+    bottom->release();
+    top->release();
+    director.runWithScene(scene);
+
+    Touch touch;
+    touch.setTouchInfo(0, 10.f, 10.f);
+    EventTouch began(EventTouch::EventCode::BEGAN, &touch);
+    director.getEventDispatcher().dispatchEvent(began);
+    ZC_CHECK(top->pressed());
+    ZC_CHECK(!bottom->pressed());
+
+    EventTouch ended(EventTouch::EventCode::ENDED, &touch);
+    director.getEventDispatcher().dispatchEvent(ended);
+    ZC_CHECK_EQ(topClicks, 1);
+    ZC_CHECK_EQ(bottomClicks, 0);
+
+    touch = Touch{};
+    touch.setTouchInfo(0, 10.f, 10.f);
+    EventTouch dragBegan(EventTouch::EventCode::BEGAN, &touch);
+    director.getEventDispatcher().dispatchEvent(dragBegan);
+    touch.setTouchInfo(0, 150.f, 150.f);
+    EventTouch dragMoved(EventTouch::EventCode::MOVED, &touch);
+    director.getEventDispatcher().dispatchEvent(dragMoved);
+    ZC_CHECK(!top->pressed());
+    EventTouch dragEnded(EventTouch::EventCode::ENDED, &touch);
+    director.getEventDispatcher().dispatchEvent(dragEnded);
+    ZC_CHECK_EQ(topClicks, 1);
+    ZC_CHECK_EQ(bottomClicks, 0);
+
+    touch = Touch{};
+    touch.setTouchInfo(0, 10.f, 10.f);
+    EventTouch cancelBegan(EventTouch::EventCode::BEGAN, &touch);
+    director.getEventDispatcher().dispatchEvent(cancelBegan);
+    EventTouch cancelled(EventTouch::EventCode::CANCELLED, &touch);
+    director.getEventDispatcher().dispatchEvent(cancelled);
+    ZC_CHECK(!top->pressed());
+    ZC_CHECK_EQ(topClicks, 1);
+    ZC_CHECK_EQ(bottomClicks, 0);
+
+    const auto& pressStates = top->pressStates();
+    ZC_CHECK_EQ(pressStates.size(), static_cast<mstd::size_t>(6));
+    for (mstd::size_t i = 0; i < pressStates.size(); ++i) {
+        ZC_CHECK_EQ(pressStates[i], i % 2 == 0);
+    }
+
+    bottom->setLocalZOrder(1);
+    touch = Touch{};
+    touch.setTouchInfo(0, 10.f, 10.f);
+    EventTouch reorderedBegan(EventTouch::EventCode::BEGAN, &touch);
+    director.getEventDispatcher().dispatchEvent(reorderedBegan);
+    EventTouch reorderedEnded(EventTouch::EventCode::ENDED, &touch);
+    director.getEventDispatcher().dispatchEvent(reorderedEnded);
+    ZC_CHECK_EQ(topClicks, 1);
+    ZC_CHECK_EQ(bottomClicks, 1);
+
+    director.shutdown();
+    scene->release();
+}
+
+ZC_TEST(widget_touch_places_parent_above_negative_z_child) {
+    Director& director = Director::getInstance();
+    director.shutdown();
+
+    auto* scene = new RecordingScene();
+    auto* parent = new TrackingWidget();
+    auto* backChild = new TrackingWidget();
+    parent->setAnchorPoint({0.f, 0.f});
+    parent->setContentSize({100.f, 100.f});
+    backChild->setAnchorPoint({0.f, 0.f});
+    backChild->setContentSize({100.f, 100.f});
+
+    int parentClicks = 0;
+    int childClicks = 0;
+    parent->addEventListener([&](ui::Widget&) { ++parentClicks; });
+    backChild->addEventListener([&](ui::Widget&) { ++childClicks; });
+    parent->addChild(backChild, -1);
+    scene->addChild(parent);
+    backChild->release();
+    parent->release();
+    director.runWithScene(scene);
+
+    Touch touch;
+    touch.setTouchInfo(0, 10.f, 10.f);
+    EventTouch began(EventTouch::EventCode::BEGAN, &touch);
+    director.getEventDispatcher().dispatchEvent(began);
+    EventTouch ended(EventTouch::EventCode::ENDED, &touch);
+    director.getEventDispatcher().dispatchEvent(ended);
+
+    ZC_CHECK_EQ(parentClicks, 1);
+    ZC_CHECK_EQ(childClicks, 0);
+
+    director.shutdown();
+    scene->release();
+}
+
+ZC_TEST(director_maps_left_mouse_drag_to_touch_sequence) {
+    Director& director = Director::getInstance();
+    director.shutdown();
+    AutoreleasePool pool("mouse touch mapping test");
+    mstd::vector<EventTouch::EventCode> eventCodes;
+    Vec2 moveDelta{};
+
+    auto* listener = EventListenerTouchOneByOne::create();
+    listener->onTouchBegan = [&](Touch& touch, EventTouch& event) {
+        eventCodes.push_back(event.getEventCode());
+        ZC_CHECK_NEAR(touch.getLocation().x, 10.f, 1e-4);
+        ZC_CHECK_NEAR(touch.getStartLocation().y, 20.f, 1e-4);
+        return true;
+    };
+    listener->onTouchMoved = [&](Touch& touch, EventTouch& event) {
+        eventCodes.push_back(event.getEventCode());
+        moveDelta = touch.getDelta();
+    };
+    listener->onTouchEnded = [&](Touch& touch, EventTouch& event) {
+        eventCodes.push_back(event.getEventCode());
+        ZC_CHECK_NEAR(touch.getLocation().x, 18.f, 1e-4);
+        ZC_CHECK_NEAR(touch.getLocation().y, 29.f, 1e-4);
+    };
+    director.getEventDispatcher().addEventListenerWithFixedPriority(listener, -1);
+
+    ViewDelegate& viewDelegate = director;
+    viewDelegate.onViewMouseButtonEvent(
+        static_cast<int>(EventMouse::MouseButton::BUTTON_RIGHT), 0, true, 1.f, 2.f);
+    viewDelegate.onViewMouseButtonEvent(
+        static_cast<int>(EventMouse::MouseButton::BUTTON_RIGHT), 0, false, 1.f, 2.f);
+    ZC_CHECK(eventCodes.empty());
+
+    viewDelegate.onViewMouseButtonEvent(
+        static_cast<int>(EventMouse::MouseButton::BUTTON_LEFT), 0, true, 10.f, 20.f);
+    viewDelegate.onViewMouseMoveEvent(15.f, 25.f, 5.f, 5.f);
+    viewDelegate.onViewMouseButtonEvent(
+        static_cast<int>(EventMouse::MouseButton::BUTTON_LEFT), 0, false, 18.f, 29.f);
+
+    ZC_CHECK_EQ(eventCodes.size(), static_cast<mstd::size_t>(3));
+    ZC_CHECK_EQ(eventCodes[0], EventTouch::EventCode::BEGAN);
+    ZC_CHECK_EQ(eventCodes[1], EventTouch::EventCode::MOVED);
+    ZC_CHECK_EQ(eventCodes[2], EventTouch::EventCode::ENDED);
+    ZC_CHECK_NEAR(moveDelta.x, 5.f, 1e-4);
+    ZC_CHECK_NEAR(moveDelta.y, 5.f, 1e-4);
+
+    director.getEventDispatcher().removeAllEventListeners();
 }
 
 ZC_TEST(director_applies_frame_callback_scene_changes_at_a_safe_point) {
